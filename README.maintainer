@@ -28,9 +28,9 @@ Note:
 	5. autoreconf                (remakes above files after changes)
 
 ## Building
-	1. mkdir ../m3ua.build    (create build directory)
-	2. cd ../m3ua.build       (change working directory for build)
-	3. ../m3ua/configure      (creates Makefiles)
+	1. mkdir ../m3ua.build       (create build directory)
+	2. cd ../m3ua.build          (change working directory for build)
+	3. ../m3ua/configure         (creates Makefiles)
 	4. make                      (builds entire package)
 	5. make check                (run dialyzer and common_test)
 
