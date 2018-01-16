@@ -1,0 +1,39 @@
+@copyright 2015-2018 SigScale Global Inc.
+@version %VERSION%
+@title %DESCRIPTION%
+@doc This application implements an M3UA protocol stack.
+@reference <a href="http://tools.ietf.org/rfc/rfc2719">RFC2719: Framework Architecture for Signaling Transport</a>
+@reference <a href="http://tools.ietf.org/rfc/rfc4166">RFC4166: Telephony Signalling Transport over Stream Control Transmission Protocol (SCTP) Applicability Statement</a>
+@reference <a href="http://tools.ietf.org/rfc/rfc4666">RFC4666: Signaling System 7 (SS7) Message Transfer Part 3 (MTP3) - User Adaptation Layer (M3UA)</a>
+
+==Introduction==
+The Signaling Transport (SIGTRAN) protocol suite provides for transport
+of telephony signaling protocol messages over Internet Protocol (IP) networks.
+
+==Operation==
+
+To create a new service access point for a server:
+```
+	1> {ok, SAP} = m3ua:open().
+	{ok,<0.51.0>}
+'''
+To close an open service access point:
+```
+	2> m3ua:close(SAP).
+	ok
+'''
+
+==Database Schema==
+Describe the layout of any mnesia tables used in the application....
+
+==Configuration==
+Document all application environment variables which exist...
+
+The application is configured using the following environment variables:
+<dl>
+  <dt>foo</dt>
+    <dd>Describe the effect of the foo variable.</dd>
+  <dt>bar</dt>
+    <dd>Describe the effect of the bar variable.</dd>
+</dl>
+
