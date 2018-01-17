@@ -52,7 +52,7 @@ store_parameter(Tag, Value, Params) ->
 		Tag :: integer(),
 		Params :: [tuple()],
 		Result :: {ok, term()} | {error, not_found}.
-%% @doc Search for a parameter in M3UA parameter list 
+%% @doc Search for a parameter in M3UA parameter list
 find_parameter(Tag, Params) ->
 	case lists:keyfind(Tag, 1, Params) of
 		{_, Value} ->
@@ -66,7 +66,7 @@ find_parameter(Tag, Params) ->
 		Tag :: integer(),
 		Params :: [tuple()],
 		Parameter :: term().
-%% @doc Return the value for an parameter in M3UA parameter list 
+%% @doc Return the value for an parameter in M3UA parameter list
 fetch_parameter(Tag, Params) ->
 	case lists:keyfind(Tag, 1, Params) of
 		{_, Value} ->
@@ -125,7 +125,7 @@ parameters([{?RoutingContext, RoutingContext} | T], Acc) ->
 	Len = size(RCs) + 4,
 	parameters(T,<<Acc/binary, ?RoutingContext:16, Len:16, RCs/binary>>);
 parameters([{?DiagnosticInformation, DiagnosticInfo} | T], Acc) ->
-	Len = size(DiagnosticInfo) + 4, 
+	Len = size(DiagnosticInfo) + 4,
 	parameters(T, <<Acc/binary, ?DiagnosticInformation:16,
 			Len:16, DiagnosticInfo/binary>>);
 parameters([{?HeartbeatData, HeartbeatData} | T], Acc) ->
@@ -412,7 +412,7 @@ error_code1(no_configure_AS_for_ASP) -> 42.
 	when
 		ProtocolData :: binary() | #protocol_data{}.
 %% @doc code for protocol data
-%% RFC4666, Section-3.3.1 
+%% RFC4666, Section-3.3.1
 %% @hidden
 %%
 protocol_data(<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>) ->

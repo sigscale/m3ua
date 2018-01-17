@@ -78,7 +78,7 @@ stop(_State) ->
 -spec config_change(Changed :: [{Par :: atom(), Val :: atom()}],
 		New :: [{Par :: atom(), Val :: atom()}],
 		Removed :: [Par :: atom()]) -> ok.
-%% @doc Called after a code  replacement, if there are any 
+%% @doc Called after a code  replacement, if there are any
 %% 	changes to the configuration  parameters.
 %%
 config_change(_Changed, _New, _Removed) ->

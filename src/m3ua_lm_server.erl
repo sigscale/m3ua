@@ -17,7 +17,7 @@
 %%% @doc This {@link //stdlib/gen_server. gen_server} behaviour callback
 %%% 	module implements the layer management access point in the
 %%% 	{@link //m3ua. m3ua} application.
-%%%   
+%%%
 -module(m3ua_lm_server).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
@@ -93,7 +93,7 @@ handle_call({open, Args}, {USAP, _Tag} = _From,
 			Children = supervisor:which_children(EndPointSup),
 			{_, EP, _, _} = lists:keyfind(m3ua_server_endpoint_server,
 					1, Children),
-			NewEndPoints = gb_trees:insert(EP, USAP, EndPoints), 
+			NewEndPoints = gb_trees:insert(EP, USAP, EndPoints),
 			NewState = State#state{eps = NewEndPoints},
 			{reply, {ok, EP}, NewState};
 		{error, Reason} ->
@@ -135,7 +135,7 @@ handle_info(timeout, #state{server_sup = undefined,
 		client_sup = undefined} = State) ->
 	NewState = get_sups(State),
 	{noreply, NewState}.
-	
+
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->
 	any().
