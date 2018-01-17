@@ -23,6 +23,14 @@
 %% export the m3ua public API
 -export([open/0, close/1]).
 
+-export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
+			asp_inactive/2]).
+
+-type assoc_id() :: term().
+
+-include_lib("kernel/include/inet_sctp.hrl").
+
 %%----------------------------------------------------------------------
 %%  The m3ua API
 %%----------------------------------------------------------------------
@@ -37,6 +45,102 @@ open() ->
 close(EP) when is_pid(EP) ->
 	m3ua_lm_server:close(EP).
 
+-spec sctp_establish(SAP, Address, Port, Options) -> Result
+	when
+		SAP :: pid(),
+		Address :: inet:ip_address() | inet:hostname(),
+		Port :: inet:port_number(),
+		Options :: [gen_sctp:option()],
+		Result :: {ok, Assoc} | {error, Reason},
+		Assoc :: assoc_id(),
+		Reason :: term().
+%% @doc Establish an SCTP association.
+sctp_establish(_SAP, _Address, _Port, _Options) ->
+	{error, not_implemented}.
+
+-spec sctp_release(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Release an established SCTP association.
+sctp_release(_SAP, _Assoc) ->
+	{error, not_implemented}.
+
+-spec sctp_status(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: {ok, AssocStatus} | {error, Reason},
+		AssocStatus :: #sctp_status{},
+		Reason :: term().
+%% @doc Report the status of an SCTP association.
+sctp_status(_SAP, _Assoc) ->
+	{error, not_implemented}.
+
+-spec asp_status(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: {ok, AspState} | {error, Reason},
+		AspState :: down | inactive | active,
+		Reason :: term().
+%% @doc Report the status of local or remote ASP.
+asp_status(_SAP, _Assoc) ->
+	{error, not_implemented}.
+
+%%-spec as_status(SAP, ???) -> Result
+%%	when
+%%		SAP :: pid(),
+%%		Result :: {ok, AsState} | {error, Reason},
+%%		AsState :: down | inactive | active | pending,
+%%		Reason :: term().
+%%%% doc Report the status of an AS.
+%%as_status(SAP, ???) ->
+%%	todo.
+
+-spec asp_up(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP start its operation
+%%  and send an ASP Up message to its peer.
+asp_up(_SAP, _Assoc) ->
+	{error, not_implemented}.
+
+-spec asp_down(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP stop its operation
+%%  and send an ASP Down message to its peer.
+asp_down(_SAP, _Assoc) ->
+	{error, not_implemented}.
+
+-spec asp_active(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP send an ASP Active message to its peer.
+asp_active(_SAP, _Assoc) ->
+	{error, not_implemented}.
+
+-spec asp_inactive(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP send an ASP Inactive message to its peer.
+asp_inactive(_SAP, _Assoc) ->
+	{error, not_implemented}.
 
 %%----------------------------------------------------------------------
 %%  internal functions
