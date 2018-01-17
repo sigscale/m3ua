@@ -32,7 +32,7 @@
 			terminate/3, code_change/4]).
 
 %% export the gen_fsm state callbacks
--export([comm_up/2, comm_up/3, comm_lost/2, comm_lost/3]).
+-export([down/2, down/3, inactive/2, inactive/3, active/2, active/3]).
 
 -include_lib("kernel/include/inet_sctp.hrl").
 
@@ -70,53 +70,75 @@ init([{sctp, _Socket, PeerAddr, PeerPort,
 	StateData = #statedata{peer_addr = PeerAddr, peer_port = PeerPort,
 			in_streams = InStreams, out_streams = OutStreams,
 			assoc_id = AssocId},
-	{ok, comm_up, StateData};
+	{ok, down, StateData};
 init([{sctp, _Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = Other, error = Error}}}]) ->
 	{stop, {Other, Error}}.
 
--spec comm_up(Event :: timeout | term(), StateData :: #statedata{}) ->
+-spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
 			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
 				timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%% 	gen_fsm:send_event/2} in the <b>comm_up</b> state.
+%% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-comm_up(_Event, #statedata{} = StateData) ->
-	{next_state, comm_up, StateData}.
+down(_Event, #statedata{} = StateData) ->
+	{next_state, down, StateData}.
 
--spec comm_up(Event :: timeout | term(), From :: {pid(), Tag :: term()},
+-spec down(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
             NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
-%% 	gen_fsm:sync_send_event/2,3} in the <b>comm_up</b> state.
+%% 	gen_fsm:sync_send_event/2,3} in the <b>down</b> state.
 %% @private
 %%
-comm_up(Event, _From, StateData) ->
+down(Event, _From, StateData) ->
 	{stop, Event, not_implemeted, StateData}.
 
--spec comm_lost(Event :: timeout | term(), StateData :: #statedata{}) ->
+-spec inactive(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
 			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
 				timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%% 	gen_fsm:send_event/2} in the <b>comm_lost</b> state.
+%% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
-comm_lost(_Event, #statedata{} = StateData) ->
-	{next_state, comm_lost, StateData}.
+inactive(_Event, #statedata{} = StateData) ->
+	{next_state, inactive, StateData}.
 
--spec comm_lost(Event :: timeout | term(), From :: {pid(), Tag :: term()},
+-spec inactive(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
             NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
-%% 	gen_fsm:sync_send_event/2,3} in the <b>comm_lost</b> state.
+%% 	gen_fsm:sync_send_event/2,3} in the <b>inactive</b> state.
 %% @private
 %%
-comm_lost(Event, _From, StateData) ->
+inactive(Event, _From, StateData) ->
+	{stop, Event, not_implemeted, StateData}.
+
+-spec active(Event :: timeout | term(), StateData :: #statedata{}) ->
+	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
+			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
+				timeout() | hibernate}
+			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
+%% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
+%% 	gen_fsm:send_event/2} in the <b>active</b> state.
+%% @private
+%%
+active(_Event, #statedata{} = StateData) ->
+	{next_state, active, StateData}.
+
+-spec active(Event :: timeout | term(), From :: {pid(), Tag :: term()},
+		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
+            NewStateData :: #statedata{}}.
+%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
+%% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
+%% @private
+%%
+active(Event, _From, StateData) ->
 	{stop, Event, not_implemeted, StateData}.
 
 -spec handle_event(Event :: term(), StateName :: atom(),

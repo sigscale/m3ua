@@ -32,7 +32,7 @@
 			terminate/3, code_change/4]).
 
 %% export the gen_fsm state callbacks
--export([idle/2, idle/3]).
+-export([down/2, down/3, inactive/2, inactive/3, active/2, active/3]).
 
 -record(statedata, {}).
 
@@ -54,38 +54,73 @@
 %%
 init(_Args) ->
 	process_flag(trap_exit, true),
-	{ok, idle, #statedata{}}.
+	{ok, down, #statedata{}}.
 
--spec idle(Event :: timeout | term(), StateData :: #statedata{}) ->
+-spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
 			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
 				timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%% 	gen_fsm:send_event/2} in the <b>idle</b> state.
+%% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-idle(_Event, StateData) ->
-	{next_state, idle, StateData}.
+down(_Event, #statedata{} = StateData) ->
+	{next_state, down, StateData}.
 
--spec idle(Event :: timeout | term(), From :: {pid(), Tag :: term()},
-		StateData :: #statedata{}) ->
-	{reply, Reply :: term(), NextStateName :: atom(),
-				NewStateData :: #statedata{}}
-			| {reply, Reply :: term(), NextStateName :: atom(),
-				NewStateData :: #statedata{}, timeout() | hibernate}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
+-spec down(Event :: timeout | term(), From :: {pid(), Tag :: term()},
+		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
+            NewStateData :: #statedata{}}.
+%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
+%% 	gen_fsm:sync_send_event/2,3} in the <b>down</b> state.
+%% @private
+%%
+down(Event, _From, StateData) ->
+	{stop, Event, not_implemeted, StateData}.
+
+-spec inactive(Event :: timeout | term(), StateData :: #statedata{}) ->
+	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
 			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
 				timeout() | hibernate}
-			| {stop, Reason :: term(), Reply :: term(),
-				NewStateData :: #statedata{}}
-			| {stop, Reason :: term(), NewStateData:: #statedata{}}.
-%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
-%% 	gen_fsm:sync_send_event/2,3} in the <b>idle</b> state.
+			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
+%% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
+%% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
-idle(_Event, _From, StateData) ->
-	{reply, ok, idle, StateData}.
+inactive(_Event, #statedata{} = StateData) ->
+	{next_state, inactive, StateData}.
+
+-spec inactive(Event :: timeout | term(), From :: {pid(), Tag :: term()},
+		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
+            NewStateData :: #statedata{}}.
+%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
+%% 	gen_fsm:sync_send_event/2,3} in the <b>inactive</b> state.
+%% @private
+%%
+inactive(Event, _From, StateData) ->
+	{stop, Event, not_implemeted, StateData}.
+
+-spec active(Event :: timeout | term(), StateData :: #statedata{}) ->
+	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
+			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
+				timeout() | hibernate}
+			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
+%% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
+%% 	gen_fsm:send_event/2} in the <b>active</b> state.
+%% @private
+%%
+active(_Event, #statedata{} = StateData) ->
+	{next_state, active, StateData}.
+
+-spec active(Event :: timeout | term(), From :: {pid(), Tag :: term()},
+		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
+            NewStateData :: #statedata{}}.
+%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
+%% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
+%% @private
+%%
+active(Event, _From, StateData) ->
+	{stop, Event, not_implemeted, StateData}.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
