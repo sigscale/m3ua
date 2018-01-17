@@ -11,15 +11,15 @@ You'll need the following GNU tools:
 	$ mkdir ../m3ua.build    (create build directory)
 	$ cd ../m3ua.build       (change working directory for build)
 	$ ../m3ua/configure      (creates Makefiles)
-	$ make                      (builds entire package)
-	$ make check                (run dialyzer and common_test)
+	$ make                   (builds entire package)
+	$ make check             (run dialyzer and common_test)
 
 ## Installing
-	$ sudo make install         (installs embedded application in system)
+	$ sudo make install      (installs embedded application in system)
 
 ## Cleaning
-	$ make clean                (removes files created with make)
-	$ make distclean            (removes files created with configure also)
+	$ make clean             (removes files created with make)
+	$ make distclean         (removes files created with configure also)
 
 ## Options
 	$ ../m3ua/configure --enable-debug
