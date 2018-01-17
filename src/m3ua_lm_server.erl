@@ -25,6 +25,9 @@
 
 %% export the m3ua_lm_server API
 -export([open/1, close/1]).
+-export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
+			asp_inactive/2]).
 
 %% export the callbacks needed for gen_server behaviour
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -35,6 +38,10 @@
 		server_sup :: pid(),
 		client_sup :: pid(),
 		eps = gb_trees:empty() :: gb_trees:tree()}).
+
+-type assoc_id() :: term().
+
+-include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server API
@@ -51,6 +58,102 @@ open(Args) when is_list(Args) ->
 %% @private
 close(EP) ->
 	gen_server:call(?MODULE, {close, EP}).
+
+-spec sctp_establish(SAP, Address, Port, Options) -> Result
+	when
+		SAP :: pid(),
+		Address :: inet:ip_address() | inet:hostname(),
+		Port :: inet:port_number(),
+		Options :: [gen_sctp:option()],
+		Result :: {ok, Assoc} | {error, Reason},
+		Assoc :: assoc_id(),
+		Reason :: term().
+%% @doc Establish an SCTP association.
+%% @private
+sctp_establish(SAP, Address, Port, Options) ->
+	gen_server:call(?MODULE, {sctp_establish,
+			SAP, Address, Port, Options}).
+
+-spec sctp_release(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Release an established SCTP association.
+%% @private
+sctp_release(SAP, Assoc) ->
+	gen_server:call(?MODULE, {sctp_release, SAP, Assoc}).
+
+-spec sctp_status(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: {ok, AssocStatus} | {error, Reason},
+		AssocStatus :: #sctp_status{},
+		Reason :: term().
+%% @doc Report the status of an SCTP association.
+%% @private
+sctp_status(SAP, Assoc) ->
+	gen_server:call(?MODULE, {sctp_status, SAP, Assoc}).
+
+-spec asp_status(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: {ok, AspState} | {error, Reason},
+		AspState :: down | inactive | active,
+		Reason :: term().
+%% @doc Report the status of local or remote ASP.
+%% @private
+asp_status(SAP, Assoc) ->
+	gen_server:call(?MODULE, {asp_status, SAP, Assoc}).
+
+-spec asp_up(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP start its operation
+%%  and send an ASP Up message to its peer.
+%% @private
+asp_up(SAP, Assoc) ->
+	gen_server:call(?MODULE, {asp_up, SAP, Assoc}).
+
+-spec asp_down(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP stop its operation
+%%  and send an ASP Down message to its peer.
+%% @private
+asp_down(SAP, Assoc) ->
+	gen_server:call(?MODULE, {asp_down, SAP, Assoc}).
+
+-spec asp_active(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP send an ASP Active message to its peer.
+%% @private
+asp_active(SAP, Assoc) ->
+	gen_server:call(?MODULE, {asp_active, SAP, Assoc}).
+
+-spec asp_inactive(SAP, Assoc) -> Result
+	when
+		SAP :: pid(),
+		Assoc :: assoc_id(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Requests that ASP send an ASP Inactive message to its peer.
+%% @private
+asp_inactive(SAP, Assoc) ->
+	gen_server:call(?MODULE, {asp_inactive, SAP, Assoc}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server gen_server callbacks
@@ -108,7 +211,23 @@ handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP)
 	catch
 		exit:Reason ->
 			{reply, {error, Reason}, State}
-	end.
+	end;
+handle_call({sctp_establish, _SAP, _Address, _Port, _Options}, _From, State) ->
+	{reply, {error, not_implement}, State};
+handle_call({sctp_release, _SAP, _Assoc}, _From, State) ->
+	{reply, {error, not_implement}, State};
+handle_call({sctp_status, _SAP, _Assoc}, _From, State) ->
+	{reply, {error, not_implement}, State};
+handle_call({asp_status, _SAP, _Assoc}, _From, State) ->
+	{reply, {error, not_implement}, State};
+handle_call({asp_up, _SAP, _Assoc}, _From, State) ->
+	{reply, {error, not_implement}, State};
+handle_call({asp_down, _SAP, _Assoc}, _From, State) ->
+	{reply, {error, not_implement}, State};
+handle_call({asp_active, _SAP, _Assoc}, _From, State) ->
+	{reply, {error, not_implement}, State};
+handle_call({asp_inactive, _SAP, _Assoc}, _From, State) ->
+	{reply, {error, not_implement}, State}.
 
 -spec handle_cast(Request :: term(), State :: #state{}) ->
 	{noreply, NewState :: #state{}}

@@ -55,8 +55,8 @@ close(EP) when is_pid(EP) ->
 		Assoc :: assoc_id(),
 		Reason :: term().
 %% @doc Establish an SCTP association.
-sctp_establish(_SAP, _Address, _Port, _Options) ->
-	{error, not_implemented}.
+sctp_establish(SAP, Address, Port, Options) ->
+	m3ua_lm_server:sctp_establish(SAP, Address, Port, Options).
 
 -spec sctp_release(SAP, Assoc) -> Result
 	when
@@ -65,8 +65,8 @@ sctp_establish(_SAP, _Address, _Port, _Options) ->
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Release an established SCTP association.
-sctp_release(_SAP, _Assoc) ->
-	{error, not_implemented}.
+sctp_release(SAP, Assoc) ->
+	m3ua_lm_server:sctp_release(SAP, Assoc).
 
 -spec sctp_status(SAP, Assoc) -> Result
 	when
@@ -76,8 +76,8 @@ sctp_release(_SAP, _Assoc) ->
 		AssocStatus :: #sctp_status{},
 		Reason :: term().
 %% @doc Report the status of an SCTP association.
-sctp_status(_SAP, _Assoc) ->
-	{error, not_implemented}.
+sctp_status(SAP, Assoc) ->
+	m3ua_lm_server:sctp_status(SAP, Assoc).
 
 -spec asp_status(SAP, Assoc) -> Result
 	when
@@ -87,8 +87,8 @@ sctp_status(_SAP, _Assoc) ->
 		AspState :: down | inactive | active,
 		Reason :: term().
 %% @doc Report the status of local or remote ASP.
-asp_status(_SAP, _Assoc) ->
-	{error, not_implemented}.
+asp_status(SAP, Assoc) ->
+	m3ua_lm_server:asp_status(SAP, Assoc).
 
 %%-spec as_status(SAP, ???) -> Result
 %%	when
@@ -108,8 +108,8 @@ asp_status(_SAP, _Assoc) ->
 		Reason :: term().
 %% @doc Requests that ASP start its operation
 %%  and send an ASP Up message to its peer.
-asp_up(_SAP, _Assoc) ->
-	{error, not_implemented}.
+asp_up(SAP, Assoc) ->
+	m3ua_lm_server:asp_up(SAP, Assoc).
 
 -spec asp_down(SAP, Assoc) -> Result
 	when
@@ -119,8 +119,8 @@ asp_up(_SAP, _Assoc) ->
 		Reason :: term().
 %% @doc Requests that ASP stop its operation
 %%  and send an ASP Down message to its peer.
-asp_down(_SAP, _Assoc) ->
-	{error, not_implemented}.
+asp_down(SAP, Assoc) ->
+	m3ua_lm_server:asp_down(SAP, Assoc).
 
 -spec asp_active(SAP, Assoc) -> Result
 	when
@@ -129,8 +129,8 @@ asp_down(_SAP, _Assoc) ->
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Active message to its peer.
-asp_active(_SAP, _Assoc) ->
-	{error, not_implemented}.
+asp_active(SAP, Assoc) ->
+	m3ua_lm_server:asp_active(SAP, Assoc).
 
 -spec asp_inactive(SAP, Assoc) -> Result
 	when
@@ -139,8 +139,8 @@ asp_active(_SAP, _Assoc) ->
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
-asp_inactive(_SAP, _Assoc) ->
-	{error, not_implemented}.
+asp_inactive(SAP, Assoc) ->
+	m3ua_lm_server:asp_inactive(SAP, Assoc).
 
 %%----------------------------------------------------------------------
 %%  internal functions
