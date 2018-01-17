@@ -38,7 +38,8 @@
 		server_sup :: pid(),
 		client_sup :: pid(),
 		eps = gb_trees:empty() :: gb_trees:tree(),
-		saps = gb_trees:empty() :: gb_trees:tree()}).
+		saps = gb_trees:empty() :: gb_trees:tree(),
+		reqs = gb_trees:empty() :: gb_trees:tree()}).
 
 -include_lib("kernel/include/inet_sctp.hrl").
 
@@ -220,8 +221,12 @@ handle_call({sctp_status, _SAP}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({asp_status, _SAP}, _From, State) ->
 	{reply, {error, not_implement}, State};
-handle_call({asp_up, _SAP}, _From, State) ->
-	{reply, {error, not_implement}, State};
+handle_call({asp_up, SAP}, From, #state{reqs = Reqs} = State) ->
+	Ref = make_ref(),
+	gen_fsm:send_event(SAP, {asp_up, Ref, self()}),
+	NewReqs = gb_trees:insert(Ref, From, Reqs),
+	NewState = State#state{reqs = NewReqs},
+	{noreply, NewState};
 handle_call({asp_down, _SAP}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({asp_active, _SAP}, _From, State) ->
@@ -240,7 +245,15 @@ handle_call({asp_inactive, _SAP}, _From, State) ->
 %% @private
 %%
 handle_cast(stop, State) ->
-	{stop, normal, State}.
+	{stop, normal, State};
+handle_cast({asp_up, Ref, _ASP, _Identifier, _Info},
+		#state{reqs = Reqs} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, ok);
+		none ->
+			{noreply, State}
+	end.
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->
 	{noreply, NewState :: #state{}}
