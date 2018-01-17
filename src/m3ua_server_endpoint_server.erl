@@ -123,7 +123,7 @@ handle_call({establish, Address, Port, Options}, _From,
 		#state{socket = Socket, assocs = Assocs} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
 		{ok, Assoc} ->
-		   case supervisor:start_child(m3ua_client_assoc_sup, [[], []]) of
+		   case supervisor:start_child(m3ua_client_assoc_sup, [[Socket, Assoc], []]) of
 				{ok, SAP} ->
 					NewAssocs= gb_trees:insert(Assoc, SAP, Assocs),
 					NewState = State#state{assocs = NewAssocs},

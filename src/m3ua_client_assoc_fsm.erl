@@ -34,7 +34,8 @@
 %% export the gen_fsm state callbacks
 -export([down/2, down/3, inactive/2, inactive/3, active/2, active/3]).
 
--record(statedata, {}).
+-record(statedata, {socket :: scpt:sctp_socket(),
+		assoc :: term()}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_client_assoc_fsm API
@@ -52,9 +53,11 @@
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init(_Args) ->
+init([Socket, Assoc]) ->
 	process_flag(trap_exit, true),
-	{ok, down, #statedata{}}.
+	Statedata = #statedata{socket = Socket,
+		assoc = Assoc},
+	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
