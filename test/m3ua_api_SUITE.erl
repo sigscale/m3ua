@@ -26,7 +26,7 @@
 
 -compile(export_all).
 
--include_lib("common_test/include/ct.hrl"). 
+-include_lib("common_test/include/ct.hrl").
 
 %%---------------------------------------------------------------------
 %%  Test server callback functions
@@ -67,13 +67,13 @@ end_per_testcase(_TestCase, _Config) ->
 -spec sequences() -> Sequences :: [{SeqName :: atom(), Testcases :: [atom()]}].
 %% Group test cases into a test sequence.
 %%
-sequences() -> 
+sequences() ->
 	[].
 
 -spec all() -> TestCases :: [Case :: atom()].
 %% Returns a list of all test cases in this test suite.
 %%
-all() -> 
+all() ->
 	[open, close].
 
 %%---------------------------------------------------------------------
@@ -87,7 +87,7 @@ open(_Config) ->
 	{ok, SAP} = m3ua:open(),
 	true = is_process_alive(SAP),
 	m3ua:close(SAP).
-	
+
 close() ->
 	[{userdata, [{doc, "Close a Service Access Point (SAP)."}]}].
 
@@ -96,7 +96,7 @@ close(_Config) ->
 	true = is_process_alive(SAP),
 	ok = m3ua:close(SAP),
 	false = is_process_alive(SAP).
-	
+
 
 %%---------------------------------------------------------------------
 %%  Internal functions

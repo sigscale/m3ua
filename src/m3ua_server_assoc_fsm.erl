@@ -34,7 +34,7 @@
 %% export the gen_fsm state callbacks
 -export([comm_up/2, comm_up/3, comm_lost/2, comm_lost/3]).
 
--include_lib("kernel/include/inet_sctp.hrl").  
+-include_lib("kernel/include/inet_sctp.hrl").
 
 -record(statedata,
 		{socket :: gen_sctp:sctp_socket(),

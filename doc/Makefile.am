@@ -11,7 +11,8 @@ modhtml = m3ua.html m3ua_app.html \
 		m3ua_server_assoc_fsm.html \
 		m3ua_client_assoc_sup.html \
 		m3ua_client_assoc_fsm.html \
-		m3ua_lm_server.html
+		m3ua_lm_server.html \
+		m3ua_codec.html
 
 doc_DATA = overview.edoc $(modhtml) \
 		modules-frame.html overview-summary.html \
