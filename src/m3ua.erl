@@ -23,11 +23,9 @@
 %% export the m3ua public API
 -export([open/0, open/2, close/1]).
 
--export([sctp_establish/4, sctp_release/2, sctp_status/2]).
--export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
-			asp_inactive/2]).
-
--type assoc_id() :: term().
+-export([sctp_establish/4, sctp_release/1, sctp_status/1]).
+-export([asp_status/1, asp_up/1, asp_down/1, asp_active/1,
+			asp_inactive/1]).
 
 -type options() :: {mode, client | server}
 						| {ip, inet:ip_address()}
@@ -68,50 +66,47 @@ open(Port, Options) ->
 close(EP) when is_pid(EP) ->
 	m3ua_lm_server:close(EP).
 
--spec sctp_establish(SAP, Address, Port, Options) -> Result
+-spec sctp_establish(EndPoint, Address, Port, Options) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
 		Address :: inet:ip_address() | inet:hostname(),
 		Port :: inet:port_number(),
 		Options :: [gen_sctp:option()],
-		Result :: {ok, Assoc} | {error, Reason},
-		Assoc :: assoc_id(),
+		Result :: {ok, SAP} | {error, Reason},
+		SAP :: pid(),
 		Reason :: term().
 %% @doc Establish an SCTP association.
-sctp_establish(SAP, Address, Port, Options) ->
-	m3ua_lm_server:sctp_establish(SAP, Address, Port, Options).
+sctp_establish(EndPoint, Address, Port, Options) ->
+	m3ua_lm_server:sctp_establish(EndPoint, Address, Port, Options).
 
--spec sctp_release(SAP, Assoc) -> Result
+-spec sctp_release(SAP) -> Result
 	when
 		SAP :: pid(),
-		Assoc :: assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Release an established SCTP association.
-sctp_release(SAP, Assoc) ->
-	m3ua_lm_server:sctp_release(SAP, Assoc).
+sctp_release(SAP) ->
+	m3ua_lm_server:sctp_release(SAP).
 
--spec sctp_status(SAP, Assoc) -> Result
+-spec sctp_status(SAP) -> Result
 	when
 		SAP :: pid(),
-		Assoc :: assoc_id(),
 		Result :: {ok, AssocStatus} | {error, Reason},
 		AssocStatus :: #sctp_status{},
 		Reason :: term().
 %% @doc Report the status of an SCTP association.
-sctp_status(SAP, Assoc) ->
-	m3ua_lm_server:sctp_status(SAP, Assoc).
+sctp_status(SAP) ->
+	m3ua_lm_server:sctp_status(SAP).
 
--spec asp_status(SAP, Assoc) -> Result
+-spec asp_status(SAP) -> Result
 	when
 		SAP :: pid(),
-		Assoc :: assoc_id(),
 		Result :: {ok, AspState} | {error, Reason},
 		AspState :: down | inactive | active,
 		Reason :: term().
 %% @doc Report the status of local or remote ASP.
-asp_status(SAP, Assoc) ->
-	m3ua_lm_server:asp_status(SAP, Assoc).
+asp_status(SAP) ->
+	m3ua_lm_server:asp_status(SAP).
 
 %%-spec as_status(SAP, ???) -> Result
 %%	when
@@ -123,47 +118,43 @@ asp_status(SAP, Assoc) ->
 %%as_status(SAP, ???) ->
 %%	todo.
 
--spec asp_up(SAP, Assoc) -> Result
+-spec asp_up(SAP) -> Result
 	when
 		SAP :: pid(),
-		Assoc :: assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP start its operation
 %%  and send an ASP Up message to its peer.
-asp_up(SAP, Assoc) ->
-	m3ua_lm_server:asp_up(SAP, Assoc).
+asp_up(SAP) ->
+	m3ua_lm_server:asp_up(SAP).
 
--spec asp_down(SAP, Assoc) -> Result
+-spec asp_down(SAP) -> Result
 	when
 		SAP :: pid(),
-		Assoc :: assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP stop its operation
 %%  and send an ASP Down message to its peer.
-asp_down(SAP, Assoc) ->
-	m3ua_lm_server:asp_down(SAP, Assoc).
+asp_down(SAP) ->
+	m3ua_lm_server:asp_down(SAP).
 
--spec asp_active(SAP, Assoc) -> Result
+-spec asp_active(SAP) -> Result
 	when
 		SAP :: pid(),
-		Assoc :: assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Active message to its peer.
-asp_active(SAP, Assoc) ->
-	m3ua_lm_server:asp_active(SAP, Assoc).
+asp_active(SAP) ->
+	m3ua_lm_server:asp_active(SAP).
 
--spec asp_inactive(SAP, Assoc) -> Result
+-spec asp_inactive(SAP) -> Result
 	when
 		SAP :: pid(),
-		Assoc :: assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
-asp_inactive(SAP, Assoc) ->
-	m3ua_lm_server:asp_inactive(SAP, Assoc).
+asp_inactive(SAP) ->
+	m3ua_lm_server:asp_inactive(SAP).
 
 %%----------------------------------------------------------------------
 %%  internal functions
