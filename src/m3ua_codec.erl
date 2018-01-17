@@ -140,7 +140,7 @@ parameters([{?TrafficModeType, broadcast} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?TrafficModeType:16, 8:16, 3:32>>);
 parameters([{?ErrorCode, ErrorCode} | T], Acc) ->
 	EC = error_code(ErrorCode),
-	parameters(T, <<Acc/binary, ?ErrorCode:16, 8:16, EC:32>>);
+	parameters(T, <<Acc/binary, ?ErrorCode:16, 8:16, EC/binary>>);
 parameters([{?Status, {assc, inactive}} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?Status:16, 8:16, 1:16, 2:16>>);
 parameters([{?Status, {assc, active}} | T], Acc) ->
@@ -358,55 +358,49 @@ affected_pc({itu_pc, Mask, Zone, Region, SP}) ->
 affected_pc({ansi_pc, Mask, Network, Cluster, Member}) ->
 	<<Mask, Network, Cluster, Member>>.
 
--spec error_code(ErrorCode) -> Result
+-spec error_code(ErrorCode) -> ErrorCode
 	when
-		ErrorCode :: binary() | integer(),
-		Result :: binary() | atom().
+		ErrorCode :: binary() | atom().
 %% @doc codec for error codes
 %% RFC4666 - Section 3.8.1
 %% @hidden
 %%
-error_code(ErrorCode) when is_binary(ErrorCode) ->
-	error_code1(binary:decode_unsigned(ErrorCode));
-error_code(ErrorCode) when is_integer(ErrorCode) ->
-	error_code1(binary:encode_unsigned(ErrorCode)).
-%% @hidden
-error_code1(1) -> invalid_version;
-error_code1(3) -> unsupported_message_class;
-error_code1(4) -> unsupported_message_type;
-error_code1(5) -> unsupported_traffic_mod_type;
-error_code1(6) -> unexpected_message;
-error_code1(7) -> protocol_error;
-error_code1(9) -> invalid_stream_identifier;
-error_code1(13) -> refused_management_blocking;
-error_code1(14) -> asp_identifier_required;
-error_code1(15) -> invalid_asp_identifier;
-error_code1(33) -> invalid_parameter_value;
-error_code1(34) -> parameter_field_error;
-error_code1(35) -> unexpected_parameter;
-error_code1(36) -> missing_parameter;
-error_code1(37) -> destination_status_unknown;
-error_code1(38) -> invalid_network_appearance;
-error_code1(41) -> invalid_routing_context;
-error_code1(42) -> no_configure_AS_for_ASP;
-error_code1(invalid_version) -> 1;
-error_code1(unsupported_message_class) -> 3;
-error_code1(unsupported_message_type) -> 4;
-error_code1(unsupported_traffic_mod_type) -> 5;
-error_code1(unexpected_message) -> 6;
-error_code1(protocol_error) -> 7;
-error_code1(invalid_stream_identifier) -> 9;
-error_code1(refused_management_blocking) -> 13;
-error_code1(asp_identifier_required) -> 14;
-error_code1(invalid_asp_identifier) -> 15;
-error_code1(invalid_parameter_value) -> 33;
-error_code1(parameter_field_error) -> 34;
-error_code1(unexpected_parameter) -> 35;
-error_code1(missing_parameter) -> 36;
-error_code1(destination_status_unknown) -> 37;
-error_code1(invalid_network_appearance) -> 38;
-error_code1(invalid_routing_context) -> 41;
-error_code1(no_configure_AS_for_ASP) -> 42.
+error_code(<<1:32>>) -> invalid_version;
+error_code(<<3:32>>) -> unsupported_message_class;
+error_code(<<4:32>>) -> unsupported_message_type;
+error_code(<<5:32>>) -> unsupported_traffic_mod_type;
+error_code(<<6:32>>) -> unexpected_message;
+error_code(<<7:32>>) -> protocol_error;
+error_code(<<9:32>>) -> invalid_stream_identifier;
+error_code(<<13:32>>) -> refused_management_blocking;
+error_code(<<14:32>>) -> asp_identifier_required;
+error_code(<<15:32>>) -> invalid_asp_identifier;
+error_code(<<33:32>>) -> invalid_parameter_value;
+error_code(<<34:32>>) -> parameter_field_error;
+error_code(<<35:32>>) -> unexpected_parameter;
+error_code(<<36:32>>) -> missing_parameter;
+error_code(<<37:32>>) -> destination_status_unknown;
+error_code(<<38:32>>) -> invalid_network_appearance;
+error_code(<<41:32>>) -> invalid_routing_context;
+error_code(<<42:32>>) -> no_configure_AS_for_ASP;
+error_code(invalid_version) -> <<1:32>>;
+error_code(unsupported_message_class) -> <<3:32>>;
+error_code(unsupported_message_type) -> <<4:32>>;
+error_code(unsupported_traffic_mod_type) -> <<5:32>>;
+error_code(unexpected_message) -> <<6:32>>;
+error_code(protocol_error) -> <<7:32>>;
+error_code(invalid_stream_identifier) -> <<9:32>>;
+error_code(refused_management_blocking) -> <<13:32>>;
+error_code(asp_identifier_required) -> <<14:32>>;
+error_code(invalid_asp_identifier) -> <<15:32>>;
+error_code(invalid_parameter_value) -> <<33:32>>;
+error_code(parameter_field_error) -> <<34:32>>;
+error_code(unexpected_parameter) -> <<35:32>>;
+error_code(missing_parameter) -> <<36:32>>;
+error_code(destination_status_unknown) -> <<37:32>>;
+error_code(invalid_network_appearance) -> <<38:32>>;
+error_code(invalid_routing_context) -> <<41:32>>;
+error_code(no_configure_AS_for_ASP) -> <<42:32>>.
 
 -spec protocol_data(ProtocolData) -> ProtocolData
 	when
