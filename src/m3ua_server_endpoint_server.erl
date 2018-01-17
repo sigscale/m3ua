@@ -38,7 +38,8 @@
 		socket :: gen_sctp:sctp_socket(),
 		port :: inet:port_number(),
 		options :: [tuple()],
-		mode :: client | server}).
+		mode :: client | server,
+		assocs = gb_trees:empty() :: gb_trees:tree()}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_server_endpoint_server API
@@ -118,6 +119,21 @@ init2(#state{socket = Socket} = State) ->
 handle_call(Request, From, #state{assoc_sup = undefined} = State) ->
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
+handle_call({establish, Address, Port, Options}, _From,
+		#state{socket = Socket, assocs = Assocs} = State) ->
+	case gen_sctp:connect(Socket, Address, Port, Options) of
+		{ok, Assoc} ->
+		   case supervisor:start_child(m3ua_client_assoc_sup, [[], []]) of
+				{ok, SAP} ->
+					NewAssocs= gb_trees:insert(Assoc, SAP, Assocs),
+					NewState = State#state{assocs = NewAssocs},
+					{reply, {ok, SAP}, NewState};
+				{error, Reason} ->
+					{stop, Reason, State}
+			end;
+		{error, Reason} ->
+			{reply, {error, Reason}, State}
+	end;
 handle_call(stop, _From, State) ->
 	{stop, normal, ok, State}.
 
@@ -146,7 +162,7 @@ handle_info(timeout, #state{assoc_sup = undefined} = State) ->
 	NewState = get_sup(State),
    {noreply, NewState};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_, #sctp_assoc_change{state = comm_up, assoc_id = AssocId}}} = Msg,
+		{_AncData, #sctp_assoc_change{state = comm_up, assoc_id = AssocId}}} = Msg,
 		#state{assoc_sup = AssocSup, socket = Socket} = State) ->
    case supervisor:start_child(AssocSup, [[Msg], []]) of
 		{ok, AssocFsm} ->
@@ -165,7 +181,10 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 			end;
 		{error, Reason} ->
 			{stop, Reason, State}
-	end.
+	end;
+handle_info({sctp, _Socket, _PeerAddr, _PeerPort,
+		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
+	{noreply, State}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->

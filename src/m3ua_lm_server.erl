@@ -38,7 +38,7 @@
 		server_sup :: pid(),
 		client_sup :: pid(),
 		eps = gb_trees:empty() :: gb_trees:tree(),
-		assocs = gb_trees:empty() :: gb_trees:tree()}).
+		saps = gb_trees:empty() :: gb_trees:tree()}).
 
 -include_lib("kernel/include/inet_sctp.hrl").
 
@@ -204,8 +204,16 @@ handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP)
 		exit:Reason ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({sctp_establish, _EndPoint, _Address, _Port, _Options}, _From, State) ->
-	{reply, {error, not_implement}, State};
+handle_call({sctp_establish, EndPoint, Address, Port, Options},
+		_From, #state{saps = SAPs} = State) ->
+	case gen_server:call(EndPoint, {establish, Address, Port, Options}) of
+		{ok, SAP} ->
+			NewSAPs = gb_trees:insert(SAP, EndPoint, SAPs),
+			NewState = State#state{saps = NewSAPs},
+			{reply, {ok, SAP}, NewState};
+		{error, Reason} ->
+			{reply, {error, Reason}, State}
+	end;
 handle_call({sctp_release, _SAP}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({sctp_status, _SAP}, _From, State) ->
