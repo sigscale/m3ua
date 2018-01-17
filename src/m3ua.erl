@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua public API
--export([open/0, close/1]).
+-export([open/0, open/2, close/1]).
 
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
@@ -29,16 +29,39 @@
 
 -type assoc_id() :: term().
 
+-type options() :: {mode, client | server}
+						| {ip, inet:ip_address()}
+						| {ifaddr, inet:ip_address()}
+						| inet:address_family()
+						| {port, inet:port_number()}
+						| {type, seqpacket | stream}
+						| sctp:option().
+-export_type([options/0]).
+
 -include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
 %%  The m3ua API
 %%----------------------------------------------------------------------
 
--spec open() -> {ok, EndPoint :: pid()} | {error, Reason :: term()}.
+-spec open() -> Result
+	when
+		Result :: {ok, EndPoint} | {error, Reason},
+		EndPoint :: pid(),
+		Reason :: term().
 %% @doc Create a new endpoint for a server.
 open() ->
 	m3ua_lm_server:open([]).
+
+-spec open(Port, Options) -> Result
+	when
+		Port :: inet:port_number(),
+		Options :: [options()],
+		Result :: {ok, EndPoint} | {error, Reason},
+		EndPoint :: pid(),
+		Reason :: term().
+open(Port, Options) ->
+	m3ua_lm_server:open([{port, Port} | Options]).
 
 -spec close(EndPoint:: pid()) -> ok | {error, Reason :: term()}.
 %% @doc Close a previously opened end point.

@@ -36,7 +36,9 @@
 		{sup :: pid(),
 		assoc_sup :: pid(),
 		socket :: gen_sctp:sctp_socket(),
-		port :: inet:port_number()}).
+		port :: inet:port_number(),
+		options :: [tuple()],
+		mode :: client | server}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_server_endpoint_server API
@@ -59,25 +61,34 @@ stop(EP) when is_pid(EP) ->
 %% @see //stdlib/gen_server:init/1
 %% @private
 %%
-init([Sup] = _Args) ->
+init([Sup, Opts] = _Args) ->
+	{Mode, Options} = case lists:keytake(mode, 1, Opts) of
+		{value, {mode, M}, Opts1} ->
+			{M, Opts1};
+		false ->
+			{server, Opts}
+	end,
 	Opt1 = {active, once},
 	Opt2 = {sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
-	case gen_sctp:open([Opt1, Opt2]) of
+	case gen_sctp:open([Opt1, Opt2] ++ Options) of
 		{ok, Socket} ->
-			State = #state{sup = Sup, socket = Socket},
+			State = #state{sup = Sup, socket = Socket,
+					mode = Mode, options = Options},
 			init1(State);
 		{error, Reason} ->
 			{stop, Reason}
 	end.
 %% @hidden
-init1(#state{socket = Socket} = State) ->
+init1(#state{mode = server, socket = Socket} = State) ->
 	case gen_sctp:listen(Socket, true) of
 		ok ->
 			init2(State);
 		{error, Reason} ->
 			gen_sctp:close(Socket),
 			{stop, Reason}
-	end.
+	end;
+init1(State) ->
+	init2(State).
 %% @hidden
 init2(#state{socket = Socket} = State) ->
 	case inet:sockname(Socket) of

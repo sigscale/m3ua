@@ -37,7 +37,8 @@
 		{sup :: pid(),
 		server_sup :: pid(),
 		client_sup :: pid(),
-		eps = gb_trees:empty() :: gb_trees:tree()}).
+		eps = gb_trees:empty() :: gb_trees:tree(),
+		assocs = gb_trees:empty() :: gb_trees:tree()}).
 
 -type assoc_id() :: term().
 
