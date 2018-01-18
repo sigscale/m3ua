@@ -36,8 +36,7 @@
 %% @private
 %%
 init([] = _Args) ->
-	ChildSpecs = [supervisor(m3ua_server_sup, []),
-			supervisor(m3ua_asp_sup, []),
+	ChildSpecs = [supervisor(m3ua_endpoint_sup_sup, []),
 			server(m3ua_lm_server, [self()])],
 	{ok, {{one_for_all, 1, 5}, ChildSpecs}}.
 

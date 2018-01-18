@@ -1,4 +1,4 @@
-%%% m3ua_server_sup.erl
+%%% m3ua_endpoint_sup_sup.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -16,7 +16,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @docfile "{@docsrc supervision.edoc}"
 %%%
--module(m3ua_server_sup).
+-module(m3ua_endpoint_sup_sup).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -behaviour(supervisor).

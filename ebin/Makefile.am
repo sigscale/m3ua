@@ -8,7 +8,7 @@ EXTRA_DIST = m3ua.app
 
 beam_DATA = m3ua.beam m3ua_app.beam \
 		m3ua_sup.beam \
-		m3ua_server_sup.beam \
+		m3ua_endpoint_sup_sup.beam \
 		m3ua_endpoint_sup.beam \
 		m3ua_endpoint_server.beam \
 		m3ua_sgp_sup.beam \
