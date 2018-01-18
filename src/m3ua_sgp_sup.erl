@@ -1,4 +1,4 @@
-%%% m3ua_server_assoc_sup.erl
+%%% m3ua_sgp_sup.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -16,7 +16,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @docfile "{@docsrc supervision.edoc}"
 %%%
--module(m3ua_server_assoc_sup).
+-module(m3ua_sgp_sup).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -behaviour(supervisor).
@@ -36,7 +36,7 @@
 %% @private
 %%
 init([] = _Args) ->
-	StartMod = m3ua_server_assoc_fsm,
+	StartMod = m3ua_sgp_fsm,
 	StartArgs = [StartMod],
 	StartFunc = {gen_fsm, start_link, StartArgs},
 	ChildSpec = {StartMod, StartFunc, temporary, 4000, worker, [StartMod]},

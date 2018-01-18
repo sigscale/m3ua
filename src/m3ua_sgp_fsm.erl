@@ -1,4 +1,4 @@
-%%% m3ua_server_assoc_fsm.erl
+%%% m3ua_sgp_fsm.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -19,12 +19,12 @@
 %%% 	{@link //m3ua. m3ua} application handling an SCTP association
 %%%   originated from a client.
 %%%
--module(m3ua_server_assoc_fsm).
+-module(m3ua_sgp_fsm).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -behaviour(gen_fsm).
 
-%% export the m3ua_server_assoc_fsm API
+%% export the m3ua_sgp_fsm API
 -export([]).
 
 %% export the callbacks needed for gen_fsm behaviour
@@ -47,11 +47,11 @@
 		ual :: non_neg_integer()}).
 
 %%----------------------------------------------------------------------
-%%  The m3ua_server_assoc_fsm API
+%%  The m3ua_sgp_fsm API
 %%----------------------------------------------------------------------
 
 %%----------------------------------------------------------------------
-%%  The m3ua_server_assoc_fsm gen_fsm callbacks
+%%  The m3ua_sgp_fsm gen_fsm callbacks
 %%----------------------------------------------------------------------
 
 -spec init(Args :: [term()]) ->

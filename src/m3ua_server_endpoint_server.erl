@@ -123,7 +123,7 @@ handle_call({establish, Address, Port, Options}, _From,
 		#state{socket = Socket, assocs = Assocs} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
 		{ok, Assoc} ->
-		   case supervisor:start_child(m3ua_client_assoc_sup, [[Socket, Assoc], []]) of
+		   case supervisor:start_child(m3ua_asp_sup, [[Socket, Assoc], []]) of
 				{ok, SAP} ->
 					NewAssocs= gb_trees:insert(Assoc, SAP, Assocs),
 					NewState = State#state{assocs = NewAssocs},
@@ -213,6 +213,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% @hidden
 get_sup(#state{sup = Sup, assoc_sup = undefined} = State) ->
 	Children = supervisor:which_children(Sup),
-	{_, AssocSup, _, _} = lists:keyfind(m3ua_server_assoc_sup, 1, Children),
+	{_, AssocSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
 	State#state{assoc_sup = AssocSup}.
 

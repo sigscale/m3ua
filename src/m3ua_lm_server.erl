@@ -297,6 +297,6 @@ get_sups(#state{sup = TopSup, server_sup = undefined,
 		client_sup = undefined} = State) ->
 	Siblings = supervisor:which_children(TopSup),
 	{_, ServerSup, _, _} = lists:keyfind(m3ua_server_sup, 1, Siblings),
-	{_, ClientSup, _, _} = lists:keyfind(m3ua_client_assoc_sup, 1, Siblings),
+	{_, ClientSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Siblings),
 	State#state{server_sup = ServerSup, client_sup = ClientSup}.
 

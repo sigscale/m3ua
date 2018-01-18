@@ -10,11 +10,11 @@ beam_DATA = m3ua.beam m3ua_app.beam \
 		m3ua_sup.beam \
 		m3ua_server_sup.beam \
 		m3ua_server_endpoint_sup.beam \
-		m3ua_server_assoc_sup.beam \
 		m3ua_server_endpoint_server.beam \
-		m3ua_server_assoc_fsm.beam \
-		m3ua_client_assoc_sup.beam \
-		m3ua_client_assoc_fsm.beam \
+		m3ua_sgp_sup.beam \
+		m3ua_sgp_fsm.beam \
+		m3ua_asp_sup.beam \
+		m3ua_asp_fsm.beam \
 		m3ua_lm_server.beam \
 		m3ua_codec.beam
 
