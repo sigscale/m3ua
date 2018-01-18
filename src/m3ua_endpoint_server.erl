@@ -40,7 +40,7 @@
 		port :: inet:port_number(),
 		options :: [tuple()],
 		mode :: client | server,
-		assocs = gb_trees:empty() :: gb_trees:tree()}).
+		fsms = gb_trees:empty() :: gb_trees:tree()}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_endpoint_server API
@@ -121,14 +121,20 @@ handle_call(Request, From, #state{sgp_sup = undefined, asp_sup = undefined} = St
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
 handle_call({establish, Address, Port, Options}, _From,
-		#state{socket = Socket, assocs = Assocs, asp_sup = AspSup} = State) ->
+		#state{socket = Socket, fsms = Fsms, asp_sup = AspSup} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
 		{ok, #sctp_assoc_change{assoc_id = Assoc}} ->
 		   case supervisor:start_child(AspSup, [[Socket, Assoc], []]) of
 				{ok, AspFsm} ->
-					NewAssocs= gb_trees:insert(Assoc, AspFsm, Assocs),
-					NewState = State#state{assocs = NewAssocs},
-					{reply, {ok, AspFsm, Assoc}, NewState};
+					case gen_sctp:controlling_process(Socket, AspFsm) of
+						ok ->
+							inet:setopts(Socket, [{active, once}]),
+							NewFsms= gb_trees:insert(Assoc, AspFsm, Fsms),
+							NewState = State#state{fsms = NewFsms},
+							{reply, {ok, AspFsm, Assoc}, NewState};
+						{error, Reason} ->
+							{stop, Reason, State}
+					end;
 				{error, Reason} ->
 					{stop, Reason, State}
 			end;
@@ -166,10 +172,10 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_assoc_change{state = comm_up, assoc_id = AssocId}}} = Msg,
 		#state{sgp_sup = SgpSup, socket = Socket, mode = server} = State) ->
    case supervisor:start_child(SgpSup, [[Msg], []]) of
-		{ok, AssocFsm} ->
+		{ok, SgpFsm} ->
 			case gen_sctp:peeloff(Socket, AssocId) of
 				{ok, NewSocket} ->
-					case gen_sctp:controlling_process(NewSocket, AssocFsm) of
+					case gen_sctp:controlling_process(NewSocket, SgpFsm) of
 						ok ->
 							inet:setopts(NewSocket, [{active, once}]),
 							inet:setopts(Socket, [{active, once}]),
@@ -180,16 +186,6 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 				{error, Reason} ->
 					{stop, Reason, State}
 			end;
-		{error, Reason} ->
-			{stop, Reason, State}
-	end;
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_assoc_change{state = comm_up}}} = Msg,
-		#state{asp_sup = AspSup, socket = Socket, mode = client} = State) ->
-   case supervisor:start_child(AspSup, [[Msg], []]) of
-		{ok, _AspFsm} ->
-			inet:setopts(Socket, [{active, once}]),
-			{noreply, State};
 		{error, Reason} ->
 			{stop, Reason, State}
 	end;
