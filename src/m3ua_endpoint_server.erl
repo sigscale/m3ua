@@ -34,7 +34,8 @@
 
 -record(state,
 		{sup :: pid(),
-		assoc_sup :: pid(),
+		asp_sup :: pid(),
+		sgp_sup :: pid(),
 		socket :: gen_sctp:sctp_socket(),
 		port :: inet:port_number(),
 		options :: [tuple()],
@@ -116,18 +117,18 @@ init2(#state{socket = Socket} = State) ->
 %% @see //stdlib/gen_server:handle_call/3
 %% @private
 %%
-handle_call(Request, From, #state{assoc_sup = undefined} = State) ->
+handle_call(Request, From, #state{sgp_sup = undefined, asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
 handle_call({establish, Address, Port, Options}, _From,
-		#state{socket = Socket, assocs = Assocs} = State) ->
+		#state{socket = Socket, assocs = Assocs, asp_sup = AspSup} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
 		{ok, Assoc} ->
-		   case supervisor:start_child(m3ua_asp_sup, [[Socket, Assoc], []]) of
-				{ok, SAP} ->
-					NewAssocs= gb_trees:insert(Assoc, SAP, Assocs),
+		   case supervisor:start_child(AspSup, [[Socket, Assoc], []]) of
+				{ok, AspFsm} ->
+					NewAssocs= gb_trees:insert(Assoc, AspFsm, Assocs),
 					NewState = State#state{assocs = NewAssocs},
-					{reply, {ok, SAP}, NewState};
+					{reply, {ok, AspFsm}, NewState};
 				{error, Reason} ->
 					{stop, Reason, State}
 			end;
@@ -158,13 +159,13 @@ handle_cast(stop, State) ->
 %% @see //stdlib/gen_server:handle_info/2
 %% @private
 %%
-handle_info(timeout, #state{assoc_sup = undefined} = State) ->
+handle_info(timeout, #state{sgp_sup = undefined, asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
    {noreply, NewState};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_assoc_change{state = comm_up, assoc_id = AssocId}}} = Msg,
-		#state{assoc_sup = AssocSup, socket = Socket} = State) ->
-   case supervisor:start_child(AssocSup, [[Msg], []]) of
+		#state{sgp_sup = SgpSup, socket = Socket, mode = server} = State) ->
+   case supervisor:start_child(SgpSup, [[Msg], []]) of
 		{ok, AssocFsm} ->
 			case gen_sctp:peeloff(Socket, AssocId) of
 				{ok, NewSocket} ->
@@ -179,6 +180,16 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 				{error, Reason} ->
 					{stop, Reason, State}
 			end;
+		{error, Reason} ->
+			{stop, Reason, State}
+	end;
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{_AncData, #sctp_assoc_change{state = comm_up}}} = Msg,
+		#state{asp_sup = AspSup, socket = Socket, mode = client} = State) ->
+   case supervisor:start_child(AspSup, [[Msg], []]) of
+		{ok, AssocFsm} ->
+			inet:setopts(Socket, [{active, once}]),
+			{noreply, State};
 		{error, Reason} ->
 			{stop, Reason, State}
 	end;
@@ -211,8 +222,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-get_sup(#state{sup = Sup, assoc_sup = undefined} = State) ->
+get_sup(#state{sup = Sup, asp_sup = undefined, sgp_sup = undefined} = State) ->
 	Children = supervisor:which_children(Sup),
-	{_, AssocSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
-	State#state{assoc_sup = AssocSup}.
+	{_, SgpSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
+	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
+	State#state{asp_sup = AspSup, sgp_sup = SgpSup}.
 

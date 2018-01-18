@@ -35,8 +35,7 @@
 
 -record(state,
 		{sup :: pid(),
-		server_sup :: pid(),
-		client_sup :: pid(),
+		ep_sup_sup :: pid(),
 		eps = gb_trees:empty() :: gb_trees:tree(),
 		saps = gb_trees:empty() :: gb_trees:tree(),
 		reqs = gb_trees:empty() :: gb_trees:tree()}).
@@ -178,13 +177,12 @@ init([Sup] = _Args) when is_pid(Sup) ->
 %% @see //stdlib/gen_server:handle_call/3
 %% @private
 %%
-handle_call(Request, From, #state{server_sup = undefined,
-		client_sup = undefined} = State) ->
+handle_call(Request, From, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
 	handle_call(Request, From, NewState);
 handle_call({open, Args}, {USAP, _Tag} = _From,
-		#state{server_sup = ServerSup, eps = EndPoints} = State) ->
-	case supervisor:start_child(ServerSup, [Args]) of
+		#state{ep_sup_sup = EPSupSup, eps = EndPoints} = State) ->
+	case supervisor:start_child(EPSupSup, [Args]) of
 		{ok, EndPointSup} ->
 			Children = supervisor:which_children(EndPointSup),
 			{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server,
@@ -263,8 +261,7 @@ handle_cast({asp_up, Ref, _ASP, _Identifier, _Info},
 %% @see //stdlib/gen_server:handle_info/2
 %% @private
 %%
-handle_info(timeout, #state{server_sup = undefined,
-		client_sup = undefined} = State) ->
+handle_info(timeout, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
 	{noreply, NewState}.
 
@@ -293,10 +290,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-get_sups(#state{sup = TopSup, server_sup = undefined,
-		client_sup = undefined} = State) ->
+get_sups(#state{sup = TopSup, ep_sup_sup = undefined} = State) ->
 	Siblings = supervisor:which_children(TopSup),
-	{_, ServerSup, _, _} = lists:keyfind(m3ua_server_sup, 1, Siblings),
-	{_, ClientSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Siblings),
-	State#state{server_sup = ServerSup, client_sup = ClientSup}.
+	{_, EPSupSup, _, _} = lists:keyfind(m3ua_endpoint_sup_sup, 1, Siblings),
+	State#state{ep_sup_sup = EPSupSup}.
 
