@@ -1,4 +1,4 @@
-%%% m3ua_server_endpoint_sup.erl
+%%% m3ua_endpoint_sup.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -16,7 +16,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @docfile "{@docsrc supervision.edoc}"
 %%%
--module(m3ua_server_endpoint_sup).
+-module(m3ua_endpoint_sup).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -behaviour(supervisor).
@@ -37,7 +37,7 @@
 %%
 init(Args) when is_list(Args) ->
 	ChildSpecs = [supervisor(m3ua_sgp_sup, []),
-			server(m3ua_server_endpoint_server, [self(), Args])],
+			server(m3ua_endpoint_server, [self(), Args])],
 	{ok, {{one_for_all, 0, 1}, ChildSpecs}}.
 
 %%----------------------------------------------------------------------

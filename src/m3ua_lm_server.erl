@@ -187,7 +187,7 @@ handle_call({open, Args}, {USAP, _Tag} = _From,
 	case supervisor:start_child(ServerSup, [Args]) of
 		{ok, EndPointSup} ->
 			Children = supervisor:which_children(EndPointSup),
-			{_, EP, _, _} = lists:keyfind(m3ua_server_endpoint_server,
+			{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server,
 					1, Children),
 			NewEndPoints = gb_trees:insert(EP, USAP, EndPoints),
 			NewState = State#state{eps = NewEndPoints},
@@ -196,7 +196,7 @@ handle_call({open, Args}, {USAP, _Tag} = _From,
 			{reply, {error, Reason}, State}
 	end;
 handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP) ->
-	try m3ua_server_endpoint_server:stop(EP) of
+	try m3ua_endpoint_server:stop(EP) of
 		ok ->
 			NewEndPoints = gb_trees:delete(EP, EndPoints),
 			NewState = State#state{eps = NewEndPoints},

@@ -1,4 +1,4 @@
-%%% m3ua_server_endpoint_server.erl
+%%% m3ua_endpoint_server.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -18,12 +18,12 @@
 %%% 	module implements the socket listener for incoming SCTP connections
 %%%   in the {@link //m3ua. m3ua} application.
 %%%
--module(m3ua_server_endpoint_server).
+-module(m3ua_endpoint_server).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -behaviour(gen_server).
 
-%% export the m3ua_server_endpoint_server API
+%% export the m3ua_endpoint_server API
 -export([stop/1]).
 
 %% export the callbacks needed for gen_server behaviour
@@ -42,7 +42,7 @@
 		assocs = gb_trees:empty() :: gb_trees:tree()}).
 
 %%----------------------------------------------------------------------
-%%  The m3ua_server_endpoint_server API
+%%  The m3ua_endpoint_server API
 %%----------------------------------------------------------------------
 
 -spec stop(EP :: pid()) -> ok.
@@ -51,7 +51,7 @@ stop(EP) when is_pid(EP) ->
 	gen_server:call(EP, stop).
 
 %%----------------------------------------------------------------------
-%%  The m3ua_server_endpoint_server gen_server callbacks
+%%  The m3ua_endpoint_server gen_server callbacks
 %%----------------------------------------------------------------------
 
 -spec init(Args :: [term()]) ->
