@@ -229,7 +229,7 @@ handle_call({AspOp, EndPoint, Assoc}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State)
 		when AspOp == asp_up; AspOp == asp_down;
 		AspOp == asp_active; AspOp == asp_inactive ->
-	case gb_tree:lookup({EndPoint, Assoc}, Fsms) of
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, AspFsm} ->
 			Ref = make_ref(),
 			gen_fsm:send_event(AspFsm, {AspOp, Ref, self()}),

@@ -34,6 +34,7 @@
 %% export the gen_fsm state callbacks
 -export([down/2, down/3, inactive/2, inactive/3, active/2, active/3]).
 
+-include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
 -record(statedata,
@@ -42,7 +43,7 @@
 		peer_port :: inet:port_number(),
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
-		assoc_id :: gen_sctp:assoc_id(),
+		assoc :: gen_sctp:assoc_id(),
 		error :: atom(),
 		ual :: non_neg_integer()}).
 
@@ -69,7 +70,7 @@ init([{sctp, _Socket, PeerAddr, PeerPort,
 	process_flag(trap_exit, true),
 	StateData = #statedata{peer_addr = PeerAddr, peer_port = PeerPort,
 			in_streams = InStreams, out_streams = OutStreams,
-			assoc_id = AssocId},
+			assoc = AssocId},
 	{ok, down, StateData};
 init([{sctp, _Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = Other, error = Error}}}]) ->
@@ -178,28 +179,43 @@ handle_sync_event(Event, _From, _StateName, StateData) ->
 handle_info({sctp, Socket, _PeerAddr, _PeerPort, _Data} = Event, StateName,
 		#statedata{socket = undefined} = StateData) ->
 	handle_info(Event, StateName, StateData#statedata{socket = Socket});
+handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, _StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) when is_binary(Data) ->
+	case catch m3ua_codec:m3ua(Data) of
+		#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP} ->
+			AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
+			Packet = m3ua_codec:m3ua(AspUpAck),
+			case gen_sctp:send(Socket, Assoc, 0, Packet) of
+				ok ->
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{'EXIT', Reason} ->
+			{stop, Reason, StateData}
+	end;
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost,
-		error = Error, assoc_id = AssocId}}}, comm_up = _StateName,
-		#statedata{socket = Socket, assoc_id = AssocId} = StateData) ->
+		error = Error, assoc_id = AssocId}}}, StateName,
+		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, comm_lost, StateData#statedata{error = Error}};
+	{next_state, StateName, StateData#statedata{error = Error}};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = AssocId}}},
-		StateName, #statedata{socket = Socket, assoc_id = AssocId} = StateData) ->
+		StateName, #statedata{socket = Socket, assoc = AssocId} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData#statedata{ual = UAL}};
 % @todo Track peer address states.
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_paddr_change{addr = {_Ip, _Port},
 		state = addr_confirmed, assoc_id = AssocId}}}, StateName,
-		#statedata{socket = Socket, assoc_id = AssocId} = StateData) ->
+		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
 % @todo Dispatch data to user!
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[#sctp_sndrcvinfo{assoc_id = AssocId}], _Data}}, StateName,
-		#statedata{socket = Socket, assoc_id = AssocId} = StateData) ->
+		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData}.
 
