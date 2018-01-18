@@ -4,6 +4,7 @@
 
 modhtml = m3ua.html m3ua_app.html \
 		m3ua_sup.html \
+		m3ua_sap_server.html \
 		m3ua_endpoint_sup_sup.html \
 		m3ua_endpoint_sup.html \
 		m3ua_endpoint_server.html \
