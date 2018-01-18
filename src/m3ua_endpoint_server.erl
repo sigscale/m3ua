@@ -123,12 +123,12 @@ handle_call(Request, From, #state{sgp_sup = undefined, asp_sup = undefined} = St
 handle_call({establish, Address, Port, Options}, _From,
 		#state{socket = Socket, assocs = Assocs, asp_sup = AspSup} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
-		{ok, Assoc} ->
+		{ok, #sctp_assoc_change{assoc_id = Assoc}} ->
 		   case supervisor:start_child(AspSup, [[Socket, Assoc], []]) of
 				{ok, AspFsm} ->
 					NewAssocs= gb_trees:insert(Assoc, AspFsm, Assocs),
 					NewState = State#state{assocs = NewAssocs},
-					{reply, {ok, AspFsm}, NewState};
+					{reply, {ok, AspFsm, Assoc}, NewState};
 				{error, Reason} ->
 					{stop, Reason, State}
 			end;
@@ -187,7 +187,7 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_assoc_change{state = comm_up}}} = Msg,
 		#state{asp_sup = AspSup, socket = Socket, mode = client} = State) ->
    case supervisor:start_child(AspSup, [[Msg], []]) of
-		{ok, AssocFsm} ->
+		{ok, _AspFsm} ->
 			inet:setopts(Socket, [{active, once}]),
 			{noreply, State};
 		{error, Reason} ->

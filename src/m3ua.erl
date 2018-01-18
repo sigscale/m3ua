@@ -23,9 +23,9 @@
 %% export the m3ua public API
 -export([open/0, open/2, close/1]).
 
--export([sctp_establish/4, sctp_release/1, sctp_status/1]).
--export([asp_status/1, asp_up/1, asp_down/1, asp_active/1,
-			asp_inactive/1]).
+-export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
+			asp_inactive/2]).
 
 -type options() :: {mode, client | server}
 						| {ip, inet:ip_address()}
@@ -72,41 +72,44 @@ close(EP) when is_pid(EP) ->
 		Address :: inet:ip_address() | inet:hostname(),
 		Port :: inet:port_number(),
 		Options :: [gen_sctp:option()],
-		Result :: {ok, SAP} | {error, Reason},
-		SAP :: pid(),
+		Result :: {ok, Assoc} | {error, Reason},
+		Assoc :: pos_integer(),
 		Reason :: term().
 %% @doc Establish an SCTP association.
 sctp_establish(EndPoint, Address, Port, Options) ->
 	m3ua_lm_server:sctp_establish(EndPoint, Address, Port, Options).
 
--spec sctp_release(SAP) -> Result
+-spec sctp_release(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Release an established SCTP association.
-sctp_release(SAP) ->
-	m3ua_lm_server:sctp_release(SAP).
+sctp_release(EndPoint, Assoc) ->
+	m3ua_lm_server:sctp_release(EndPoint, Assoc).
 
--spec sctp_status(SAP) -> Result
+-spec sctp_status(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: {ok, AssocStatus} | {error, Reason},
 		AssocStatus :: #sctp_status{},
 		Reason :: term().
 %% @doc Report the status of an SCTP association.
-sctp_status(SAP) ->
-	m3ua_lm_server:sctp_status(SAP).
+sctp_status(EndPoint, Assoc) ->
+	m3ua_lm_server:sctp_status(EndPoint, Assoc).
 
--spec asp_status(SAP) -> Result
+-spec asp_status(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: {ok, AspState} | {error, Reason},
 		AspState :: down | inactive | active,
 		Reason :: term().
 %% @doc Report the status of local or remote ASP.
-asp_status(SAP) ->
-	m3ua_lm_server:asp_status(SAP).
+asp_status(EndPoint, Assoc) ->
+	m3ua_lm_server:asp_status(EndPoint, Assoc).
 
 %%-spec as_status(SAP, ???) -> Result
 %%	when
@@ -118,43 +121,47 @@ asp_status(SAP) ->
 %%as_status(SAP, ???) ->
 %%	todo.
 
--spec asp_up(SAP) -> Result
+-spec asp_up(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
-		Reason :: term().
+		Reason :: asp_not_found | term().
 %% @doc Requests that ASP start its operation
 %%  and send an ASP Up message to its peer.
-asp_up(SAP) ->
-	m3ua_lm_server:asp_up(SAP).
+asp_up(EndPoint, Assoc) ->
+	m3ua_lm_server:asp_up(EndPoint, Assoc).
 
--spec asp_down(SAP) -> Result
+-spec asp_down(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
-		Reason :: term().
+		Reason :: asp_not_found | term().
 %% @doc Requests that ASP stop its operation
 %%  and send an ASP Down message to its peer.
-asp_down(SAP) ->
-	m3ua_lm_server:asp_down(SAP).
+asp_down(EndPoint, Assoc) ->
+	m3ua_lm_server:asp_down(EndPoint, Assoc).
 
--spec asp_active(SAP) -> Result
+-spec asp_active(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
-		Reason :: term().
+		Reason :: asp_not_found | term().
 %% @doc Requests that ASP send an ASP Active message to its peer.
-asp_active(SAP) ->
-	m3ua_lm_server:asp_active(SAP).
+asp_active(EndPoint, Assoc) ->
+	m3ua_lm_server:asp_active(EndPoint, Assoc).
 
--spec asp_inactive(SAP) -> Result
+-spec asp_inactive(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
-		Reason :: term().
+		Reason :: asp_not_found | term().
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
-asp_inactive(SAP) ->
-	m3ua_lm_server:asp_inactive(SAP).
+asp_inactive(EndPoint, Assoc) ->
+	m3ua_lm_server:asp_inactive(EndPoint, Assoc).
 
 %%----------------------------------------------------------------------
 %%  internal functions

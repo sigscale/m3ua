@@ -37,6 +37,8 @@
 -record(statedata, {socket :: scpt:sctp_socket(),
 		assoc :: term()}).
 
+-include("m3ua.hrl").
+
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm API
 %%----------------------------------------------------------------------
@@ -68,8 +70,16 @@ init([Socket, Assoc]) ->
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-down(_Event, #statedata{} = StateData) ->
-	{next_state, down, StateData}.
+down({asp_up, _Ref, _From}, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	AspUp = #m3ua{class = ?ASPSMMessage,
+			type = ?ASPSMASPUP, params = <<>>},
+	Packet = m3ua_codec:m3ua(AspUp),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			{next_state, down, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
 -spec down(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),

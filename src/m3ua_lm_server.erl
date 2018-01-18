@@ -25,9 +25,9 @@
 
 %% export the m3ua_lm_server API
 -export([open/1, close/1]).
--export([sctp_establish/4, sctp_release/1, sctp_status/1]).
--export([asp_status/1, asp_up/1, asp_down/1, asp_active/1,
-			asp_inactive/1]).
+-export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
+			asp_inactive/2]).
 
 %% export the callbacks needed for gen_server behaviour
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -37,7 +37,7 @@
 		{sup :: pid(),
 		ep_sup_sup :: pid(),
 		eps = gb_trees:empty() :: gb_trees:tree(),
-		saps = gb_trees:empty() :: gb_trees:tree(),
+		fsms = gb_trees:empty() :: gb_trees:tree(),
 		reqs = gb_trees:empty() :: gb_trees:tree()}).
 
 -include_lib("kernel/include/inet_sctp.hrl").
@@ -64,8 +64,8 @@ close(EP) ->
 		Address :: inet:ip_address() | inet:hostname(),
 		Port :: inet:port_number(),
 		Options :: [gen_sctp:option()],
-		Result :: {ok, SAP} | {error, Reason},
-		SAP :: pid(),
+		Result :: {ok, Assoc} | {error, Reason},
+		Assoc :: pos_integer(),
 		Reason :: term().
 %% @doc Establish an SCTP association.
 %% @private
@@ -73,79 +73,85 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 	gen_server:call(?MODULE, {sctp_establish,
 			EndPoint, Address, Port, Options}).
 
--spec sctp_release(SAP) -> Result
+-spec sctp_release(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Release an established SCTP association.
 %% @private
-sctp_release(SAP) ->
-	gen_server:call(?MODULE, {sctp_release, SAP}).
+sctp_release(EndPoint, Assoc) ->
+	gen_server:call(?MODULE, {sctp_release, EndPoint, Assoc}).
 
--spec sctp_status(SAP) -> Result
+-spec sctp_status(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
-		Result :: {ok, AssocStatus} | {error, Reason},
-		AssocStatus :: #sctp_status{},
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
+		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Report the status of an SCTP association.
 %% @private
-sctp_status(SAP) ->
-	gen_server:call(?MODULE, {sctp_status, SAP}).
+sctp_status(EndPoint, Assoc) ->
+	gen_server:call(?MODULE, {sctp_status, EndPoint, Assoc}).
 
--spec asp_status(SAP) -> Result
+-spec asp_status(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: {ok, AspState} | {error, Reason},
 		AspState :: down | inactive | active,
 		Reason :: term().
 %% @doc Report the status of local or remote ASP.
 %% @private
-asp_status(SAP) ->
-	gen_server:call(?MODULE, {asp_status, SAP}).
+asp_status(EndPoint, Assoc) ->
+	gen_server:call(?MODULE, {asp_status, EndPoint, Assoc}).
 
--spec asp_up(SAP) -> Result
+-spec asp_up(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP start its operation
 %%  and send an ASP Up message to its peer.
 %% @private
-asp_up(SAP) ->
-	gen_server:call(?MODULE, {asp_up, SAP}).
+asp_up(EndPoint, Assoc) ->
+	gen_server:call(?MODULE, {asp_up, EndPoint, Assoc}).
 
--spec asp_down(SAP) -> Result
+-spec asp_down(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP stop its operation
 %%  and send an ASP Down message to its peer.
 %% @private
-asp_down(SAP) ->
-	gen_server:call(?MODULE, {asp_down, SAP}).
+asp_down(EndPoint, Assoc) ->
+	gen_server:call(?MODULE, {asp_down, EndPoint, Assoc}).
 
--spec asp_active(SAP) -> Result
+-spec asp_active(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Active message to its peer.
 %% @private
-asp_active(SAP) ->
-	gen_server:call(?MODULE, {asp_active, SAP}).
+asp_active(EndPoint, Assoc) ->
+	gen_server:call(?MODULE, {asp_active, EndPoint, Assoc}).
 
--spec asp_inactive(SAP) -> Result
+-spec asp_inactive(EndPoint, Assoc) -> Result
 	when
-		SAP :: pid(),
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
 %% @private
-asp_inactive(SAP) ->
-	gen_server:call(?MODULE, {asp_inactive, SAP}).
+asp_inactive(EndPoint, Assoc) ->
+	gen_server:call(?MODULE, {asp_inactive, EndPoint, Assoc}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server gen_server callbacks
@@ -204,33 +210,35 @@ handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP)
 			{reply, {error, Reason}, State}
 	end;
 handle_call({sctp_establish, EndPoint, Address, Port, Options},
-		_From, #state{saps = SAPs} = State) ->
+		_From, #state{fsms = Fsms} = State) ->
 	case gen_server:call(EndPoint, {establish, Address, Port, Options}) of
-		{ok, SAP} ->
-			NewSAPs = gb_trees:insert(SAP, EndPoint, SAPs),
-			NewState = State#state{saps = NewSAPs},
-			{reply, {ok, SAP}, NewState};
+		{ok, AspFsm, Assoc} ->
+			NewFsms = gb_trees:insert({EndPoint, Assoc}, AspFsm, Fsms),
+			NewState = State#state{fsms = NewFsms},
+			{reply, {ok, Assoc}, NewState};
 		{error, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({sctp_release, _SAP}, _From, State) ->
+handle_call({sctp_release, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
-handle_call({sctp_status, _SAP}, _From, State) ->
+handle_call({sctp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
-handle_call({asp_status, _SAP}, _From, State) ->
+handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
-handle_call({asp_up, SAP}, From, #state{reqs = Reqs} = State) ->
-	Ref = make_ref(),
-	gen_fsm:send_event(SAP, {asp_up, Ref, self()}),
-	NewReqs = gb_trees:insert(Ref, From, Reqs),
-	NewState = State#state{reqs = NewReqs},
-	{noreply, NewState};
-handle_call({asp_down, _SAP}, _From, State) ->
-	{reply, {error, not_implement}, State};
-handle_call({asp_active, _SAP}, _From, State) ->
-	{reply, {error, not_implement}, State};
-handle_call({asp_inactive, _SAP}, _From, State) ->
-	{reply, {error, not_implement}, State}.
+handle_call({AspOp, EndPoint, Assoc}, From,
+		#state{fsms = Fsms, reqs = Reqs} = State)
+		when AspOp == asp_up; AspOp == asp_down;
+		AspOp == asp_active; AspOp == asp_inactive ->
+	case gb_tree:lookup({EndPoint, Assoc}, Fsms) of
+		{value, AspFsm} ->
+			Ref = make_ref(),
+			gen_fsm:send_event(AspFsm, {AspOp, Ref, self()}),
+			NewReqs = gb_trees:insert(Ref, From, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{reply, {error, asp_not_found}, State}
+	end.
 
 -spec handle_cast(Request :: term(), State :: #state{}) ->
 	{noreply, NewState :: #state{}}
@@ -244,11 +252,16 @@ handle_call({asp_inactive, _SAP}, _From, State) ->
 %%
 handle_cast(stop, State) ->
 	{stop, normal, State};
-handle_cast({asp_up, Ref, _ASP, _Identifier, _Info},
-		#state{reqs = Reqs} = State) ->
+handle_cast({AspOp, Ref, _ASP, _Identifier, _Info},
+		#state{reqs = Reqs} = State)
+		when AspOp == asp_up; AspOp == asp_down;
+		AspOp == asp_active; AspOp == asp_inactive ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			gen_server:reply(From, ok);
+			gen_server:reply(From, ok),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
 		none ->
 			{noreply, State}
 	end.
