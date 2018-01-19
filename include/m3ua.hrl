@@ -74,7 +74,7 @@
 -define(AffectedPointCode,          18).
 -define(CorrelationID,              19).
 
-%% M3UA Spefici Parameters
+%% M3UA Spefic Parameters
 -define(NetworkAppearance,          512).
 -define(UserCause,                  516).
 -define(CongestionIndications,      517).
