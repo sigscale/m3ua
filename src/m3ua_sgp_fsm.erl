@@ -38,13 +38,13 @@
 -include_lib("kernel/include/inet_sctp.hrl").
 
 -record(statedata,
-		{socket :: gen_sctp:sctp_socket(),
+		{sctp_role :: client | server,
+		socket :: gen_sctp:sctp_socket(),
 		peer_addr :: inet:ip_address(),
 		peer_port :: inet:port_number(),
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		error :: atom(),
 		ual :: non_neg_integer()}).
 
 %%----------------------------------------------------------------------
@@ -63,18 +63,15 @@
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init([{sctp, _Socket, PeerAddr, PeerPort,
-		{[], #sctp_assoc_change{state = comm_up,
-		outbound_streams = OutStreams, inbound_streams = InStreams,
-		assoc_id = AssocId}}}]) ->
+init([SctpRole, Socket, Address, Port,
+		#sctp_assoc_change{assoc_id = Assoc,
+		inbound_streams = InStreams, outbound_streams = OutStreams}]) ->
 	process_flag(trap_exit, true),
-	StateData = #statedata{peer_addr = PeerAddr, peer_port = PeerPort,
-			in_streams = InStreams, out_streams = OutStreams,
-			assoc = AssocId},
-	{ok, down, StateData};
-init([{sctp, _Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_assoc_change{state = Other, error = Error}}}]) ->
-	{stop, {Other, Error}}.
+	Statedata = #statedata{sctp_role = SctpRole,
+			socket = Socket, assoc = Assoc,
+			peer_addr = Address, peer_port = Port,
+			in_streams = InStreams, out_streams = OutStreams},
+	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
@@ -176,9 +173,6 @@ handle_sync_event(Event, _From, _StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_info/3
 %% @private
 %%
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, _Data} = Event, StateName,
-		#statedata{socket = undefined} = StateData) ->
-	handle_info(Event, StateName, StateData#statedata{socket = Socket});
 handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, _StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) when is_binary(Data) ->
 	case catch m3ua_codec:m3ua(Data) of
@@ -195,27 +189,28 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, _StateName,
 			{stop, Reason, StateData}
 	end;
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_assoc_change{state = comm_lost,
-		error = Error, assoc_id = AssocId}}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData#statedata{error = Error}};
+	{next_state, StateName, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = AssocId}}},
-		StateName, #statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = Assoc}}},
+		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData#statedata{ual = UAL}};
 % @todo Track peer address states.
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_paddr_change{addr = {_Ip, _Port},
-		state = addr_confirmed, assoc_id = AssocId}}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+handle_info({sctp, Socket, _, _,
+		{[], #sctp_paddr_change{addr = {PeerAddr, PeerPort},
+		state = addr_confirmed, assoc_id = Assoc}}}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
+	NewStateData = StateData#statedata{peer_addr = PeerAddr,
+			peer_port = PeerPort},
+	{next_state, StateName, NewStateData};
 % @todo Dispatch data to user!
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[#sctp_sndrcvinfo{assoc_id = AssocId}], _Data}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[#sctp_sndrcvinfo{assoc_id = Assoc}], _Data}}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData}.
 

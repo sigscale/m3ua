@@ -27,12 +27,11 @@
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 
--type options() :: {mode, client | server}
+-type options() :: {sctp_role, client | server}
+						| {m3ua_role, sgp | asp}
 						| {ip, inet:ip_address()}
 						| {ifaddr, inet:ip_address()}
-						| inet:address_family()
 						| {port, inet:port_number()}
-						| {type, seqpacket | stream}
 						| sctp:option().
 -export_type([options/0]).
 
@@ -47,9 +46,9 @@
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
-%% @doc Create a new endpoint for a server.
+%% @equiv open(0, [])
 open() ->
-	m3ua_lm_server:open([]).
+	open(0, []).
 
 -spec open(Port, Options) -> Result
 	when
@@ -58,11 +57,16 @@ open() ->
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
-open(Port, Options) ->
+%% @doc Create a new SCTP endpoint.
+%%
+%% 	Default options create an endpoint for an M3UA
+%% 	Application Server Process (ASP) in client mode.
+%%
+open(Port, Options) when is_integer(Port), is_list(Options) ->
 	m3ua_lm_server:open([{port, Port} | Options]).
 
 -spec close(EndPoint:: pid()) -> ok | {error, Reason :: term()}.
-%% @doc Close a previously opened end point.
+%% @doc Close a previously opened endpoint.
 close(EP) when is_pid(EP) ->
 	m3ua_lm_server:close(EP).
 

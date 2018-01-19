@@ -39,7 +39,8 @@
 		socket :: gen_sctp:sctp_socket(),
 		port :: inet:port_number(),
 		options :: [tuple()],
-		mode :: client | server,
+		sctp_role :: client | server,
+		m3ua_role :: sgp | asp,
 		fsms = gb_trees:empty() :: gb_trees:tree()}).
 
 %%----------------------------------------------------------------------
@@ -64,24 +65,31 @@ stop(EP) when is_pid(EP) ->
 %% @private
 %%
 init([Sup, Opts] = _Args) ->
-	{Mode, Options} = case lists:keytake(mode, 1, Opts) of
-		{value, {mode, M}, Opts1} ->
-			{M, Opts1};
+	{SctpRole, Opts1} = case lists:keytake(sctp_role, 1, Opts) of
+		{value, {sctp_role, R1}, O1} ->
+			{R1, O1};
 		false ->
-			{server, Opts}
+			{client, Opts}
 	end,
-	Opt1 = {active, once},
-	Opt2 = {sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
-	case gen_sctp:open([Opt1, Opt2] ++ Options) of
+	{M3uaRole, Opts2} = case lists:keytake(m3ua_role, 1, Opts1) of
+		{value, {m3ua_role, R2}, O2} ->
+			{R2, O2};
+		false ->
+			{asp, Opts1}
+	end,
+	Options = [{active, once},
+			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}}
+			| Opts2],
+	case gen_sctp:open(Options) of
 		{ok, Socket} ->
 			State = #state{sup = Sup, socket = Socket,
-					mode = Mode, options = Options},
+					sctp_role = SctpRole, m3ua_role = M3uaRole, options = Options},
 			init1(State);
 		{error, Reason} ->
 			{stop, Reason}
 	end.
 %% @hidden
-init1(#state{mode = server, socket = Socket} = State) ->
+init1(#state{sctp_role = server, socket = Socket} = State) ->
 	case gen_sctp:listen(Socket, true) of
 		ok ->
 			init2(State);
@@ -89,7 +97,7 @@ init1(#state{mode = server, socket = Socket} = State) ->
 			gen_sctp:close(Socket),
 			{stop, Reason}
 	end;
-init1(State) ->
+init1(#state{sctp_role = client} = State) ->
 	init2(State).
 %% @hidden
 init2(#state{socket = Socket} = State) ->
@@ -117,30 +125,16 @@ init2(#state{socket = Socket} = State) ->
 %% @see //stdlib/gen_server:handle_call/3
 %% @private
 %%
-handle_call(Request, From, #state{sgp_sup = undefined, asp_sup = undefined} = State) ->
+handle_call(Request, From, #state{sgp_sup = undefined,
+		asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
 handle_call({establish, Address, Port, Options}, _From,
-		#state{socket = Socket, fsms = Fsms, asp_sup = AspSup} = State) ->
-	case gen_sctp:connect(Socket, Address, Port, Options) of
-		{ok, #sctp_assoc_change{assoc_id = Assoc}} ->
-		   case supervisor:start_child(AspSup, [[Socket, Assoc], []]) of
-				{ok, AspFsm} ->
-					case gen_sctp:controlling_process(Socket, AspFsm) of
-						ok ->
-							inet:setopts(Socket, [{active, once}]),
-							NewFsms= gb_trees:insert(Assoc, AspFsm, Fsms),
-							NewState = State#state{fsms = NewFsms},
-							{reply, {ok, AspFsm, Assoc}, NewState};
-						{error, Reason} ->
-							{stop, Reason, State}
-					end;
-				{error, Reason} ->
-					{stop, Reason, State}
-			end;
-		{error, Reason} ->
-			{reply, {error, Reason}, State}
-	end;
+		#state{sctp_role = client, m3ua_role = sgp, sgp_sup = Sup} = State) ->
+	connect(Address, Port, Options, Sup, State);
+handle_call({establish, Address, Port, Options}, _From,
+		#state{sctp_role = client, m3ua_role = asp, asp_sup = Sup} = State) ->
+	connect(Address, Port, Options, Sup, State);
 handle_call(stop, _From, State) ->
 	{stop, normal, ok, State}.
 
@@ -168,30 +162,16 @@ handle_cast(stop, State) ->
 handle_info(timeout, #state{sgp_sup = undefined, asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
    {noreply, NewState};
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_assoc_change{state = comm_up, assoc_id = AssocId}}} = Msg,
-		#state{sgp_sup = SgpSup, socket = Socket, mode = server} = State) ->
-   case supervisor:start_child(SgpSup, [[Msg], []]) of
-		{ok, SgpFsm} ->
-			case gen_sctp:peeloff(Socket, AssocId) of
-				{ok, NewSocket} ->
-					case gen_sctp:controlling_process(NewSocket, SgpFsm) of
-						ok ->
-							inet:setopts(NewSocket, [{active, once}]),
-							inet:setopts(Socket, [{active, once}]),
-							{noreply, State};
-						{error, Reason} ->
-							{stop, Reason, State}
-					end;
-				{error, Reason} ->
-					{stop, Reason, State}
-			end;
-		{error, Reason} ->
-			{stop, Reason, State}
-	end;
-handle_info({sctp, _Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
-	{noreply, State}.
+handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
+		#sctp_assoc_change{state = comm_up} = AssocChange}},
+		#state{sctp_role = server, m3ua_role = sgp, sgp_sup = Sup,
+		socket = Socket} = State) ->
+	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State);
+handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
+		#sctp_assoc_change{state = comm_up} = AssocChange}},
+		#state{sctp_role = server, m3ua_role = sgp, sgp_sup = Sup,
+		socket = Socket} = State) ->
+	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State).
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->
@@ -223,4 +203,54 @@ get_sup(#state{sup = Sup, asp_sup = undefined, sgp_sup = undefined} = State) ->
 	{_, SgpSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
 	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
 	State#state{asp_sup = AspSup, sgp_sup = SgpSup}.
+
+%% @hidden
+connect(Address, Port, Options, FsmSup,
+		#state{socket = Socket, fsms = Fsms} = State) ->
+	case gen_sctp:connect(Socket, Address, Port, Options) of
+		{ok, #sctp_assoc_change{assoc_id = Assoc}  = AssocChange} ->
+		   case supervisor:start_child(FsmSup, [[client,
+					Socket, Address, Port, AssocChange], []]) of
+				{ok, Fsm} ->
+					case gen_sctp:controlling_process(Socket, Fsm) of
+						ok ->
+							inet:setopts(Socket, [{active, once}]),
+							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
+							NewState = State#state{fsms = NewFsms},
+							{reply, {ok, Fsm, Assoc}, NewState};
+						{error, Reason} ->
+							{stop, Reason, State}
+					end;
+				{error, Reason} ->
+					{stop, Reason, State}
+			end;
+		{error, Reason} ->
+			{reply, {error, Reason}, State}
+	end.
+
+%% @hidden
+accept(Socket, Address, Port,
+		#sctp_assoc_change{assoc_id = Assoc} = AssocChange,
+		Sup, #state{fsms = Fsms} = State) ->
+	case gen_sctp:peeloff(Socket, Assoc) of
+		{ok, NewSocket} ->
+			case supervisor:start_child(Sup, [[server,
+					NewSocket, Address, Port, AssocChange], []]) of
+				{ok, Fsm} ->
+					case gen_sctp:controlling_process(NewSocket, Fsm) of
+						ok ->
+							inet:setopts(NewSocket, [{active, once}]),
+							inet:setopts(Socket, [{active, once}]),
+							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
+							NewState = State#state{fsms = NewFsms},
+							{noreply, NewState};
+						{error, Reason} ->
+							{stop, Reason, State}
+					end;
+				{error, Reason} ->
+					{stop, Reason, State}
+			end;
+		{error, Reason} ->
+			{stop, Reason, State}
+	end.
 
