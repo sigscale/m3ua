@@ -10,7 +10,7 @@ AC_PREREQ(2.63)
 AC_LANG([Erlang])
 AC_CONFIG_SRCDIR([src/m3ua_app.erl])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([-Wno-portability])
 
 ##
 ## Options:  control options to configure, support code for the options
