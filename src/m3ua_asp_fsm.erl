@@ -48,6 +48,7 @@
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+-define(Tack, 2000).
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm API
 %%----------------------------------------------------------------------
@@ -83,6 +84,10 @@ init([SctpRole, Socket, Address, Port,
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
+down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
+	gen_server:cast(From, {asp_up, Ref, Ref, timeout}),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
 down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
 	AspUp = #m3ua{class = ?ASPSMMessage,
@@ -92,7 +97,7 @@ down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_up, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, down, NewStateData};
+			{next_state, down, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -116,6 +121,10 @@ down(Event, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
+inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
+	gen_server:cast(From, {asp_up, Ref, Ref, timeout}),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
 inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?TrafficModeType, loadshare, []),
@@ -127,7 +136,7 @@ inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_active, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, inactive, NewStateData};
+			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -139,7 +148,7 @@ inactive({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_down, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, inactive, NewStateData};
+			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -171,7 +180,7 @@ active({asp_inactive, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_inactive, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, active, NewStateData};
+			{next_state, active, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -183,7 +192,7 @@ active({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_down, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, active, NewStateData};
+			{next_state, active, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -244,14 +253,9 @@ handle_sync_event(_Event, _From, _StateName, StateData) ->
 %% @private
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}},
-		_StateName, #statedata{socket = Socket} = StateData)
+		StateName, #statedata{socket = Socket} = StateData)
 		when is_binary(Data) ->
-	case catch m3ua_codec:m3ua(Data) of
-		#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK} ->
-			{next_state, inactive, StateData};
-		{'EXIT', Reason} ->
-			{stop, Reason, StateData}
-	end;
+	handle_asp(Data, StateName, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
 		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
@@ -301,35 +305,33 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%  internal functions
 %%----------------------------------------------------------------------
 %% @hidden
-handle_down(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
+handle_asp(M3UA, StateName, StateData) when is_binary(M3UA) ->
+	handle_asp(m3ua_codec:m3ua(M3UA), StateName, StateData);
+handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK}, down,
 		#statedata{req = {asp_up, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_up, Ref, self(), undefined, undefined}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
-	{next_state, inactive, NewStateData}.
-
-%% @hidden
-handle_inactive(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
+	{next_state, inactive, NewStateData};
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 		#statedata{req = {asp_active, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_active, Ref, self(), undefined, undefined}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
-handle_inactive(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
+handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, inactive,
 		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_down, Ref, self(), undefined, undefined}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
-	{next_state, down, NewStateData}.
-
-%% @hidden
-handle_active(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
+	{next_state, down, NewStateData};
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK}, active,
 		#statedata{req = {asp_inactive, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_inactive, Ref, self(), undefined, undefined}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
-handle_active(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
 		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_down, Ref, self(), undefined, undefined}),
 	inet:setopts(Socket, [{active, once}]),
