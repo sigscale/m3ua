@@ -121,6 +121,10 @@ down(Event, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
+inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
+	gen_server:cast(From, {asp_up, Ref, Ref, timeout}),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
 inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?TrafficModeType, loadshare, []),
