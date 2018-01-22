@@ -244,13 +244,15 @@ handle_sync_event(_Event, _From, _StateName, StateData) ->
 %% @private
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}},
-		_StateName, #statedata{socket = Socket} = StateData)
+		StateName, #statedata{socket = Socket} = StateData)
 		when is_binary(Data) ->
-	case catch m3ua_codec:m3ua(Data) of
-		#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK} ->
-			{next_state, inactive, StateData};
-		{'EXIT', Reason} ->
-			{stop, Reason, StateData}
+	case StateName of
+		down ->
+			handle_down(Data, StateData);
+		inactive ->
+			handle_inactive(Data, StateData);
+		active ->
+			handle_active(Data, StateData)
 	end;
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
@@ -301,6 +303,8 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%  internal functions
 %%----------------------------------------------------------------------
 %% @hidden
+handle_down(M3UA, StateData) when is_binary(M3UA) ->
+	handle_down(m3ua_codec:m3ua(Data), StateData);
 handle_down(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 		#statedata{req = {asp_up, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_up, Ref, self(), undefined, undefined}),
@@ -309,13 +313,15 @@ handle_down(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	{next_state, inactive, NewStateData}.
 
 %% @hidden
+handle_inactive(M3UA, StateData) when is_binary(M3UA) ->
+	handle_inactive(m3ua_codec:m3ua(M3UA), StateData);
 handle_inactive(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
 		#statedata{req = {asp_active, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_active, Ref, self(), undefined, undefined}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
-handle_inactive(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
+handle_inactive(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_down, Ref, self(), undefined, undefined}),
 	inet:setopts(Socket, [{active, once}]),
@@ -323,6 +329,8 @@ handle_inactive(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
 	{next_state, down, NewStateData}.
 
 %% @hidden
+handle_active(M3UA, StateData) when is_binary(M3UA) ->
+	hanlde_active(m3ua_codec:m3ua(M3UA), StateData);
 handle_active(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 		#statedata{req = {asp_inactive, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_inactive, Ref, self(), undefined, undefined}),
