@@ -48,6 +48,7 @@
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+-define(Tack, 2000).
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm API
 %%----------------------------------------------------------------------
@@ -83,6 +84,10 @@ init([SctpRole, Socket, Address, Port,
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
+down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
+	gen_server:cast(From, {asp_up, Ref, Ref, timeout}),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
 down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
 	AspUp = #m3ua{class = ?ASPSMMessage,
@@ -92,7 +97,7 @@ down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_up, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, down, NewStateData};
+			{next_state, down, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -127,7 +132,7 @@ inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_active, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, inactive, NewStateData};
+			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -139,7 +144,7 @@ inactive({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_down, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, inactive, NewStateData};
+			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -171,7 +176,7 @@ active({asp_inactive, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_inactive, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, active, NewStateData};
+			{next_state, active, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -183,7 +188,7 @@ active({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 		ok ->
 			Req = {asp_down, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
-			{next_state, active, NewStateData};
+			{next_state, active, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -304,7 +309,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 %% @hidden
 handle_down(M3UA, StateData) when is_binary(M3UA) ->
-	handle_down(m3ua_codec:m3ua(Data), StateData);
+	handle_down(m3ua_codec:m3ua(M3UA), StateData);
 handle_down(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 		#statedata{req = {asp_up, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_up, Ref, self(), undefined, undefined}),
@@ -330,7 +335,7 @@ handle_inactive(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 
 %% @hidden
 handle_active(M3UA, StateData) when is_binary(M3UA) ->
-	hanlde_active(m3ua_codec:m3ua(M3UA), StateData);
+	handle_active(m3ua_codec:m3ua(M3UA), StateData);
 handle_active(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 		#statedata{req = {asp_inactive, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_inactive, Ref, self(), undefined, undefined}),
