@@ -15,7 +15,7 @@
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @doc This {@link //stdlib/gen_server. gen_server} behaviour callback
-%%% 	module implements the SAP between SCTP and M3UA 
+%%% 	module implements a Service Access Point (SAP)
 %%%   in the {@link //m3ua. m3ua} application.
 %%%
 -module(m3ua_sap_server).
@@ -26,8 +26,6 @@
 %% export the callbacks needed for gen_server behaviour
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 			terminate/2, code_change/3]).
-
--include_lib("kernel/include/inet_sctp.hrl").
 
 -record(state,
 		{sup :: pid()}).
