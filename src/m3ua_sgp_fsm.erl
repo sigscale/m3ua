@@ -247,13 +247,34 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 	gen_sctp:send(Socket, Assoc, 0, Packet2),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
-handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC}, inactive,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
-	Packet = m3ua_codec:m3ua(AspActiveAck),
-	gen_sctp:send(Socket, Assoc, 0, Packet),
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, active, StateData};
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
+		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	AspActive = m3ua_codec:parameters(Params),
+	case {m3ua_codec:find_parameter(?RoutingContext, AspActive),
+					m3ua_codec:find_parameter(?RoutingKey, AspActive)} of
+		{{ok, _RC}, {ok, _RK}} ->
+			AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
+			Packet = m3ua_codec:m3ua(AspActiveAck),
+			gen_sctp:send(Socket, Assoc, 0, Packet),
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, StateData};
+		{{error, not_found}, {ok, _RK}} ->
+			P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
+			EParams = m3ua_coec:parameters(P0),
+			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+			Packet = m3ua_codec:m3ua(ErrorMsg),
+			gen_sctp:send(Socket, Assoc, 0, Packet),
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, StateData};
+		{{error, not_found}, {error, not_found}} ->
+			P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_routing_context, []),
+			EParams = m3ua_coec:parameters(P0),
+			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+			Packet = m3ua_codec:m3ua(ErrorMsg),
+			gen_sctp:send(Socket, Assoc, 0, Packet),
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, StateData}
+	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData)
 		when StateName == inactive; StateName == down ->
