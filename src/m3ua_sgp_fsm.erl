@@ -175,14 +175,7 @@ handle_sync_event(Event, _From, _StateName, StateData) ->
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, StateName,
 		#statedata{socket = Socket} = StateData) when is_binary(Data) ->
-	case StateName of
-		down ->
-			handle_down(Data, StateData);
-		inactive ->
-			handle_inactive(Data, StateData);
-		active ->
-			handle_active(Data, StateData)
-	end;
+	handle_sgp(Data, StateName, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
@@ -233,77 +226,47 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%  internal functions
 %%----------------------------------------------------------------------
 %% @hidden
-handle_down(M3UA, StateData) when is_binary(M3UA) ->
-	handle_down(m3ua_codec:m3ua(M3UA), StateData);
-handle_down(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
+handle_sgp(M3UA, StateName, StateData) when is_binary(M3UA) ->
+	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, StateData);
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
-	case gen_sctp:send(Socket, Assoc, 0, Packet) of
-		ok ->
-			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData};
-		{error, Reason} ->
-			{shutdown, Reason, StateData}
-	end.
-
-%% @hidden
-handle_inactive(M3UA, StateData) when is_binary(M3UA) ->
-	handle_inactive(m3ua_codec:m3ua(M3UA), StateData);
-handle_inactive(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC},
+	gen_sctp:send(Socket, Assoc, 0, Packet),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, inactive, StateData};
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
+	Packet = m3ua_codec:m3ua(AspUpAck),
+	gen_sctp:send(Socket, Assoc, 0, Packet),
+	P0 = m3ua_codec:add_parameter(?ErrorCode, unexpected_message),
+	EParams = m3ua_codec:parameter(P0),
+	ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+	Packet2 = m3ua_codec:m3ua(ErrorMsg),
+	gen_sctp:send(Socket, Assoc, 0, Packet2),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, inactive, StateData};
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC}, inactive,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
 	Packet = m3ua_codec:m3ua(AspActiveAck),
-	case gen_sctp:send(Socket, Assoc, 0, Packet) of
-		ok ->
-			inet:setopts(Socket, [{active, once}]),
-			{next_state, active, StateData};
-		{error, Reason} ->
-			{shutdown, Reason, StateData}
-	end;
-handle_inactive(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	gen_sctp:send(Socket, Assoc, 0, Packet),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, active, StateData};
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData)
+		when StateName == inactive; StateName == down ->
 	AspActiveAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 	Packet = m3ua_codec:m3ua(AspActiveAck),
-	case gen_sctp:send(Socket, Assoc, 0, Packet) of
-		ok ->
-			inet:setopts(Socket, [{active, once}]),
-			{next_state, down, StateData};
-		{error, Reason} ->
-			{shutdown, Reason, StateData}
-	end;
-handle_inactive(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPU}, StateData) ->
-	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
-	Packet = m3ua_codec:m3ua(AspUpAck),
-	case gen_sctp:send(Socket, Assoc, 0, Packet) of
-		ok ->
-			P0 = m3ua_codec:add_parameter(?Error, unexpected_message),
-			EParams = m3ua_codec:parameter(P0),
-			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
-			Packet2 = m3ua_codec:m3ua(ErrorMsg),
-			case gen_sct:send(Socket, Assoc, 0, Packet2) of
-				ok ->
-					inet:setopts(Socket, [{active, once}]),
-					{next_state, inactive, StateData};
-				{error, Reason} ->
-					{shutdown, Reason, StateData}
-			end;
-		{error, Reason} ->
-			{shutdown, Reason, StateData}
-	end.
-
-%% @hidden
-handle_active(M3UA, StateData) when is_binary(M3UA) ->
-	handle_active(m3ua_codec:m3ua(M3UA), StateData);
-handle_active(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
+	gen_sctp:send(Socket, Assoc, 0, Packet),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, down, StateData};
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA}, active,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	AspInactiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 	Packet = m3ua_codec:m3ua(AspInactiveAck),
-	case gen_sctp:send(Socket, Assoc, 0, Packet) of
-		ok ->
-			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData};
-		{error, Reason} ->
-			{shutdown, Reason, StateData}
-	end.
+	gen_sctp:send(Socket, Assoc, 0, Packet),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, inactive, StateData}.
 
