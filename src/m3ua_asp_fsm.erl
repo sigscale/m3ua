@@ -98,6 +98,9 @@ down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
 			Req = {asp_up, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
 			{next_state, down, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, Reason, StateData}
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -137,6 +140,9 @@ inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 			Req = {asp_active, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
 			{next_state, inactive, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -149,6 +155,9 @@ inactive({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 			Req = {asp_down, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
 			{next_state, inactive, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -181,6 +190,9 @@ active({asp_inactive, Ref, From}, #statedata{req = undefined, socket = Socket,
 			Req = {asp_inactive, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
 			{next_state, active, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -193,6 +205,9 @@ active({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 			Req = {asp_down, Ref, From},
 			NewStateData = StateData#statedata{req = Req},
 			{next_state, active, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, Reason, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
