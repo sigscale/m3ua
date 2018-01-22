@@ -271,6 +271,25 @@ handle_inactive(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
 			{next_state, down, StateData};
 		{error, Reason} ->
 			{shutdown, Reason, StateData}
+	end;
+handle_inactive(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPU}, StateData) ->
+	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
+	Packet = m3ua_codec:m3ua(AspUpAck),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			P0 = m3ua_codec:add_parameter(?Error, unexpected_message),
+			EParams = m3ua_codec:parameter(P0),
+			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+			Packet2 = m3ua_codec:m3ua(ErrorMsg),
+			case gen_sct:send(Socket, Assoc, 0, Packet2) of
+				ok ->
+					inet:setopts(Socket, [{active, once}]),
+					{next_state, inactive, StateData};
+				{error, Reason} ->
+					{shutdown, Reason, StateData}
+			end;
+		{error, Reason} ->
+			{shutdown, Reason, StateData}
 	end.
 
 %% @hidden
