@@ -183,10 +183,14 @@ parameters([{?LocalRoutingKeyIdentifier, LRI} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRI:32>>);
 parameters([{?DestinationPointCode, DPC} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?DestinationPointCode:16, 8:16, 0, DPC:24>>);
-parameters([{?ServiceIndicators, _} | T], Acc) ->
-	parameters(T, Acc);
-parameters([{?OriginatingPointCodeList, _} | T], Acc) ->
-	parameters(T, Acc);
+parameters([{?ServiceIndicators, ServiceIndicators} | T], Acc) ->
+	SIs = <<SI | SI <- ServiceIndicators>>
+	Len = size(SI) + 4,
+	parameters(T, <<Acc/binary, ?ServiceIndicators:16, Len:16, SIs/binary);
+parameters([{?OriginatingPointCodeList, OPCs} | T], Acc) ->
+	OPCL = << <<0, OPC:24>> || OPC <- OPcs>>
+	Len = size(OPCL) + 4,
+	parameters(T, <<Acc/binary, ?OriginatingPointCodeList:16, Len:16, OPCL/binary);
 parameters([{?ProtocolData, #protocol_data{} = ProtocolData} | T], Acc) ->
 	PD = protocol_data(ProtocolData),
 	Len = size(PD) + 4,
@@ -263,10 +267,12 @@ parameter(?LocalRoutingKeyIdentifier, <<LRI:32>>, Acc) ->
 	[{?LocalRoutingKeyIdentifier, LRI} | Acc];
 parameter(?DestinationPointCode, <<_Mask, DPC:24>>, Acc) ->
 	[{?DestinationPointCode, DPC} | Acc];
-parameter(?ServiceIndicators, _, Acc) ->
-	Acc;
-parameter(?OriginatingPointCodeList, _, Acc) ->
-	Acc;
+parameter(?ServiceIndicators, ServiceIndicators, Acc) ->
+	SIs = [SI || SI <= ServiceIndicators],
+	[{?ServiceIndicators, SIs} | Acc];
+parameter(?OriginatingPointCodeList, OPCs, Acc) ->
+	OPCL = [OPC || <<0, OPC:24>> <= OPCs],
+	[{?OriginatingPointCodeList, OPCL} | Acc];
 parameter(?ProtocolData, PD, Acc) ->
 	[{?ProtocolData, protocol_data(PD)} | Acc];
 parameter(?RegistrationStatus, _, Acc) ->
