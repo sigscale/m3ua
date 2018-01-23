@@ -45,7 +45,8 @@
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		ual :: non_neg_integer()}).
+		ual :: non_neg_integer(),
+		rcs = gb_trees:empty() :: gb_trees:tree()}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm API
@@ -268,6 +269,28 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
+%% @todo  Registraction - handle registration status
+%% RFC4666 - Section-3.6.2
+handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = ReqParams},
+		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	Parameters = m3ua_codec:parameters(ReqParams),
+	RoutingKeys = m3ua_codec:get_all_parameter(Parameters),
+	RC = generate_rc(),
+	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
+	RspParams = m3ua_codec:parameters(RegResult),
+	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RspParams},
+	Packet = m3ua_codec:m3ua(RegRsp),
+	gen_sctp:send(Socket, Assoc, 0, Packet),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, Reason, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	AspActive = m3ua_codec:parameters(Params),
@@ -346,3 +369,62 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA}, active,
 		{error, Reason}
 			{stop, Reason, StateData}
 	end;
+
+%% @hidden
+register_asp_results(RoutingKeys, RC, StateData) ->
+	register_asp_results(RoutingKeys, RC, <<>>, StateData).
+%% @hidden
+register_asp_results([RoutingKey | T], RC, Result,
+		#statedata{assoc = Assoc, rcs = RCs} = StateData) ->
+	try
+		Params = m3ua_codec:parameters(RoutingKey),
+		LRKId = m3ua_codec:fetch_parameter(?LocalRoutingKeyIdentifier, Params),
+		DPC = m3ua_codec:fetch_parameter(?DestinationPointCode, Params),
+		NA = case m3ua_code:find_parameter(?NetworkAppearance, Params) of
+			{ok, NetworkAppearance} ->
+				NetworkAppearance;
+			{error, not_found} ->
+				undefined
+		end,
+		SIs = case m3ua_code:find_parameter(?ServiceIndicators, Params) of
+			{ok, ServiceIndicators} ->
+				ServiceIndicators;
+			{error, not_found} ->
+				undefined
+		end,
+		OPCs = case m3ua_codec:find_parameter(?OriginatingPointCodeList, Params) of
+			{ok, OriginatingPointCodeList} ->
+				OriginatingPointCodeList;
+			{error, not_found} ->
+				undefined
+		end,
+		TMT = case m3ua_codec:find_parameter(?TrafficModeType, Params) of
+			{ok, TrafficModeType} ->
+				TrafficModeType;
+			{error, not_found} ->
+				undefined
+		end,
+		%% {{EP, Assoc, RC}, NA, [{DPC, [S1], [OPC]}], TMT, Status, As}
+		NewRCs = gb_tree:insert({self(), Assoc, RC},
+				{NA, [{DPC, SIs, OPCs}], TMT, undefined, undefine}, RCs),
+		P0 = m3ua_codec:add_parameter(?LocalRoutingKeyIdentifier, LRKId, []) ,
+		P1 = m3ua_codec:add_parameter(?RegistrationStatus, registered, P0) ,
+		P2 = m3ua_codec:add_parameter(?RoutingContext, RC, P1),
+		RegParams= m3ua_codec:parameters(P2),
+		Message = m3ua_codec:add_parameter(?RegistrationResult, RegParams, []),
+		NewStateData = StateData#statedata{rcs = NewRCs},
+		register_asp_results(T, <<Result/binary, Message/binary>>, NewStateData)
+	catch
+		_:_ ->
+			ErP0 = m3ua_codec:add_parameter(?RegistrationStatus, unknown, []) ,
+			ErP1 = m3ua_codec:add_parameter(?RoutingContext, RC, ErP0),
+			ErRegParams= m3ua_codec:parameters(ErP1),
+			ErMessage = m3ua_codec:add_parameter(?RegistrationResult, ErRegParams, []),
+			register_asp_results(T, <<Result/binary, ErMessage/binary>>, StateData)
+	end;
+register_asp_results([], _RC, Result, StateData) ->
+	{Result, StateData}.
+
+%% @hidden
+generate_rc() ->
+	rand:uniform(256).

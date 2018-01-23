@@ -24,6 +24,7 @@
 -export([open/0, open/2, close/1]).
 
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([register_rk/5]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 
@@ -82,6 +83,24 @@ close(EP) when is_pid(EP) ->
 %% @doc Establish an SCTP association.
 sctp_establish(EndPoint, Address, Port, Options) ->
 	m3ua_lm_server:sctp_establish(EndPoint, Address, Port, Options).
+
+-spec register_rk(EndPoint, Assoc, NA, Keys, Mode) -> Result
+	when
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
+		NA :: pos_integer(),
+		Keys :: [Key],
+		Mode :: overide | loadshare | override,
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Result :: {ok, RoutingContext} | {error, Reason},
+		RoutingContext :: pos_integer(),
+		Reason :: term().
+%% @doc register an ASP
+register_rk(EndPoint, Assoc, NA, Keys, Mode) ->
+	m3ua_lm_server:register_rk(EndPoint, Assoc, NA, Keys, Mode).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when

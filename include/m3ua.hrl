@@ -105,4 +105,10 @@
 		mp :: integer(),
 		sls :: integer(),
 		data :: binary()}).
-
+-record(routing_key,
+		{rc :: pid(),
+		na :: pos_integer(),
+		key :: pos_integer(),
+		tmt :: overide | loadshare | broadcast,
+		status :: down | inactive | active | pending,
+		as :: term}).

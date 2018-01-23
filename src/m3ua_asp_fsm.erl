@@ -128,6 +128,30 @@ inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
 	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
+inactive({register_rk, Ref, From, NA, Keys, Mode},
+		#statedata{req = undefined, socket = Socket, assoc = Assoc} =
+		StateData)  ->
+	P0 = m3ua_codec:add_parameter(?NetworkAppearance, NA, []),
+	P1 = m3ua_codec:add_parameter(?TrafficModeType, Mode, P0),
+	P2 = m3ua_codec:add_parameter(?LocalRoutingKeyIdentifier, generate_lk_id(), P1),
+	F = fun({DPC, SIs, OPCs}, Acc) ->
+			P3 = m3ua_codec:add_parameter(?DestinationPointCode, DPC, Acc),
+			P4 = m3ua_codec:add_parameter(?ServiceIndicators, SIs, P3),
+			m3ua_codec:add_parameter(?OriginatingPointCodeList, OPCs, P4),
+	end,
+	RKs = lists:foldl(F, P2, Keys),
+	RoutingKeys = m3ua_codec:parameters(RKs),
+	Params = m3ua_codec:parameters([{?RoutingKey, RoutingKeys}]),
+	RegReq = #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
+	Message = m3ua_codec:m3ua(RegReq),
+	case gen_sctp:send(Socket, Assoc, 0, Message) of
+		ok ->
+			Req = {register_rk, Ref, From},
+			NewStateData = StateData#statedata{req = Req},
+			{next_state, inactive, NewStateData, ?Tack};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?TrafficModeType, loadshare, []),
@@ -334,6 +358,13 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
+%% @todo handle RC and RK
+handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP}, inactive,
+		#statedata{req = {register_rk, Ref, From}, socket = Socket} = StateData) ->
+	gen_server:cast(From, {register_rk, Ref, {ok, #routing_key{}}}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, inactive,
 		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
@@ -353,4 +384,7 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData}.
 
+%% @hidden
+generate_lk_id() ->
+	random:uniform(256).
 
