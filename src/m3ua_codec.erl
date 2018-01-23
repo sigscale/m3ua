@@ -184,19 +184,20 @@ parameters([{?LocalRoutingKeyIdentifier, LRI} | T], Acc) ->
 parameters([{?DestinationPointCode, DPC} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?DestinationPointCode:16, 8:16, 0, DPC:24>>);
 parameters([{?ServiceIndicators, ServiceIndicators} | T], Acc) ->
-	SIs = <<SI | SI <- ServiceIndicators>>
-	Len = size(SI) + 4,
-	parameters(T, <<Acc/binary, ?ServiceIndicators:16, Len:16, SIs/binary);
+	SIs = << <<SI>> || SI <- ServiceIndicators>>,
+	Len = size(SIs) + 4,
+	parameters(T, <<Acc/binary, ?ServiceIndicators:16, Len:16, SIs/binary>>);
 parameters([{?OriginatingPointCodeList, OPCs} | T], Acc) ->
-	OPCL = << <<0, OPC:24>> || OPC <- OPcs>>
+	OPCL = << <<0, OPC:24>> || OPC <- OPCs>>,
 	Len = size(OPCL) + 4,
-	parameters(T, <<Acc/binary, ?OriginatingPointCodeList:16, Len:16, OPCL/binary);
+	parameters(T, <<Acc/binary, ?OriginatingPointCodeList:16, Len:16, OPCL/binary>>);
 parameters([{?ProtocolData, #protocol_data{} = ProtocolData} | T], Acc) ->
 	PD = protocol_data(ProtocolData),
 	Len = size(PD) + 4,
 	parameters(T, <<Acc/binary, ?ProtocolData:16, Len:16, PD/binary>>);
-parameters([{?RegistrationStatus, _} | T], Acc) ->
-	parameters(T, Acc);
+parameters([{?RegistrationStatus, RegistrationStatus} | T], Acc) ->
+	RegStatus = registration_status(RegistrationStatus),
+	parameters(T, <<Acc/binary, ?RegistrationStatus:16, 8:16, RegStatus/binary>>);
 parameters([{?DeregistrationStatus, _} | T], Acc) ->
 	parameters(T, Acc);
 parameters(<<>>, Acc) ->
@@ -268,15 +269,15 @@ parameter(?LocalRoutingKeyIdentifier, <<LRI:32>>, Acc) ->
 parameter(?DestinationPointCode, <<_Mask, DPC:24>>, Acc) ->
 	[{?DestinationPointCode, DPC} | Acc];
 parameter(?ServiceIndicators, ServiceIndicators, Acc) ->
-	SIs = [SI || SI <= ServiceIndicators],
+	SIs = [SI || <<SI>> <= ServiceIndicators],
 	[{?ServiceIndicators, SIs} | Acc];
 parameter(?OriginatingPointCodeList, OPCs, Acc) ->
 	OPCL = [OPC || <<0, OPC:24>> <= OPCs],
 	[{?OriginatingPointCodeList, OPCL} | Acc];
 parameter(?ProtocolData, PD, Acc) ->
 	[{?ProtocolData, protocol_data(PD)} | Acc];
-parameter(?RegistrationStatus, _, Acc) ->
-	Acc;
+parameter(?RegistrationStatus, RegistrationStatus, Acc) ->
+	[{?RegistrationStatus, registration_status(RegistrationStatus)} | Acc];
 parameter(?DeregistrationStatus, _, Acc) ->
 	Acc;
 parameter(_, _, Acc) ->
@@ -421,4 +422,38 @@ protocol_data(<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>) ->
 protocol_data(#protocol_data{opc = OPC, dpc = DPC,
 		si = SI, ni = NI, mp = MP, sls = SLS, data = UPD}) ->
 	<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>.
+
+-spec registration_status(RegistrationStatus) -> RegistrationStatus
+	when
+		RegistrationStatus :: binary() | atom().
+%% @doc codec for registraction status
+%% RFC4666, Section-3.6.2
+%% @hidden
+%%
+registration_status(<<0:32>>) -> registered;
+registration_status(<<1:32>>) -> unknown;
+registration_status(<<2:32>>) -> invalid_dpc;
+registration_status(<<3:32>>) -> invalid_na;
+registration_status(<<4:32>>) -> invalid_rk;
+registration_status(<<5:32>>) -> permission_denied;
+registration_status(<<6:32>>) -> can_not_support_unique_routing;
+registration_status(<<7:32>>) -> rk_not_currently_provisioned;
+registration_status(<<8:32>>) -> insufficient_resources;
+registration_status(<<9:32>>) -> unsupported_rk_parameter_field;
+registration_status(<<10:32>>) -> invalid_traffic_handling_mode;
+registration_status(<<11:32>>) -> rk_change_refused;
+registration_status(<<12:32>>) -> rk_already_registered;
+registration_status(registered) -> <<0:32>>;
+registration_status(unknown) -> <<1:32>>;
+registration_status(invalid_dpc) -> <<2:32>>;
+registration_status(invalid_na) -> <<3:32>>;
+registration_status(invalid_rk) -> <<4:32>>;
+registration_status(permission_denied) -> <<5:32>>;
+registration_status(can_not_support_unique_routing) -> <<6:32>>;
+registration_status(rk_not_currently_provisioned) -> <<7:32>>;
+registration_status(insufficient_resources) -> <<8:32>>;
+registration_status(unsupported_rk_parameter_field) -> <<9:32>>;
+registration_status(invalid_traffic_handling_mode) -> <<10:32>>;
+registration_status(rk_change_refused) -> <<11:32>>;
+registration_status(rk_already_registered) -> <<12:32>>.
 
