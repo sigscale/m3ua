@@ -85,7 +85,7 @@ init([SctpRole, Socket, Address, Port,
 %% @private
 %%
 down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
-	gen_server:cast(From, {asp_up, Ref, Ref, timeout}),
+	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
@@ -122,7 +122,7 @@ down(Event, _From, StateData) ->
 %% @private
 %%
 inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
-	gen_server:cast(From, {asp_up, Ref, Ref, timeout}),
+	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
@@ -309,31 +309,31 @@ handle_asp(M3UA, StateName, StateData) when is_binary(M3UA) ->
 	handle_asp(m3ua_codec:m3ua(M3UA), StateName, StateData);
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK}, down,
 		#statedata{req = {asp_up, Ref, From}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {asp_up, Ref, self(), undefined, undefined}),
+	gen_server:cast(From, {asp_up, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 		#statedata{req = {asp_active, Ref, From}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {asp_active, Ref, self(), undefined, undefined}),
+	gen_server:cast(From, {asp_active, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, inactive,
 		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {asp_down, Ref, self(), undefined, undefined}),
+	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK}, active,
 		#statedata{req = {asp_inactive, Ref, From}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {asp_inactive, Ref, self(), undefined, undefined}),
+	gen_server:cast(From, {asp_inactive, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
 		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {asp_down, Ref, self(), undefined, undefined}),
+	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData}.

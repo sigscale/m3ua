@@ -252,17 +252,18 @@ handle_call({AspOp, EndPoint, Assoc}, From,
 %%
 handle_cast(stop, State) ->
 	{stop, normal, State};
-handle_cast({asp_up, Ref, _ASP, timeout}, #state{reqs = Reqs} = State) ->
+handle_cast({asp_up, Ref, _ASP, {error, Reason}},
+		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			gen_server:reply(From, {error, timeout}),
+			gen_server:reply(From, {error, Reason}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
 		none ->
 			{noreply, State}
 	end;
-handle_cast({AspOp, Ref, _ASP, _Identifier, _Info},
+handle_cast({AspOp, Ref, {ok, _ASP, _Identifier, _Info}},
 		#state{reqs = Reqs} = State)
 		when AspOp == asp_up; AspOp == asp_down;
 		AspOp == asp_active; AspOp == asp_inactive ->
