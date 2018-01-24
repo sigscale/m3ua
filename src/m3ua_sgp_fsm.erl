@@ -291,9 +291,9 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = ReqParams},
 			{next_state, inactive, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, eagain, NewStateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, Reason, NewStateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
