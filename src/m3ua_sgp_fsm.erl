@@ -405,7 +405,7 @@ register_asp_results([RoutingKey | T], RC, Result,
 				undefined
 		end,
 		%% {{EP, Assoc, RC}, NA, [{DPC, [S1], [OPC]}], TMT, Status, As}
-		NewRCs = gb_tree:insert({self(), Assoc, RC},
+		NewRCs = gb_trees:insert({self(), Assoc, RC},
 				{NA, [{DPC, SIs, OPCs}], TMT, undefined, undefine}, RCs),
 		P0 = m3ua_codec:add_parameter(?LocalRoutingKeyIdentifier, LRKId, []) ,
 		P1 = m3ua_codec:add_parameter(?RegistrationStatus, registered, P0) ,
