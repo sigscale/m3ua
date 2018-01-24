@@ -81,22 +81,21 @@ all() ->
 %%---------------------------------------------------------------------
 
 open() ->
-	[{userdata, [{doc, "Open a Service Access Point (SAP)."}]}].
+	[{userdata, [{doc, "Open an SCTP endpoint."}]}].
 
 open(_Config) ->
-	{ok, SAP} = m3ua:open(),
-	true = is_process_alive(SAP),
-	m3ua:close(SAP).
+	{ok, EP} = m3ua:open(),
+	true = is_process_alive(EP),
+	m3ua:close(EP).
 
 close() ->
-	[{userdata, [{doc, "Close a Service Access Point (SAP)."}]}].
+	[{userdata, [{doc, "Close an SCTP endpoint."}]}].
 
 close(_Config) ->
-	{ok, SAP} = m3ua:open(),
-	true = is_process_alive(SAP),
-	ok = m3ua:close(SAP),
-	false = is_process_alive(SAP).
-
+	{ok, EP} = m3ua:open(),
+	true = is_process_alive(EP),
+	ok = m3ua:close(EP),
+	false = is_process_alive(EP).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
