@@ -168,7 +168,7 @@ handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 		#sctp_assoc_change{state = comm_up} = AssocChange}},
 		#state{sctp_role = server, sgp_sup = Sup,
 		socket = Socket} = State) ->
-	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State).
+	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State);
 handle_info({sctp, _Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
 	{noreply, State}.
