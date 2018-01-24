@@ -74,7 +74,7 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[open, close, listen, getstat_ep, getstat_assoc].
+	[open, close, listen, connect, release, getstat_ep, getstat_assoc].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -106,6 +106,26 @@ listen(_Config) ->
 	ok = m3ua:close(EP),
 	false = is_process_alive(EP).
 
+connect() ->
+	[{userdata, [{doc, "Connect client SCTP endpoint to server."}]}].
+
+connect(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	true = is_integer(Assoc).
+
+release() ->
+	[{userdata, [{doc, "Release SCTP association."}]}].
+
+release(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:sctp_release(ClientEP, Assoc).
+
 getstat_ep() ->
 	[{userdata, [{doc, "Get SCTP option statistics for an endpoint."}]}].
 
@@ -125,18 +145,18 @@ getstat_assoc() ->
 
 getstat_assoc(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, EP1} = m3ua:open(Port, [{sctp_role, server}]),
-	{ok, EP2} = m3ua:open(),
-	{ok, Assoc} = m3ua:sctp_establish(EP2, {127,0,0,1}, Port, []),
-	{ok, OptionValues} = m3ua:getstat_association(EP2, Assoc),
+	{ok, ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	{ok, OptionValues} = m3ua:getstat_association(ClientEP, Assoc),
 	F = fun({Option, Value}) when is_atom(Option), is_integer(Value) ->
 				true;
 			(_) ->
 				false
 	end,
 	true = lists:all(F, OptionValues),
-	m3ua:close(EP2),
-	m3ua:close(EP1).
+	m3ua:close(ClientEP),
+	m3ua:close(ServerEP).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
