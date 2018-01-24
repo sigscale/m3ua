@@ -74,7 +74,7 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[open, close, listen, connect, getstat_ep, getstat_assoc].
+	[open, close, listen, connect, release, getstat_ep, getstat_assoc].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -115,6 +115,16 @@ connect(_Config) ->
 	{ok, ClientEP} = m3ua:open(),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	true = is_integer(Assoc).
+
+release() ->
+	[{userdata, [{doc, "Release SCTP association."}]}].
+
+release(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:sctp_release(ClientEP, Assoc).
 
 getstat_ep() ->
 	[{userdata, [{doc, "Get SCTP option statistics for an endpoint."}]}].
