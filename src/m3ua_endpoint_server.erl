@@ -130,10 +130,7 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
 handle_call({establish, Address, Port, Options}, _From,
-		#state{sctp_role = client, m3ua_role = sgp, sgp_sup = Sup} = State) ->
-	connect(Address, Port, Options, Sup, State);
-handle_call({establish, Address, Port, Options}, _From,
-		#state{sctp_role = client, m3ua_role = asp, asp_sup = Sup} = State) ->
+		#state{sctp_role = client, asp_sup = Sup} = State) ->
 	connect(Address, Port, Options, Sup, State);
 handle_call(stop, _From, State) ->
 	{stop, normal, ok, State}.
@@ -164,14 +161,17 @@ handle_info(timeout, #state{sgp_sup = undefined, asp_sup = undefined} = State) -
    {noreply, NewState};
 handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 		#sctp_assoc_change{state = comm_up} = AssocChange}},
-		#state{sctp_role = server, m3ua_role = sgp, sgp_sup = Sup,
+		#state{sctp_role = server, sgp_sup = Sup,
 		socket = Socket} = State) ->
 	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State);
 handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 		#sctp_assoc_change{state = comm_up} = AssocChange}},
-		#state{sctp_role = server, m3ua_role = sgp, sgp_sup = Sup,
+		#state{sctp_role = server, sgp_sup = Sup,
 		socket = Socket} = State) ->
 	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State).
+handle_info({sctp, _Socket, _PeerAddr, _PeerPort,
+		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
+	{noreply, State}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->
