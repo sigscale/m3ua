@@ -105,10 +105,12 @@
 		mp :: integer(),
 		sls :: integer(),
 		data :: binary()}).
--record(routing_key,
-		{rc :: pid(),
+
+-record(m3ua_routing_key,
+		{rc :: pos_integer(),
 		na :: pos_integer(),
 		key :: pos_integer(),
 		tmt :: overide | loadshare | broadcast,
 		status :: down | inactive | active | pending,
-		as :: term}).
+		as :: term,
+		lrk_id :: pos_integer()}).

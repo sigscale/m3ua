@@ -21,7 +21,7 @@
 -module(m3ua_codec).
 
 -export([m3ua/1]).
--export([parameters/1]).
+-export([parameters/1, routing_key/1]).
 
 -export([add_parameter/3, store_parameter/3,
 		find_parameter/2, fetch_parameter/2,
@@ -173,10 +173,9 @@ parameters([{?CongestionIndications, CL} | T], Acc) ->
 parameters([{?ConcernedDestination, ConcernedDestination} | T], Acc) ->
 	CD = <<0, ConcernedDestination/binary>>,
 	parameters(T, <<Acc/binary, ?ConcernedDestination:16, 8:16, CD/binary>>);
-parameters([{?RoutingKey, RoutingKeys} | T], Acc) ->
-	RK = parameters(RoutingKeys),
-	Len = size(RK) + 4,
-	parameters(T, <<Acc/binary, ?RoutingKey:16, Len:16, RK/binary>>);
+parameters([{?RoutingKey, RoutingKey} | T], Acc) ->
+	Len = size(RoutingKey) + 4,
+	parameters(T, <<Acc/binary, ?RoutingKey:16, Len:16, RoutingKey/binary>>);
 parameters([{?RegistrationResult, _} | T], Acc) ->
 	parameters(T, Acc);
 parameters([{?LocalRoutingKeyIdentifier, LRI} | T], Acc) ->
@@ -208,6 +207,93 @@ parameters([], Acc) when (size(Acc) rem 4) /= 0 ->
 parameters(Pad, Acc) when (size(Pad) rem 4) /= 0 ->
 	lists:reverse(Acc);
 parameters([], Acc) ->
+	Acc.
+
+-spec routing_key(RoutingKey) -> RoutingKey
+	when
+		RoutingKey :: binary() | #m3ua_routing_key{}.
+routing_key(RoutingKey) when is_binary(RoutingKey) ->
+	routing_key1(RoutingKey, #m3ua_routing_key{});
+routing_key(#m3ua_routing_key{} = RoutingKey) ->
+	routing_key1(record_info(fields, m3ua_routing_key), RoutingKey, <<>>).
+%% @hidden
+routing_key1(<<?LocalRoutingKeyIdentifier:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = Len - 4,
+	<<LRKId:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{lrk_id = LRKId});
+routing_key1(<<?RoutingContext:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = Len - 4,
+	<<RC:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{rc = RC});
+routing_key1(<<?TrafficModeType:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = Len - 4,
+	<<TMT:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{tmt = traffic_mode(TMT)});
+routing_key1(<<?NetworkAppearance:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = Len - 4,
+	<<NA:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{na = NA});
+routing_key1(<<?DestinationPointCode:16, _/binary>> = Chunk, Acc) ->
+	Acc#m3ua_routing_key{key = routing_key2(Chunk, Acc)}.
+%% @hidden
+routing_key1([lrk_id | T], #m3ua_routing_key{lrk_id = LRKId} = RK, Acc) ->
+	Len = size(LRKId) + 4,
+	routing_key1(T, RK, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, Len:16, LRKId:32>>);
+routing_key1([rc | T], #m3ua_routing_key{rc = RC} = RK, Acc) ->
+	Len = size(RC) + 4,
+	routing_key1(T, RK, <<Acc/binary, ?RoutingContext:16, Len:16, RC:32>>);
+routing_key1([tmt | T], #m3ua_routing_key{tmt = TMT} = RK, Acc) ->
+	Mode = traffic_mode(TMT),
+	Len = size(Mode) + 4,
+	routing_key1(T, RK, <<Acc/binary, ?TrafficModeType:16, Len:16, Mode:32>>);
+routing_key1([na | T], #m3ua_routing_key{na = NA} = RK, Acc) ->
+	Len = size(NA) + 4,
+	routing_key1(T, RK, <<Acc/binary, ?NetworkAppearance:16, Len:16, NA:32>>);
+routing_key1([key | _], #m3ua_routing_key{key = Keys}, Acc) ->
+	DPCGroups = routing_key2(Keys, <<>>),
+	<<Acc/binary, DPCGroups/binary>>;
+routing_key1([_ | T], RK, Acc) ->
+	routing_key1(T, RK, Acc);
+routing_key1([], _RK, Acc) ->
+	Acc.
+%% @hidden
+routing_key2(<<?DestinationPointCode:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = Len - 4,
+	<<DPC:VLen, Rest1/binary>> = Chunk,
+	F = fun(F, <<?OriginatingPointCodeList, L1:16, C1/binary>>, AccIn) ->
+				L2 = L1 - 4,
+				<<D:L2, R/binary>> = C1,
+				OPCs = [OPC || <<0, OPC:24>> <= D],
+				F(F, R, [{?OriginatingPointCodeList, OPCs} | AccIn]);
+			(F, <<?ServiceIndicators, L1:16, C1/binary>>, AccIn) ->
+				L2 = L1 - 4,
+				<<D:L2, R/binary>> = C1,
+				SIs = [SI || <<SI>> <= D],
+				F(F, R, [{?ServiceIndicators, SIs} | AccIn]);
+			(_F, C1, AccIn)  ->
+				{C1, AccIn}
+	end,
+	{Rest2, DPCGroup} = F(F, Rest1, []),
+	OriginatingPointCodeList = proplists:get_value(?OriginatingPointCodeList, DPCGroup, []),
+	ServiceIndicators = proplists:get_value(?ServiceIndicators, DPCGroup, []),
+	Group = {DPC, ServiceIndicators, OriginatingPointCodeList},
+	routing_key2(Rest2, [Group | Acc]);
+routing_key2([{{?DestinationPointCode, DPC}, [], []} | T], Acc) ->
+	routing_key2(T, <<Acc/binary, ?DestinationPointCode:16, 8:16, DPC:32>>);
+routing_key2([{DPC, SIs, OPCs} | T], Acc) ->
+	DestinationPointCode = <<?DestinationPointCode:16, 8:16, DPC:32>>,
+	SIsBin = <<<<SI>> || SI <- SIs>>,
+	SIsLen = size(SIsBin),
+	ServiceIndicators = <<?ServiceIndicators:16, SIsLen:16, SIsBin/binary>>,
+	OPCsBin = <<<<0, OPC:24>> || OPC <- OPCs>>,
+	OPCsLen = size(OPCsBin),
+	OriginatingPointCodeList = <<?OriginatingPointCodeList:16, OPCsLen:16, OPCsBin/binary>>,
+	NewAcc = <<Acc/binary, DestinationPointCode/binary,
+			ServiceIndicators/binary, OriginatingPointCodeList/binary>>,
+	routing_key2(T, NewAcc);
+routing_key2(<<>>, Acc) ->
+	Acc;
+routing_key2([], Acc) ->
 	Acc.
 
 %%----------------------------------------------------------------------
@@ -261,7 +347,7 @@ parameter(?CongestionIndications, <<_:24, CL>>, Acc) ->
 parameter(?ConcernedDestination, <<_, ConcernedDestination/binary>>, Acc) ->
 	[{?ConcernedDestination, ConcernedDestination} | Acc];
 parameter(?RoutingKey, RoutingKey, Acc) ->
-	[{?RoutingKey, parameters(RoutingKey)} | Acc];
+	[{?RoutingKey, RoutingKey} | Acc];
 parameter(?RegistrationResult, _, Acc) ->
 	Acc;
 parameter(?LocalRoutingKeyIdentifier, <<LRI:32>>, Acc) ->
@@ -282,6 +368,7 @@ parameter(?DeregistrationStatus, _, Acc) ->
 	Acc;
 parameter(_, _, Acc) ->
 	Acc.
+
 
 -type mtp3_user() :: sccp | tup | isup | broadband_isup
 						| satellite_isup | aal2signalling | gcp.
@@ -457,3 +544,14 @@ registration_status(invalid_traffic_handling_mode) -> <<10:32>>;
 registration_status(rk_change_refused) -> <<11:32>>;
 registration_status(rk_already_registered) -> <<12:32>>.
 
+-spec traffic_mode(Mode) -> Mode
+	when
+		Mode :: integer()
+				| override | loadshare
+				| broadcast.
+traffic_mode(1) -> override;
+traffic_mode(2) -> loadshare;
+traffic_mode(3) -> broadcast;
+traffic_mode(override) -> 1;
+traffic_mode(loadshare) -> 2;
+traffic_mode(broadcast) -> 3.

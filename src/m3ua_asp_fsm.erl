@@ -131,17 +131,10 @@ inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
 inactive({register_rk, Ref, From, NA, Keys, Mode},
 		#statedata{req = undefined, socket = Socket, assoc = Assoc} =
 		StateData)  ->
-	P0 = m3ua_codec:add_parameter(?NetworkAppearance, NA, []),
-	P1 = m3ua_codec:add_parameter(?TrafficModeType, Mode, P0),
-	P2 = m3ua_codec:add_parameter(?LocalRoutingKeyIdentifier, generate_lk_id(), P1),
-	F = fun({DPC, SIs, OPCs}, Acc) ->
-			P3 = m3ua_codec:add_parameter(?DestinationPointCode, DPC, Acc),
-			P4 = m3ua_codec:add_parameter(?ServiceIndicators, SIs, P3),
-			m3ua_codec:add_parameter(?OriginatingPointCodeList, OPCs, P4)
-	end,
-	RKs = lists:foldl(F, P2, Keys),
-	RoutingKeys = m3ua_codec:parameters(RKs),
-	Params = m3ua_codec:parameters([{?RoutingKey, RoutingKeys}]),
+	RK = #m3ua_routing_key{na = NA, tmt = Mode, key = Keys,
+			lrk_id = generate_lrk_id()},
+	RoutingKey = m3ua_codec:routing_key(RK),
+	Params = m3ua_codec:parameters([{?RoutingKey, RoutingKey}]),
 	RegReq = #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 	Message = m3ua_codec:m3ua(RegReq),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
@@ -365,7 +358,7 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 %% @todo handle RC and RK
 handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP}, inactive,
 		#statedata{req = {register_rk, Ref, From}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {register_rk, Ref, {ok, #routing_key{}}}),
+	gen_server:cast(From, {register_rk, Ref, {ok, []}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
@@ -389,6 +382,5 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
 	{next_state, down, NewStateData}.
 
 %% @hidden
-generate_lk_id() ->
+generate_lrk_id() ->
 	random:uniform(256).
-
