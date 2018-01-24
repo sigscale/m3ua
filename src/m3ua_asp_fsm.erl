@@ -100,7 +100,7 @@ down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{next_state, down, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData}
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -137,7 +137,7 @@ inactive({register_rk, Ref, From, NA, Keys, Mode},
 	F = fun({DPC, SIs, OPCs}, Acc) ->
 			P3 = m3ua_codec:add_parameter(?DestinationPointCode, DPC, Acc),
 			P4 = m3ua_codec:add_parameter(?ServiceIndicators, SIs, P3),
-			m3ua_codec:add_parameter(?OriginatingPointCodeList, OPCs, P4),
+			m3ua_codec:add_parameter(?OriginatingPointCodeList, OPCs, P4)
 	end,
 	RKs = lists:foldl(F, P2, Keys),
 	RoutingKeys = m3ua_codec:parameters(RKs),
@@ -166,7 +166,7 @@ inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -181,7 +181,7 @@ inactive({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -216,7 +216,7 @@ active({asp_inactive, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{next_state, active, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -231,7 +231,7 @@ active({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{next_state, active, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.

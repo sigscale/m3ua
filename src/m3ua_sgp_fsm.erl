@@ -239,7 +239,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
 			{next_state, inactive, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -259,13 +259,13 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 					{next_state, inactive, StateData};
 				{error, eagain} ->
 					% @todo flow control
-					{stop, Reason, StateData};
+					{stop, eagain, StateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
 			end;
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -287,7 +287,7 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = ReqParams},
 			{next_state, inactive, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
@@ -305,7 +305,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 					{next_state, active, StateData};
 				{error, eagain} ->
 					% @todo flow control
-					{stop, Reason, StateData};
+					{stop, eagain, StateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
 			end;
@@ -320,7 +320,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 					{next_state, active, StateData};
 				{error, eagain} ->
 					% @todo flow control
-					{stop, Reason, StateData};
+					{stop, eagain, StateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
 			end;
@@ -335,10 +335,10 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 					{next_state, active, StateData};
 				{error, eagain} ->
 					% @todo flow control
-					{stop, Reason, StateData};
+					{stop, eagain, StateData};
 				{error, Reason} ->
 					{stop, Reason, StateData}
-			end;
+			end
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData)
@@ -351,8 +351,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 			{next_state, down, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
-		{error, Reason}
+			{stop, eagain, StateData};
+		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA}, active,
@@ -365,10 +365,10 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA}, active,
 			{next_state, inactive, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, Reason, StateData};
-		{error, Reason}
+			{stop, eagain, StateData};
+		{error, Reason} ->
 			{stop, Reason, StateData}
-	end;
+	end.
 
 %% @hidden
 register_asp_results(RoutingKeys, RC, StateData) ->
