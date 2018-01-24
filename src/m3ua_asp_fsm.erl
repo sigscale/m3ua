@@ -271,8 +271,12 @@ handle_event(_Event, _StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_sync_event/4
 %% @private
 %%
-handle_sync_event(_Event, _From, _StateName, StateData) ->
-	{stop, not_implemented, StateData}.
+handle_sync_event({getstat, undefined}, _From, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket), StateName, StateData};
+handle_sync_event({getstat, Options}, _From, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket, Options), StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
