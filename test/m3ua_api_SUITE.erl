@@ -74,7 +74,7 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[open, close].
+	[open, close, listen].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -93,6 +93,15 @@ close() ->
 
 close(_Config) ->
 	{ok, EP} = m3ua:open(),
+	true = is_process_alive(EP),
+	ok = m3ua:close(EP),
+	false = is_process_alive(EP).
+
+listen() ->
+	[{userdata, [{doc, "Open an SCTP server endpoint."}]}].
+
+listen(_Config) ->
+	{ok, EP} = m3ua:open(0, [{sctp_role, server}]),
 	true = is_process_alive(EP),
 	ok = m3ua:close(EP),
 	false = is_process_alive(EP).
