@@ -1,4 +1,4 @@
-%%% m3ua_sgp_fsm.erl
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -274,7 +274,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = ReqParams},
 		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Parameters = m3ua_codec:parameters(ReqParams),
-	RoutingKeys = m3ua_codec:get_all_parameter(Parameters),
+	RoutingKeys = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
 	RC = generate_rc(),
 	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
 	RspParams = m3ua_codec:parameters(RegResult),
@@ -377,43 +377,21 @@ register_asp_results(RoutingKeys, RC, StateData) ->
 register_asp_results([RoutingKey | T], RC, Result,
 		#statedata{assoc = Assoc, rcs = RCs} = StateData) ->
 	try
-		Params = m3ua_codec:parameters(RoutingKey),
-		LRKId = m3ua_codec:fetch_parameter(?LocalRoutingKeyIdentifier, Params),
-		DPC = m3ua_codec:fetch_parameter(?DestinationPointCode, Params),
-		NA = case m3ua_codec:find_parameter(?NetworkAppearance, Params) of
-			{ok, NetworkAppearance} ->
-				NetworkAppearance;
-			{error, not_found} ->
-				undefined
-		end,
-		SIs = case m3ua_codec:find_parameter(?ServiceIndicators, Params) of
-			{ok, ServiceIndicators} ->
-				ServiceIndicators;
-			{error, not_found} ->
-				undefined
-		end,
-		OPCs = case m3ua_codec:find_parameter(?OriginatingPointCodeList, Params) of
-			{ok, OriginatingPointCodeList} ->
-				OriginatingPointCodeList;
-			{error, not_found} ->
-				undefined
-		end,
-		TMT = case m3ua_codec:find_parameter(?TrafficModeType, Params) of
-			{ok, TrafficModeType} ->
-				TrafficModeType;
-			{error, not_found} ->
-				undefined
-		end,
-		%% {{EP, Assoc, RC}, NA, [{DPC, [S1], [OPC]}], TMT, Status, As}
-		NewRCs = gb_trees:insert({self(), Assoc, RC},
-				{NA, [{DPC, SIs, OPCs}], TMT, undefined, undefine}, RCs),
-		P0 = m3ua_codec:add_parameter(?LocalRoutingKeyIdentifier, LRKId, []) ,
-		P1 = m3ua_codec:add_parameter(?RegistrationStatus, registered, P0) ,
-		P2 = m3ua_codec:add_parameter(?RoutingContext, RC, P1),
-		RegParams= m3ua_codec:parameters(P2),
-		Message = m3ua_codec:add_parameter(?RegistrationResult, RegParams, []),
-		NewStateData = StateData#statedata{rcs = NewRCs},
-		register_asp_results(T, <<Result/binary, Message/binary>>, NewStateData)
+		case m3ua_codec:routing_key(RoutingKey) of
+			#m3ua_routing_key{lrk_id = LRKId, tmt= TMT, na = NA, key = Keys}
+					when LRKId /= undefined ->
+				NewRCs = gb_trees:insert({Assoc, RC},
+						{NA, Keys, TMT, undefined, undefine}, RCs),
+				P0 = m3ua_codec:add_parameter(?LocalRoutingKeyIdentifier, LRKId, []) ,
+				P1 = m3ua_codec:add_parameter(?RegistrationStatus, registered, P0) ,
+				P2 = m3ua_codec:add_parameter(?RoutingContext, RC, P1),
+				RegParams= m3ua_codec:parameters(P2),
+				Message = m3ua_codec:add_parameter(?RegistrationResult, RegParams, []),
+				NewStateData = StateData#statedata{rcs = NewRCs},
+				register_asp_results(T, <<Result/binary, Message/binary>>, NewStateData);
+			#m3ua_routing_key{} ->
+				throw(unable_to_register)
+		end
 	catch
 		_:_ ->
 			ErP0 = m3ua_codec:add_parameter(?RegistrationStatus, unknown, []) ,
