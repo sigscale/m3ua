@@ -29,6 +29,7 @@
 -export([register_rk/5]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
+-export([getstat/2, getstat/3]).
 
 %% export the callbacks needed for gen_server behaviour
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -172,6 +173,31 @@ asp_active(EndPoint, Assoc) ->
 asp_inactive(EndPoint, Assoc) ->
 	gen_server:call(?MODULE, {asp_inactive, EndPoint, Assoc}).
 
+-spec getstat(EndPoint, Assoc) -> Result
+	when
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an association.
+getstat(EndPoint, Assoc)
+		when is_pid(EndPoint), is_integer(Assoc) ->
+	gen_server:call(?MODULE, {getstat, EndPoint, Assoc, undefined}).
+
+-spec getstat(EndPoint, Assoc, Options) -> Result
+	when
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
+		Options :: [inet:stat_option()],
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an association.
+getstat(EndPoint, Assoc, Options)
+		when is_pid(EndPoint), is_integer(Assoc), is_list(Options)  ->
+	gen_server:call(?MODULE, {getstat, EndPoint, Assoc, Options}).
+
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server gen_server callbacks
 %%----------------------------------------------------------------------
@@ -255,7 +281,7 @@ handle_call({AspOp, EndPoint, Assoc, NA, Keys, Mode}, From,
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
 		none ->
-			{reply, {error, asp_not_found}, State}
+			{reply, {error, not_found}, State}
 	end;
 handle_call({AspOp, EndPoint, Assoc}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State)
@@ -269,7 +295,17 @@ handle_call({AspOp, EndPoint, Assoc}, From,
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
 		none ->
-			{reply, {error, asp_not_found}, State}
+			{reply, {error, not_found}, State}
+	end;
+handle_call({getstat, EndPoint, Assoc, Options}, _From,
+		#state{fsms = Fsms} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, Fsm} ->
+			Event = {getstat, Options},
+			Reply = gen_fsm:sync_send_all_state_event(Fsm, Event),
+			{reply, Reply, State};
+		none ->
+			{reply, {error, not_found}, State}
 	end.
 
 -spec handle_cast(Request :: term(), State :: #state{}) ->
