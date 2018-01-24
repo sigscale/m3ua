@@ -311,7 +311,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			end;
 		{{error, not_found}, {ok, _RK}} ->
 			P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
-			EParams = m3ua_coec:parameters(P0),
+			EParams = m3ua_codec:parameters(P0),
 			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
 			Packet = m3ua_codec:m3ua(ErrorMsg),
 			case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -326,7 +326,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			end;
 		{{error, not_found}, {error, not_found}} ->
 			P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_routing_context, []),
-			EParams = m3ua_coec:parameters(P0),
+			EParams = m3ua_codec:parameters(P0),
 			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
 			Packet = m3ua_codec:m3ua(ErrorMsg),
 			case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -380,13 +380,13 @@ register_asp_results([RoutingKey | T], RC, Result,
 		Params = m3ua_codec:parameters(RoutingKey),
 		LRKId = m3ua_codec:fetch_parameter(?LocalRoutingKeyIdentifier, Params),
 		DPC = m3ua_codec:fetch_parameter(?DestinationPointCode, Params),
-		NA = case m3ua_code:find_parameter(?NetworkAppearance, Params) of
+		NA = case m3ua_codec:find_parameter(?NetworkAppearance, Params) of
 			{ok, NetworkAppearance} ->
 				NetworkAppearance;
 			{error, not_found} ->
 				undefined
 		end,
-		SIs = case m3ua_code:find_parameter(?ServiceIndicators, Params) of
+		SIs = case m3ua_codec:find_parameter(?ServiceIndicators, Params) of
 			{ok, ServiceIndicators} ->
 				ServiceIndicators;
 			{error, not_found} ->
