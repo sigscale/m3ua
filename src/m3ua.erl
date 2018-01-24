@@ -22,8 +22,8 @@
 
 %% export the m3ua public API
 -export([open/0, open/2, close/1]).
-
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([sctp_getstat/1, sctp_getstat/2]).
 -export([register_rk/5]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
@@ -83,6 +83,28 @@ close(EP) when is_pid(EP) ->
 %% @doc Establish an SCTP association.
 sctp_establish(EndPoint, Address, Port, Options) ->
 	m3ua_lm_server:sctp_establish(EndPoint, Address, Port, Options).
+
+-spec sctp_getstat(EndPoint) -> Result
+	when
+		EndPoint :: pid(),
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an endpoint.
+sctp_getstat(EndPoint) when is_pid(EndPoint) ->
+	gen_server:call(EndPoint, {getstat, undefined}).
+
+-spec sctp_getstat(EndPoint, Options) -> Result
+	when
+		EndPoint :: pid(),
+		Options :: [inet:stat_option()],
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an endpoint.
+sctp_getstat(EndPoint, Options)
+		when is_pid(EndPoint), is_list(Options)  ->
+	gen_server:call(EndPoint, {getstat, Options}).
 
 -spec register_rk(EndPoint, Assoc, NA, Keys, Mode) -> Result
 	when
