@@ -253,8 +253,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			P0 = m3ua_codec:add_parameter(?ErrorCode, unexpected_message),
-			EParams = m3ua_codec:parameter(P0),
+			P0 = m3ua_codec:add_parameter(?ErrorCode, unexpected_message, []),
+			EParams = m3ua_codec:parameters(P0),
 			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
 			Packet2 = m3ua_codec:m3ua(ErrorMsg),
 			case gen_sctp:send(Socket, Assoc, 0, Packet2) of
@@ -288,7 +288,7 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = ReqParams},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData};
+			{next_state, inactive, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, eagain, StateData};
@@ -391,8 +391,9 @@ register_asp_results([RoutingKey | T], RC, Result,
 				P2 = m3ua_codec:add_parameter(?RoutingContext, RC, P1),
 				RegParams= m3ua_codec:parameters(P2),
 				Message = m3ua_codec:add_parameter(?RegistrationResult, RegParams, []),
+				Packet = m3ua_codec:parameters(Message),
 				NewStateData = StateData#statedata{rcs = NewRCs},
-				register_asp_results(T, <<Result/binary, Message/binary>>, NewStateData);
+				register_asp_results(T, <<Result/binary, Packet/binary>>, NewStateData);
 			#m3ua_routing_key{} ->
 				throw(unable_to_register)
 		end
@@ -402,7 +403,8 @@ register_asp_results([RoutingKey | T], RC, Result,
 			ErP1 = m3ua_codec:add_parameter(?RoutingContext, RC, ErP0),
 			ErRegParams= m3ua_codec:parameters(ErP1),
 			ErMessage = m3ua_codec:add_parameter(?RegistrationResult, ErRegParams, []),
-			register_asp_results(T, <<Result/binary, ErMessage/binary>>, StateData)
+			ErPacket = m3ua_codec:parameters(ErMessage),
+			register_asp_results(T, <<Result/binary, ErPacket/binary>>, StateData)
 	end;
 register_asp_results([], _RC, Result, StateData) ->
 	{Result, StateData}.

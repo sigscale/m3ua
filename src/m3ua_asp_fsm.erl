@@ -36,7 +36,7 @@
 
 -record(statedata,
 		{sctp_role :: client | server,
-		socket :: scpt:sctp_socket(),
+		socket :: gen_sctp:sctp_socket(),
 		peer_addr :: inet:ip_address(),
 		peer_port :: inet:port_number(),
 		in_streams :: non_neg_integer(),

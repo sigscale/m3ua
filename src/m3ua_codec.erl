@@ -234,21 +234,17 @@ routing_key1(<<?NetworkAppearance:16, Len:16, Chunk/binary>>, Acc) ->
 	<<NA:VLen, Rest/binary>> = Chunk,
 	routing_key1(Rest, Acc#m3ua_routing_key{na = NA});
 routing_key1(<<?DestinationPointCode:16, _/binary>> = Chunk, Acc) ->
-	Acc#m3ua_routing_key{key = routing_key2(Chunk, Acc)}.
+	Acc#m3ua_routing_key{key = routing_key2(Chunk, [])}.
 %% @hidden
 routing_key1([lrk_id | T], #m3ua_routing_key{lrk_id = LRKId} = RK, Acc) ->
-	Len = size(LRKId) + 4,
-	routing_key1(T, RK, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, Len:16, LRKId:32>>);
+	routing_key1(T, RK, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRKId:32>>);
 routing_key1([rc | T], #m3ua_routing_key{rc = RC} = RK, Acc) ->
-	Len = size(RC) + 4,
-	routing_key1(T, RK, <<Acc/binary, ?RoutingContext:16, Len:16, RC:32>>);
+	routing_key1(T, RK, <<Acc/binary, ?RoutingContext:16, 8:16, RC:32>>);
 routing_key1([tmt | T], #m3ua_routing_key{tmt = TMT} = RK, Acc) ->
 	Mode = traffic_mode(TMT),
-	Len = size(Mode) + 4,
-	routing_key1(T, RK, <<Acc/binary, ?TrafficModeType:16, Len:16, Mode:32>>);
+	routing_key1(T, RK, <<Acc/binary, ?TrafficModeType:16, 8:16, Mode:32>>);
 routing_key1([na | T], #m3ua_routing_key{na = NA} = RK, Acc) ->
-	Len = size(NA) + 4,
-	routing_key1(T, RK, <<Acc/binary, ?NetworkAppearance:16, Len:16, NA:32>>);
+	routing_key1(T, RK, <<Acc/binary, ?NetworkAppearance:16, 8:16, NA:32>>);
 routing_key1([key | _], #m3ua_routing_key{key = Keys}, Acc) ->
 	DPCGroups = routing_key2(Keys, <<>>),
 	<<Acc/binary, DPCGroups/binary>>;
@@ -260,14 +256,14 @@ routing_key1([], _RK, Acc) ->
 routing_key2(<<?DestinationPointCode:16, Len:16, Chunk/binary>>, Acc) ->
 	VLen = Len - 4,
 	<<DPC:VLen, Rest1/binary>> = Chunk,
-	F = fun(F, <<?OriginatingPointCodeList, L1:16, C1/binary>>, AccIn) ->
+	F = fun(F, <<?OriginatingPointCodeList:16, L1:16, C1/binary>>, AccIn) ->
 				L2 = L1 - 4,
-				<<D:L2, R/binary>> = C1,
+				<<D:L2/binary, R/binary>> = C1,
 				OPCs = [OPC || <<0, OPC:24>> <= D],
 				F(F, R, [{?OriginatingPointCodeList, OPCs} | AccIn]);
-			(F, <<?ServiceIndicators, L1:16, C1/binary>>, AccIn) ->
+			(F, <<?ServiceIndicators:16, L1:16, C1/binary>>, AccIn) ->
 				L2 = L1 - 4,
-				<<D:L2, R/binary>> = C1,
+				<<D:L2/binary, R/binary>> = C1,
 				SIs = [SI || <<SI>> <= D],
 				F(F, R, [{?ServiceIndicators, SIs} | AccIn]);
 			(_F, C1, AccIn)  ->

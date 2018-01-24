@@ -109,8 +109,8 @@
 -record(m3ua_routing_key,
 		{rc :: pos_integer(),
 		na :: pos_integer(),
-		key :: pos_integer(),
-		tmt :: overide | loadshare | broadcast,
+		key :: [tuple()],
+		tmt :: override | loadshare | broadcast,
 		status :: down | inactive | active | pending,
 		as :: term,
 		lrk_id :: pos_integer()}).
