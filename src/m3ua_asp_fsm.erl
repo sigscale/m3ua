@@ -128,18 +128,18 @@ inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
 	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-inactive({register_rk, Ref, From, NA, Keys, Mode},
+inactive({register, Ref, From, NA, Keys, Mode, AS},
 		#statedata{req = undefined, socket = Socket, assoc = Assoc} =
 		StateData)  ->
 	RK = #m3ua_routing_key{na = NA, tmt = Mode, key = Keys,
-			lrk_id = generate_lrk_id()},
+			lrk_id = generate_lrk_id(), as = AS},
 	RoutingKey = m3ua_codec:routing_key(RK),
 	Params = m3ua_codec:parameters([{?RoutingKey, RoutingKey}]),
 	RegReq = #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 	Message = m3ua_codec:m3ua(RegReq),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
 		ok ->
-			Req = {register_rk, Ref, From},
+			Req = {register, Ref, From, RK},
 			NewStateData = StateData#statedata{req = Req},
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
@@ -357,8 +357,8 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 	{next_state, active, NewStateData};
 %% @todo handle RC and RK
 handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP}, inactive,
-		#statedata{req = {register_rk, Ref, From}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {register_rk, Ref, {ok, []}}),
+		#statedata{req = {register, Ref, From, _RK}, socket = Socket} = StateData) ->
+	gen_server:cast(From, {register, Ref, {ok, []}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};

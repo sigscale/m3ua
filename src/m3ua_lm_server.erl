@@ -26,7 +26,7 @@
 %% export the m3ua_lm_server API
 -export([open/1, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
--export([register_rk/5]).
+-export([register/6]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([getstat/2, getstat/3]).
@@ -75,23 +75,30 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 	gen_server:call(?MODULE, {sctp_establish,
 			EndPoint, Address, Port, Options}).
 
--spec register_rk(EndPoint, Assoc, NA, Keys, Mode) -> Result
+-spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
 	when
 		EndPoint :: pid(),
 		Assoc :: pos_integer(),
 		NA :: pos_integer(),
 		Keys :: [Key],
-		Mode :: overide | loadshare | override,
 		Key :: {DPC, [SI], [OPC]},
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
+		AS :: pid() | {local, Name} | {global, GlobalName}
+				| {via, Module, ViaName},
+		Name :: atom(),
+		GlobalName :: term(),
+		Module :: atom(),
+		ViaName :: term(),
 		Result :: {ok, RoutingContext} | {error, Reason},
 		RoutingContext :: pos_integer(),
 		Reason :: term().
-%% @doc register an ASP
-register_rk(EndPoint, Assoc, NA, Keys, Mode) ->
-	gen_server:call(?MODULE, {register_rk, EndPoint, Assoc, NA, Keys, Mode}).
+%% @doc Register a routing key for an application server.
+register(EndPoint, Assoc, NA, Keys, Mode, AS) ->
+	gen_server:call(?MODULE,
+			{register, EndPoint, Assoc, NA, Keys, Mode, AS}).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
@@ -270,13 +277,13 @@ handle_call({sctp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
-handle_call({AspOp, EndPoint, Assoc, NA, Keys, Mode}, From,
-		#state{fsms = Fsms, reqs = Reqs} = State)
-		when AspOp == register_rk ->
+handle_call({register, EndPoint, Assoc, NA, Keys, Mode, AS}, From,
+		#state{fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, AspFsm} ->
 			Ref = make_ref(),
-			gen_fsm:send_event(AspFsm, {AspOp, Ref, self(), NA, Keys, Mode}),
+			gen_fsm:send_event(AspFsm,
+					{register, Ref, self(), NA, Keys, Mode, AS}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
