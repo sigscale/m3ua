@@ -154,7 +154,9 @@ handle_event(_Event, _StateName, StateData) ->
 
 -spec handle_sync_event(Event :: term(), From :: {pid(), Tag :: term()},
 		StateName :: atom(), StateData :: #statedata{}) ->
-		{stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
+		{reply, Reply :: term(), NextStateName :: atom(),
+		NewStateData :: #statedata{}} | {stop, Reason :: term(),
+		Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with
 %% 	{@link //stdlib/gen_fsm:sync_send_all_state_event/2.
 %% 	gen_fsm:sync_send_all_state_event/2,3}.
