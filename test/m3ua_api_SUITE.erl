@@ -177,6 +177,7 @@ register(_Config) ->
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
 	{ok, ClientEP} = m3ua:open(),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [7,8], []}],
 	{ok, RoutingContext} = m3ua:register(ClientEP, Assoc,
 			undefined, Keys, loadshare),
