@@ -176,6 +176,10 @@ parameters([{?ConcernedDestination, ConcernedDestination} | T], Acc) ->
 parameters([{?RoutingKey, RoutingKey} | T], Acc) ->
 	Len = size(RoutingKey) + 4,
 	parameters(T, <<Acc/binary, ?RoutingKey:16, Len:16, RoutingKey/binary>>);
+parameters([{?RegistrationResult, #registration_result{} = RegResult} | T], Acc) ->
+	RR = registration_result(RegResult),
+	Len = size(RR),
+	parameters(T, <<Acc/binary, ?RegistrationResult:16, Len:16, RR/binary>>);
 parameters([{?RegistrationResult, _} | T], Acc) ->
 	parameters(T, Acc);
 parameters([{?LocalRoutingKeyIdentifier, LRI} | T], Acc) ->
@@ -238,6 +242,8 @@ routing_key1(<<?DestinationPointCode:16, _/binary>> = Chunk, Acc) ->
 %% @hidden
 routing_key1([lrk_id | T], #m3ua_routing_key{lrk_id = LRKId} = RK, Acc) ->
 	routing_key1(T, RK, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRKId:32>>);
+routing_key1([rc | T], #m3ua_routing_key{rc = undefined} = RK, Acc) ->
+	routing_key1(T, RK, Acc);
 routing_key1([rc | T], #m3ua_routing_key{rc = RC} = RK, Acc) ->
 	routing_key1(T, RK, <<Acc/binary, ?RoutingContext:16, 8:16, RC:32>>);
 routing_key1([tmt | T], #m3ua_routing_key{tmt = TMT} = RK, Acc) ->
@@ -344,8 +350,8 @@ parameter(?ConcernedDestination, <<_, ConcernedDestination/binary>>, Acc) ->
 	[{?ConcernedDestination, ConcernedDestination} | Acc];
 parameter(?RoutingKey, RoutingKey, Acc) ->
 	[{?RoutingKey, RoutingKey} | Acc];
-parameter(?RegistrationResult, _, Acc) ->
-	Acc;
+parameter(?RegistrationResult, RegResult, Acc) ->
+	[{?RegistrationResult, registration_result(RegResult)} | Acc];
 parameter(?LocalRoutingKeyIdentifier, <<LRI:32>>, Acc) ->
 	[{?LocalRoutingKeyIdentifier, LRI} | Acc];
 parameter(?DestinationPointCode, <<_Mask, DPC:24>>, Acc) ->
@@ -551,3 +557,39 @@ traffic_mode(3) -> broadcast;
 traffic_mode(override) -> 1;
 traffic_mode(loadshare) -> 2;
 traffic_mode(broadcast) -> 3.
+
+-spec registration_result(RegResult) -> RegResult
+	when
+		RegResult :: binary() | #registration_result{}.
+%% @hidden
+registration_result(RegResult) when is_binary(RegResult) ->
+	registration_result1(RegResult, #registration_result{});
+registration_result(#registration_result{} = RegResult) ->
+	registration_result1(record_info(fields, registration_result), RegResult, <<>>).
+%% @hidden
+registration_result1(<<?LocalRoutingKeyIdentifier:16, L1:16, Chunk/binary>>, Acc) ->
+	L2 = L1 - 4,
+	<<LRKId:L2, Rest/binary>> = Chunk,
+	registration_result1(Rest, Acc#registration_result{lrk_id = LRKId});
+registration_result1(<<?RegistrationStatus:16, L1:16, Chunk/binary>>, Acc) ->
+	L2 = L1 - 4,
+	<<RegStatus:L2/binary, Rest/binary>> = Chunk,
+	registration_result1(Rest, Acc#registration_result{status = registration_status(RegStatus)});
+registration_result1(<<?RoutingContext:16, L1:16, Chunk/binary>>, Acc) ->
+	L2 = L1 - 4,
+	<<RC:L2, Rest/binary>> = Chunk,
+	registration_result1(Rest, Acc#registration_result{rc = RC});
+registration_result1(<<>>, Acc) ->
+	Acc.
+%% @hidden
+registration_result1([lrk_id | T], #registration_result{lrk_id = LRKId} = RR, Acc) ->
+	registration_result1(T, RR, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRKId:32>>);
+registration_result1([status | T], #registration_result{status = Status} = RR, Acc)
+		when is_atom(Status) ->
+	Status1 = registration_status(Status),
+	registration_result1(T, RR, <<Acc/binary, ?RegistrationStatus:16, 8:16, Status1/binary>>);
+registration_result1([rc | T], #registration_result{rc = RC} = RR, Acc) ->
+	registration_result1(T, RR, <<Acc/binary, ?RoutingContext:16, 8:16, RC:32>>);
+registration_result1([], _RR, Acc) ->
+	Acc.
+

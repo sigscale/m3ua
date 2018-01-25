@@ -43,7 +43,8 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		ual :: non_neg_integer(),
-		req :: tuple()}).
+		req :: tuple(),
+		rc :: pos_integer()}).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
@@ -356,12 +357,23 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
 %% @todo handle RC and RK
-handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP}, inactive,
-		#statedata{req = {register, Ref, From, _RK}, socket = Socket} = StateData) ->
-	gen_server:cast(From, {register, Ref, {ok, []}}),
-	inet:setopts(Socket, [{active, once}]),
-	NewStateData = StateData#statedata{req = undefined},
-	{next_state, active, NewStateData};
+handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
+		inactive, #statedata{socket = Socket, req = {register, Ref, From,
+		#m3ua_routing_key{lrk_id = LRKId, na = NA, tmt = TMT, as = AS, key = Keys}}} =
+		StateData) ->
+	Params1 = m3ua_codec:parameters(Params),
+	case m3ua_codec:fetch_parameter(?RegistrationResult, Params1) of
+		#registration_result{lrk_id = LRKId, status = registered, rc = RC} ->
+			Rsp = {NA, Keys, TMT, inactive, AS},
+			gen_server:cast(From, {register, Ref, {ok, RC, Rsp}}),
+			inet:setopts(Socket, [{active, once}]),
+			NewStateData = StateData#statedata{req = undefined},
+			{next_state, active, NewStateData};
+		#registration_result{status = Status} ->
+			gen_server:cast(From, {register, Ref, {error, Status}}),
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData}
+	end;
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, inactive,
 		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
@@ -384,3 +396,4 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
 %% @hidden
 generate_lrk_id() ->
 	random:uniform(256).
+

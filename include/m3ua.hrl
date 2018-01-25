@@ -114,3 +114,9 @@
 		status :: down | inactive | active | pending,
 		as :: term,
 		lrk_id :: pos_integer()}).
+
+-record(registration_result,
+		{lrk_id :: pos_integer(),
+		status :: atom(),
+		rc :: integer()}).
+

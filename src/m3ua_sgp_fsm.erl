@@ -388,11 +388,9 @@ register_asp_results([RoutingKey | T], RC, Result,
 					when LRKId /= undefined ->
 				NewRCs = gb_trees:insert({Assoc, RC},
 						{NA, Keys, TMT, undefined, undefine}, RCs),
-				P0 = m3ua_codec:add_parameter(?LocalRoutingKeyIdentifier, LRKId, []) ,
-				P1 = m3ua_codec:add_parameter(?RegistrationStatus, registered, P0) ,
-				P2 = m3ua_codec:add_parameter(?RoutingContext, RC, P1),
-				RegParams= m3ua_codec:parameters(P2),
-				Message = m3ua_codec:add_parameter(?RegistrationResult, RegParams, []),
+				RegResult = #registration_result{lrk_id = LRKId, status = registered,
+						rc = RC},
+				Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
 				Packet = m3ua_codec:parameters(Message),
 				NewStateData = StateData#statedata{rcs = NewRCs},
 				register_asp_results(T, <<Result/binary, Packet/binary>>, NewStateData);
@@ -401,10 +399,8 @@ register_asp_results([RoutingKey | T], RC, Result,
 		end
 	catch
 		_:_ ->
-			ErP0 = m3ua_codec:add_parameter(?RegistrationStatus, unknown, []) ,
-			ErP1 = m3ua_codec:add_parameter(?RoutingContext, RC, ErP0),
-			ErRegParams= m3ua_codec:parameters(ErP1),
-			ErMessage = m3ua_codec:add_parameter(?RegistrationResult, ErRegParams, []),
+			ErRegResult = #registration_result{status = unknown, rc = RC},
+			ErMessage = m3ua_codec:add_parameter(?RegistrationResult, ErRegResult, []),
 			ErPacket = m3ua_codec:parameters(ErMessage),
 			register_asp_results(T, <<Result/binary, ErPacket/binary>>, StateData)
 	end;

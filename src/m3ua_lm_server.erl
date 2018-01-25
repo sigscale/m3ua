@@ -338,9 +338,9 @@ handle_cast({asp_up, Ref, _ASP, {error, Reason}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({AspOp, Ref, {ok, RC}},
+handle_cast({AspOp, Ref, {ok, RC, RK}},
 		#state{reqs = Reqs} = State)
-		when AspOp == register_rk ->
+		when AspOp == register ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, {ok, RC}),
