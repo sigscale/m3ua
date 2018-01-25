@@ -289,6 +289,7 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
 	RC = generate_rc(),
 	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
 	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RegResult},
+erlang:display({?MODULE, ?LINE, RegRsp}),
 	Packet = m3ua_codec:m3ua(RegRsp),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
@@ -381,34 +382,51 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA}, active,
 
 %% @hidden
 register_asp_results(RoutingKeys, RC, StateData) ->
-	register_asp_results(RoutingKeys, RC, <<>>, StateData).
+	register_asp_results(RoutingKeys, RC, [], StateData).
 %% @hidden
-register_asp_results([RoutingKey | T], RC, Result,
-		#statedata{assoc = Assoc, rcs = RCs} = StateData) ->
+register_asp_results([RoutingKey | T], RC, Acc, #statedata{rcs = RCs} = StateData) ->
 	try
 		case m3ua_codec:routing_key(RoutingKey) of
-			#m3ua_routing_key{lrk_id = LRKId, tmt= TMT, na = NA, key = Keys}
-					when LRKId /= undefined ->
-				NewRCs = gb_trees:insert({Assoc, RC},
-						{NA, Keys, TMT, undefined, undefine}, RCs),
-				RegResult = #registration_result{lrk_id = LRKId, status = registered,
-						rc = RC},
-				Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
-				Packet = m3ua_codec:parameters(Message),
+			#m3ua_routing_key{lrk_id = undefined} ->
+				ErRR = #registration_result{status = invalid_rk, rc = RC},
+				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
+				register_asp_results(T, RC, NewAcc, StateData);
+			#m3ua_routing_key{rc = undefined, key = Keys, lrk_id = LRKId} = RK ->
+				SortedKeys = m3ua:sort(Keys),
+				NewRCs = gb_trees:insert(RC, RK#m3ua_routing_key{key = SortedKeys}, RCs),
+				RegResult = #registration_result{lrk_id = LRKId,
+					status = registered, rc = RC},
+				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
 				NewStateData = StateData#statedata{rcs = NewRCs},
-				register_asp_results(T, RC, <<Result/binary, Packet/binary>>, NewStateData);
-			#m3ua_routing_key{} ->
-				throw(unable_to_register)
+				register_asp_results(T, RC, NewAcc, NewStateData);
+			#m3ua_routing_key{lrk_id = LRKId, key = Keys, rc = ExRC} = RK when LRKId /= undefined ->
+				case gb_trees:lookup(ExRC, RCs) of
+					{value, #m3ua_routing_key{key = ExKeys}} ->
+						SortedKeys = m3ua:sort(Keys ++ ExKeys),
+						NewRCs = gb_trees:insert(ExRC, RK#m3ua_routing_key{key = SortedKeys}, RCs),
+						RegResult = #registration_result{lrk_id = LRKId,
+								status = registered, rc = ExRC},
+						NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
+						NewStateData = StateData#statedata{rcs = NewRCs},
+						register_asp_results(T, RC, NewAcc, NewStateData);
+					none ->
+						ErRR = #registration_result{status = rk_change_refused, rc = RC},
+						NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
+						register_asp_results(T, RC, NewAcc, StateData)
+				end;
+			#m3ua_routing_key{}->
+				ErRR = #registration_result{status = insufficient_resources, rc = RC},
+				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
+				register_asp_results(T, RC, NewAcc, StateData)
 		end
 	catch
 		_:_ ->
 			ErRegResult = #registration_result{status = unknown, rc = RC},
-			ErMessage = m3ua_codec:add_parameter(?RegistrationResult, ErRegResult, []),
-			ErPacket = m3ua_codec:parameters(ErMessage),
-			register_asp_results(T, RC, <<Result/binary, ErPacket/binary>>, StateData)
+			NewAcc1 = m3ua_codec:add_parameter(?RegistrationResult, ErRegResult, Acc),
+			register_asp_results(T, RC, NewAcc1, StateData)
 	end;
-register_asp_results([], _RC, Result, StateData) ->
-	{Result, StateData}.
+register_asp_results([], _RC, Acc, StateData) ->
+	{Acc, StateData}.
 
 %% @hidden
 generate_rc() ->
