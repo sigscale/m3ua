@@ -147,9 +147,10 @@ inactive({register, Ref, From, NA, Keys, Mode, AS},
 			{stop, Reason, StateData}
 	end;
 inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData) ->
+		assoc = Assoc, rc = RC} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?TrafficModeType, loadshare, []),
-	Params = m3ua_codec:parameters(P0),
+	P1 = m3ua_codec:add_parameter(?RoutingContext, RC, P0),
+	Params = m3ua_codec:parameters(P1),
 	AspActive = #m3ua{class = ?ASPTMMessage,
 		type = ?ASPTMASPAC, params = Params},
 	Message = m3ua_codec:m3ua(AspActive),
@@ -367,8 +368,8 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 			Rsp = {NA, Keys, TMT, inactive, AS},
 			gen_server:cast(From, {register, Ref, {ok, RC, Rsp}}),
 			inet:setopts(Socket, [{active, once}]),
-			NewStateData = StateData#statedata{req = undefined},
-			{next_state, active, NewStateData};
+			NewStateData = StateData#statedata{req = undefined, rc = RC},
+			{next_state, inactive, NewStateData};
 		#registration_result{status = Status} ->
 			gen_server:cast(From, {register, Ref, {error, Status}}),
 			inet:setopts(Socket, [{active, once}]),
