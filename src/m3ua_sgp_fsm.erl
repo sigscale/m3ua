@@ -282,14 +282,13 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 	end;
 %% @todo  Registraction - handle registration status
 %% RFC4666 - Section-3.6.2
-handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = ReqParams},
+handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
 		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Parameters = m3ua_codec:parameters(ReqParams),
 	RoutingKeys = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
 	RC = generate_rc(),
 	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
-	RspParams = m3ua_codec:parameters(RegResult),
-	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RspParams},
+	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RegResult},
 	Packet = m3ua_codec:m3ua(RegRsp),
 	gen_sctp:send(Socket, Assoc, 0, Packet),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -398,7 +397,7 @@ register_asp_results([RoutingKey | T], RC, Result,
 				Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
 				Packet = m3ua_codec:parameters(Message),
 				NewStateData = StateData#statedata{rcs = NewRCs},
-				register_asp_results(T, <<Result/binary, Packet/binary>>, NewStateData);
+				register_asp_results(T, RC, <<Result/binary, Packet/binary>>, NewStateData);
 			#m3ua_routing_key{} ->
 				throw(unable_to_register)
 		end
@@ -407,7 +406,7 @@ register_asp_results([RoutingKey | T], RC, Result,
 			ErRegResult = #registration_result{status = unknown, rc = RC},
 			ErMessage = m3ua_codec:add_parameter(?RegistrationResult, ErRegResult, []),
 			ErPacket = m3ua_codec:parameters(ErMessage),
-			register_asp_results(T, <<Result/binary, ErPacket/binary>>, StateData)
+			register_asp_results(T, RC, <<Result/binary, ErPacket/binary>>, StateData)
 	end;
 register_asp_results([], _RC, Result, StateData) ->
 	{Result, StateData}.
