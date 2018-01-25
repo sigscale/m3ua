@@ -207,7 +207,12 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[#sctp_sndrcvinfo{assoc_id = Assoc}], _Data}}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData}.
+	{next_state, StateName, StateData};
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
+		_StateName, #statedata{socket = Socket, assoc = AssocId} =
+		StateData) ->
+	{stop, shutdown, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) ->
