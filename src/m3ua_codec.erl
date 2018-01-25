@@ -160,7 +160,6 @@ parameters([{?AffectedPointCode, APC} | T], Acc) ->
 	Len = size(APCs) + 4,
 	parameters(T, <<Acc/binary, ?AffectedPointCode:16, Len:16, APCs/binary>>);
 parameters([{?CorrelationID, CorrelationID} | T], Acc) ->
-erlang:display({?MODULE, ?LINE, Acc, CorrelationID}),
 	parameters(T, <<Acc/binary, ?CorrelationID:16, 8:16, CorrelationID:32>>);
 parameters([{?NetworkAppearance, NA} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?NetworkAppearance:16, 8:16, NA:32>>);
@@ -222,19 +221,19 @@ routing_key(#m3ua_routing_key{} = RoutingKey) ->
 	routing_key1(record_info(fields, m3ua_routing_key), RoutingKey, <<>>).
 %% @hidden
 routing_key1(<<?LocalRoutingKeyIdentifier:16, Len:16, Chunk/binary>>, Acc) ->
-	VLen = Len - 4,
+	VLen = (Len - 4) * 8,
 	<<LRKId:VLen, Rest/binary>> = Chunk,
 	routing_key1(Rest, Acc#m3ua_routing_key{lrk_id = LRKId});
 routing_key1(<<?RoutingContext:16, Len:16, Chunk/binary>>, Acc) ->
-	VLen = Len - 4,
+	VLen = (Len - 4) * 8,
 	<<RC:VLen, Rest/binary>> = Chunk,
 	routing_key1(Rest, Acc#m3ua_routing_key{rc = RC});
 routing_key1(<<?TrafficModeType:16, Len:16, Chunk/binary>>, Acc) ->
-	VLen = Len - 4,
+	VLen = (Len - 4) * 8,
 	<<TMT:VLen, Rest/binary>> = Chunk,
 	routing_key1(Rest, Acc#m3ua_routing_key{tmt = traffic_mode(TMT)});
 routing_key1(<<?NetworkAppearance:16, Len:16, Chunk/binary>>, Acc) ->
-	VLen = Len - 4,
+	VLen = (Len - 4) * 8,
 	<<NA:VLen, Rest/binary>> = Chunk,
 	routing_key1(Rest, Acc#m3ua_routing_key{na = NA});
 routing_key1(<<?DestinationPointCode:16, _/binary>> = Chunk, Acc) ->
@@ -260,7 +259,7 @@ routing_key1([], _RK, Acc) ->
 	Acc.
 %% @hidden
 routing_key2(<<?DestinationPointCode:16, Len:16, Chunk/binary>>, Acc) ->
-	VLen = Len - 4,
+	VLen = (Len - 4) * 8,
 	<<DPC:VLen, Rest1/binary>> = Chunk,
 	F = fun(F, <<?OriginatingPointCodeList:16, L1:16, C1/binary>>, AccIn) ->
 				L2 = L1 - 4,
@@ -285,10 +284,10 @@ routing_key2([{{?DestinationPointCode, DPC}, [], []} | T], Acc) ->
 routing_key2([{DPC, SIs, OPCs} | T], Acc) ->
 	DestinationPointCode = <<?DestinationPointCode:16, 8:16, DPC:32>>,
 	SIsBin = <<<<SI>> || SI <- SIs>>,
-	SIsLen = size(SIsBin),
+	SIsLen = size(SIsBin) + 4,
 	ServiceIndicators = <<?ServiceIndicators:16, SIsLen:16, SIsBin/binary>>,
 	OPCsBin = <<<<0, OPC:24>> || OPC <- OPCs>>,
-	OPCsLen = size(OPCsBin),
+	OPCsLen = size(OPCsBin) + 4,
 	OriginatingPointCodeList = <<?OriginatingPointCodeList:16, OPCsLen:16, OPCsBin/binary>>,
 	NewAcc = <<Acc/binary, DestinationPointCode/binary,
 			ServiceIndicators/binary, OriginatingPointCodeList/binary>>,
