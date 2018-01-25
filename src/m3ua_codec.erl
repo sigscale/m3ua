@@ -245,9 +245,13 @@ routing_key1([rc | T], #m3ua_routing_key{rc = undefined} = RK, Acc) ->
 	routing_key1(T, RK, Acc);
 routing_key1([rc | T], #m3ua_routing_key{rc = RC} = RK, Acc) ->
 	routing_key1(T, RK, <<Acc/binary, ?RoutingContext:16, 8:16, RC:32>>);
+routing_key1([tmt | T], #m3ua_routing_key{tmt = undefined} = RK, Acc) ->
+	routing_key1(T, RK, Acc);
 routing_key1([tmt | T], #m3ua_routing_key{tmt = TMT} = RK, Acc) ->
 	Mode = traffic_mode(TMT),
 	routing_key1(T, RK, <<Acc/binary, ?TrafficModeType:16, 8:16, Mode:32>>);
+routing_key1([na | T], #m3ua_routing_key{na = undefined} = RK, Acc) ->
+	routing_key1(T, RK, Acc);
 routing_key1([na | T], #m3ua_routing_key{na = NA} = RK, Acc) ->
 	routing_key1(T, RK, <<Acc/binary, ?NetworkAppearance:16, 8:16, NA:32>>);
 routing_key1([key | _], #m3ua_routing_key{key = Keys}, Acc) ->
