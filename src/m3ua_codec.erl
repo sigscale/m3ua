@@ -587,6 +587,8 @@ registration_result1([status | T], #registration_result{status = Status} = RR, A
 		when is_atom(Status) ->
 	Status1 = registration_status(Status),
 	registration_result1(T, RR, <<Acc/binary, ?RegistrationStatus:16, 8:16, Status1/binary>>);
+registration_result1([rc | T], #registration_result{rc = undefined} = RR, Acc) ->
+	registration_result1(T, RR, Acc);
 registration_result1([rc | T], #registration_result{rc = RC} = RR, Acc) ->
 	registration_result1(T, RR, <<Acc/binary, ?RoutingContext:16, 8:16, RC:32>>);
 registration_result1([], _RR, Acc) ->
