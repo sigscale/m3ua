@@ -177,7 +177,7 @@ parameters([{?RoutingKey, RoutingKey} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?RoutingKey:16, Len:16, RoutingKey/binary>>);
 parameters([{?RegistrationResult, #registration_result{} = RegResult} | T], Acc) ->
 	RR = registration_result(RegResult),
-	Len = size(RR),
+	Len = size(RR) + 4,
 	parameters(T, <<Acc/binary, ?RegistrationResult:16, Len:16, RR/binary>>);
 parameters([{?RegistrationResult, _} | T], Acc) ->
 	parameters(T, Acc);
@@ -567,7 +567,7 @@ registration_result(#registration_result{} = RegResult) ->
 	registration_result1(record_info(fields, registration_result), RegResult, <<>>).
 %% @hidden
 registration_result1(<<?LocalRoutingKeyIdentifier:16, L1:16, Chunk/binary>>, Acc) ->
-	L2 = L1 - 4,
+	L2 = (L1 - 4) * 8,
 	<<LRKId:L2, Rest/binary>> = Chunk,
 	registration_result1(Rest, Acc#registration_result{lrk_id = LRKId});
 registration_result1(<<?RegistrationStatus:16, L1:16, Chunk/binary>>, Acc) ->
@@ -575,7 +575,7 @@ registration_result1(<<?RegistrationStatus:16, L1:16, Chunk/binary>>, Acc) ->
 	<<RegStatus:L2/binary, Rest/binary>> = Chunk,
 	registration_result1(Rest, Acc#registration_result{status = registration_status(RegStatus)});
 registration_result1(<<?RoutingContext:16, L1:16, Chunk/binary>>, Acc) ->
-	L2 = L1 - 4,
+	L2 = (L1 - 4) * 8,
 	<<RC:L2, Rest/binary>> = Chunk,
 	registration_result1(Rest, Acc#registration_result{rc = RC});
 registration_result1(<<>>, Acc) ->
