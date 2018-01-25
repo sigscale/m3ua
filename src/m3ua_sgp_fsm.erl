@@ -290,7 +290,6 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
 	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
 	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RegResult},
 	Packet = m3ua_codec:m3ua(RegRsp),
-	gen_sctp:send(Socket, Assoc, 0, Packet),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			inet:setopts(Socket, [{active, once}]),
