@@ -75,7 +75,7 @@ sequences() ->
 %%
 all() ->
 	[open, close, listen, connect, release, getstat_ep, getstat_assoc,
-			asp_up].
+			asp_up, register].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -168,6 +168,19 @@ getstat_assoc(_Config) ->
 	true = lists:all(F, OptionValues),
 	m3ua:close(ClientEP),
 	m3ua:close(ServerEP).
+
+register() ->
+	[{userdata, [{doc, "Register a routing key."}]}].
+
+register(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	Keys = [{rand:uniform(16383), [7,8], []}],
+	{ok, RoutingContext} = m3ua:register(ClientEP, Assoc,
+			undefined, Keys, loadshare),
+	true = is_integer(RoutingContext).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
