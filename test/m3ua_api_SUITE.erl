@@ -42,6 +42,7 @@ suite() ->
 %% Initiation before the whole suite.
 %%
 init_per_suite(Config) ->
+	{ok, [m3ua_as]} = m3ua_app:install(),
 	ok = application:start(m3ua),
 	Config.
 
