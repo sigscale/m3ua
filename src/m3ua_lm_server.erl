@@ -27,6 +27,7 @@
 -export([open/1, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([register/6]).
+-export([as_add/6, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([getstat/2, getstat/3]).
@@ -42,6 +43,7 @@
 		fsms = gb_trees:empty() :: gb_trees:tree(),
 		reqs = gb_trees:empty() :: gb_trees:tree()}).
 
+-include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
@@ -80,6 +82,8 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 		Name :: term(),
 		NA :: undefined | pos_integer(),
 		Keys :: [Key],
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
 		Key :: {DPC, [SI], [OPC]},
 		DPC :: pos_integer(),
 		SI :: pos_integer(),

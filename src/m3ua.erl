@@ -40,6 +40,7 @@
 						| sctp:option().
 -export_type([options/0]).
 
+-include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
@@ -93,6 +94,8 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 		Name :: term(),
 		NA :: undefined | pos_integer(),
 		Keys :: [Key],
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
 		Key :: {DPC, [SI], [OPC]},
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
