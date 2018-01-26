@@ -35,18 +35,21 @@
 -export([down/2, down/3, inactive/2, inactive/3, active/2, active/3]).
 
 -record(statedata,
-		{socket :: scpt:sctp_socket(),
+		{sctp_role :: client | server,
+		socket :: gen_sctp:sctp_socket(),
 		peer_addr :: inet:ip_address(),
 		peer_port :: inet:port_number(),
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		error :: atom(),
-		ual :: non_neg_integer()}).
+		ual :: non_neg_integer(),
+		req :: tuple(),
+		rc :: pos_integer()}).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+-define(Tack, 2000).
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm API
 %%----------------------------------------------------------------------
@@ -63,10 +66,14 @@
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init([Socket, Assoc]) ->
+init([SctpRole, Socket, Address, Port,
+		#sctp_assoc_change{assoc_id = Assoc,
+		inbound_streams = InStreams, outbound_streams = OutStreams}]) ->
 	process_flag(trap_exit, true),
-	Statedata = #statedata{socket = Socket,
-		assoc = Assoc},
+	Statedata = #statedata{sctp_role = SctpRole,
+			socket = Socket, assoc = Assoc,
+			peer_addr = Address, peer_port = Port,
+			in_streams = InStreams, out_streams = OutStreams},
 	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
@@ -78,13 +85,23 @@ init([Socket, Assoc]) ->
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-down({asp_up, _Ref, _From}, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
+	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
+down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
+		assoc = Assoc} = StateData) ->
 	AspUp = #m3ua{class = ?ASPSMMessage,
 			type = ?ASPSMASPUP, params = <<>>},
 	Packet = m3ua_codec:m3ua(AspUp),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			{next_state, down, StateData};
+			Req = {asp_up, Ref, From},
+			NewStateData = StateData#statedata{req = Req},
+			{next_state, down, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end.
@@ -108,8 +125,61 @@ down(Event, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
-inactive(_Event, #statedata{} = StateData) ->
-	{next_state, inactive, StateData}.
+inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
+	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
+inactive({register, Ref, From, NA, Keys, Mode, AS},
+		#statedata{req = undefined, socket = Socket, assoc = Assoc} =
+		StateData)  ->
+	RK = #m3ua_routing_key{na = NA, tmt = Mode, key = Keys,
+			lrk_id = generate_lrk_id(), as = AS},
+	RoutingKey = m3ua_codec:routing_key(RK),
+	Params = m3ua_codec:parameters([{?RoutingKey, RoutingKey}]),
+	RegReq = #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
+	Message = m3ua_codec:m3ua(RegReq),
+	case gen_sctp:send(Socket, Assoc, 0, Message) of
+		ok ->
+			Req = {register, Ref, From, RK},
+			NewStateData = StateData#statedata{req = Req},
+			{next_state, inactive, NewStateData, ?Tack};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
+		assoc = Assoc, rc = RC} = StateData) ->
+	P0 = m3ua_codec:add_parameter(?TrafficModeType, loadshare, []),
+	P1 = m3ua_codec:add_parameter(?RoutingContext, RC, P0),
+	Params = m3ua_codec:parameters(P1),
+	AspActive = #m3ua{class = ?ASPTMMessage,
+		type = ?ASPTMASPAC, params = Params},
+	Message = m3ua_codec:m3ua(AspActive),
+	case gen_sctp:send(Socket, Assoc, 0, Message) of
+		ok ->
+			Req = {asp_active, Ref, From},
+			NewStateData = StateData#statedata{req = Req},
+			{next_state, inactive, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+inactive({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
+		assoc = Assoc} = StateData) ->
+	AspDown = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
+	Message = m3ua_codec:m3ua(AspDown),
+	case gen_sctp:send(Socket, Assoc, 0, Message) of
+		ok ->
+			Req = {asp_down, Ref, From},
+			NewStateData = StateData#statedata{req = Req},
+			{next_state, inactive, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
 -spec inactive(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
@@ -130,8 +200,36 @@ inactive(Event, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
 %% @private
 %%
-active(_Event, #statedata{} = StateData) ->
-	{next_state, active, StateData}.
+active({asp_inactive, Ref, From}, #statedata{req = undefined, socket = Socket,
+		assoc = Assoc} = StateData) ->
+	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
+	Message = m3ua_codec:m3ua(AspInActive),
+	case gen_sctp:send(Socket, Assoc, 0, Message) of
+		ok ->
+			Req = {asp_inactive, Ref, From},
+			NewStateData = StateData#statedata{req = Req},
+			{next_state, active, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+active({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
+		assoc = Assoc} = StateData) ->
+	AspDown = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
+	Message = m3ua_codec:m3ua(AspDown),
+	case gen_sctp:send(Socket, Assoc, 0, Message) of
+		ok ->
+			Req = {asp_down, Ref, From},
+			NewStateData = StateData#statedata{req = Req},
+			{next_state, active, NewStateData, ?Tack};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
 -spec active(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
@@ -175,8 +273,12 @@ handle_event(_Event, _StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_sync_event/4
 %% @private
 %%
-handle_sync_event(_Event, _From, _StateName, StateData) ->
-	{stop, not_implemented, StateData}.
+handle_sync_event({getstat, undefined}, _From, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket), StateName, StateData};
+handle_sync_event({getstat, Options}, _From, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket, Options), StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
@@ -188,41 +290,34 @@ handle_sync_event(_Event, _From, _StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_info/3
 %% @private
 %%
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, _Data} = Event, StateName,
-		#statedata{socket = undefined} = StateData) ->
-	handle_info(Event, StateName, StateData#statedata{socket = Socket});
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, _StateName,
-		#statedata{socket = Socket} = StateData) when is_binary(Data) ->
-	case catch m3ua_codec:m3ua(Data) of
-		#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK} ->
-			{next_state, inactive, StateData};
-		{'EXIT', Reason} ->
-			{stop, Reason, StateData}
-	end;
+handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}},
+		StateName, #statedata{socket = Socket} = StateData)
+		when is_binary(Data) ->
+	handle_asp(Data, StateName, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_assoc_change{state = comm_lost,
-		error = Error, assoc_id = AssocId}}},  StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
+		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData#statedata{error = Error}};
+	{next_state, StateName, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = AssocId}}},
-		StateName, #statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = Assoc}}},
+		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData#statedata{ual = UAL}};
 % @todo Track peer address states.
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_paddr_change{addr = {_Ip, _Port},
-		state = addr_confirmed, assoc_id = AssocId}}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+handle_info({sctp, Socket, _, _,
+		{[], #sctp_paddr_change{addr = {PeerAddr, PeerPort},
+		state = addr_confirmed, assoc_id = Assoc}}}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
-% @todo Dispatch data to user!
+	NewStateData = StateData#statedata{peer_addr = PeerAddr,
+			peer_port = PeerPort},
+	{next_state, StateName, NewStateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[#sctp_sndrcvinfo{assoc_id = AssocId}], _Data}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData}.
+		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
+		_StateName, #statedata{socket = Socket, assoc = AssocId} =
+		StateData) ->
+	{stop, shutdown, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) ->
@@ -247,4 +342,59 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+%% @hidden
+handle_asp(M3UA, StateName, StateData) when is_binary(M3UA) ->
+	handle_asp(m3ua_codec:m3ua(M3UA), StateName, StateData);
+handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK}, down,
+		#statedata{req = {asp_up, Ref, From}, socket = Socket} = StateData) ->
+	gen_server:cast(From, {asp_up, Ref, {ok, self(), undefined, undefined}}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, inactive, NewStateData};
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
+		#statedata{req = {asp_active, Ref, From}, socket = Socket} = StateData) ->
+	gen_server:cast(From, {asp_active, Ref, {ok, self(), undefined, undefined}}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, active, NewStateData};
+%% @todo handle RC and RK
+handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
+		inactive, #statedata{socket = Socket, req = {register, Ref, From,
+		#m3ua_routing_key{lrk_id = LRKId, na = NA, tmt = TMT, as = AS, key = Keys}}} =
+		StateData) ->
+	Params1 = m3ua_codec:parameters(Params),
+	case m3ua_codec:fetch_parameter(?RegistrationResult, Params1) of
+		#registration_result{lrk_id = LRKId, status = registered, rc = RC} ->
+			Rsp = {NA, Keys, TMT, inactive, AS},
+			gen_server:cast(From, {register, Ref, {ok, RC, Rsp}}),
+			inet:setopts(Socket, [{active, once}]),
+			NewStateData = StateData#statedata{req = undefined, rc = RC},
+			{next_state, inactive, NewStateData};
+		#registration_result{status = Status} ->
+			gen_server:cast(From, {register, Ref, {error, Status}}),
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData}
+	end;
+handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, inactive,
+		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
+	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK}, active,
+		#statedata{req = {asp_inactive, Ref, From}, socket = Socket} = StateData) ->
+	gen_server:cast(From, {asp_inactive, Ref, {ok, self(), undefined, undefined}}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, inactive, NewStateData};
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
+		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
+	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData}.
+
+%% @hidden
+generate_lrk_id() ->
+	random:uniform(256).
 

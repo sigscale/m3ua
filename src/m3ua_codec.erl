@@ -21,7 +21,7 @@
 -module(m3ua_codec).
 
 -export([m3ua/1]).
--export([parameters/1]).
+-export([parameters/1, routing_key/1]).
 
 -export([add_parameter/3, store_parameter/3,
 		find_parameter/2, fetch_parameter/2,
@@ -97,7 +97,9 @@ get_all_parameter(Tag, Params) ->
 %%
 m3ua(<<_V, _Reserved, Class, Type, _Len:32, Data/binary>>) ->
 	#m3ua{class = Class, type = Type, params = Data};
-m3ua(#m3ua{class = Class, type = Type, params = Data}) ->
+m3ua(#m3ua{params = Data} = M3UA) when is_list(Data) ->
+	m3ua(M3UA#m3ua{params = parameters(Data)});
+m3ua(#m3ua{class = Class, type = Type, params = Data}) when is_binary(Data) ->
 	Len = size(Data) + 8,
 	<<1, 0, Class, Type, Len:32, Data/binary>>.
 
@@ -160,7 +162,6 @@ parameters([{?AffectedPointCode, APC} | T], Acc) ->
 	Len = size(APCs) + 4,
 	parameters(T, <<Acc/binary, ?AffectedPointCode:16, Len:16, APCs/binary>>);
 parameters([{?CorrelationID, CorrelationID} | T], Acc) ->
-erlang:display({?MODULE, ?LINE, Acc, CorrelationID}),
 	parameters(T, <<Acc/binary, ?CorrelationID:16, 8:16, CorrelationID:32>>);
 parameters([{?NetworkAppearance, NA} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?NetworkAppearance:16, 8:16, NA:32>>);
@@ -173,26 +174,34 @@ parameters([{?CongestionIndications, CL} | T], Acc) ->
 parameters([{?ConcernedDestination, ConcernedDestination} | T], Acc) ->
 	CD = <<0, ConcernedDestination/binary>>,
 	parameters(T, <<Acc/binary, ?ConcernedDestination:16, 8:16, CD/binary>>);
-parameters([{?RoutingKey, RoutingKeys} | T], Acc) ->
-	RK = parameters(RoutingKeys),
-	Len = size(RK) + 4,
-	parameters(T, <<Acc/binary, ?RoutingKey:16, Len:16, RK/binary>>);
+parameters([{?RoutingKey, RoutingKey} | T], Acc) ->
+	Len = size(RoutingKey) + 4,
+	parameters(T, <<Acc/binary, ?RoutingKey:16, Len:16, RoutingKey/binary>>);
+parameters([{?RegistrationResult, #registration_result{} = RegResult} | T], Acc) ->
+	RR = registration_result(RegResult),
+	Len = size(RR) + 4,
+	parameters(T, <<Acc/binary, ?RegistrationResult:16, Len:16, RR/binary>>);
 parameters([{?RegistrationResult, _} | T], Acc) ->
 	parameters(T, Acc);
 parameters([{?LocalRoutingKeyIdentifier, LRI} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRI:32>>);
 parameters([{?DestinationPointCode, DPC} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?DestinationPointCode:16, 8:16, 0, DPC:24>>);
-parameters([{?ServiceIndicators, _} | T], Acc) ->
-	parameters(T, Acc);
-parameters([{?OriginatingPointCodeList, _} | T], Acc) ->
-	parameters(T, Acc);
+parameters([{?ServiceIndicators, ServiceIndicators} | T], Acc) ->
+	SIs = << <<SI>> || SI <- ServiceIndicators>>,
+	Len = size(SIs) + 4,
+	parameters(T, <<Acc/binary, ?ServiceIndicators:16, Len:16, SIs/binary>>);
+parameters([{?OriginatingPointCodeList, OPCs} | T], Acc) ->
+	OPCL = << <<0, OPC:24>> || OPC <- OPCs>>,
+	Len = size(OPCL) + 4,
+	parameters(T, <<Acc/binary, ?OriginatingPointCodeList:16, Len:16, OPCL/binary>>);
 parameters([{?ProtocolData, #protocol_data{} = ProtocolData} | T], Acc) ->
 	PD = protocol_data(ProtocolData),
 	Len = size(PD) + 4,
 	parameters(T, <<Acc/binary, ?ProtocolData:16, Len:16, PD/binary>>);
-parameters([{?RegistrationStatus, _} | T], Acc) ->
-	parameters(T, Acc);
+parameters([{?RegistrationStatus, RegistrationStatus} | T], Acc) ->
+	RegStatus = registration_status(RegistrationStatus),
+	parameters(T, <<Acc/binary, ?RegistrationStatus:16, 8:16, RegStatus/binary>>);
 parameters([{?DeregistrationStatus, _} | T], Acc) ->
 	parameters(T, Acc);
 parameters(<<>>, Acc) ->
@@ -203,6 +212,95 @@ parameters([], Acc) when (size(Acc) rem 4) /= 0 ->
 parameters(Pad, Acc) when (size(Pad) rem 4) /= 0 ->
 	lists:reverse(Acc);
 parameters([], Acc) ->
+	Acc.
+
+-spec routing_key(RoutingKey) -> RoutingKey
+	when
+		RoutingKey :: binary() | #m3ua_routing_key{}.
+routing_key(RoutingKey) when is_binary(RoutingKey) ->
+	routing_key1(RoutingKey, #m3ua_routing_key{});
+routing_key(#m3ua_routing_key{} = RoutingKey) ->
+	routing_key1(record_info(fields, m3ua_routing_key), RoutingKey, <<>>).
+%% @hidden
+routing_key1(<<?LocalRoutingKeyIdentifier:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = (Len - 4) * 8,
+	<<LRKId:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{lrk_id = LRKId});
+routing_key1(<<?RoutingContext:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = (Len - 4) * 8,
+	<<RC:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{rc = RC});
+routing_key1(<<?TrafficModeType:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = (Len - 4) * 8,
+	<<TMT:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{tmt = traffic_mode(TMT)});
+routing_key1(<<?NetworkAppearance:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = (Len - 4) * 8,
+	<<NA:VLen, Rest/binary>> = Chunk,
+	routing_key1(Rest, Acc#m3ua_routing_key{na = NA});
+routing_key1(<<?DestinationPointCode:16, _/binary>> = Chunk, Acc) ->
+	Acc#m3ua_routing_key{key = routing_key2(Chunk, [])}.
+%% @hidden
+routing_key1([lrk_id | T], #m3ua_routing_key{lrk_id = LRKId} = RK, Acc) ->
+	routing_key1(T, RK, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRKId:32>>);
+routing_key1([rc | T], #m3ua_routing_key{rc = undefined} = RK, Acc) ->
+	routing_key1(T, RK, Acc);
+routing_key1([rc | T], #m3ua_routing_key{rc = RC} = RK, Acc) ->
+	routing_key1(T, RK, <<Acc/binary, ?RoutingContext:16, 8:16, RC:32>>);
+routing_key1([tmt | T], #m3ua_routing_key{tmt = undefined} = RK, Acc) ->
+	routing_key1(T, RK, Acc);
+routing_key1([tmt | T], #m3ua_routing_key{tmt = TMT} = RK, Acc) ->
+	Mode = traffic_mode(TMT),
+	routing_key1(T, RK, <<Acc/binary, ?TrafficModeType:16, 8:16, Mode:32>>);
+routing_key1([na | T], #m3ua_routing_key{na = undefined} = RK, Acc) ->
+	routing_key1(T, RK, Acc);
+routing_key1([na | T], #m3ua_routing_key{na = NA} = RK, Acc) ->
+	routing_key1(T, RK, <<Acc/binary, ?NetworkAppearance:16, 8:16, NA:32>>);
+routing_key1([key | _], #m3ua_routing_key{key = Keys}, Acc) ->
+	DPCGroups = routing_key2(Keys, <<>>),
+	<<Acc/binary, DPCGroups/binary>>;
+routing_key1([_ | T], RK, Acc) ->
+	routing_key1(T, RK, Acc);
+routing_key1([], _RK, Acc) ->
+	Acc.
+%% @hidden
+routing_key2(<<?DestinationPointCode:16, Len:16, Chunk/binary>>, Acc) ->
+	VLen = (Len - 4) * 8,
+	<<DPC:VLen, Rest1/binary>> = Chunk,
+	F = fun(F, <<?OriginatingPointCodeList:16, L1:16, C1/binary>>, AccIn) ->
+				L2 = L1 - 4,
+				<<D:L2/binary, R/binary>> = C1,
+				OPCs = [OPC || <<0, OPC:24>> <= D],
+				F(F, R, [{?OriginatingPointCodeList, OPCs} | AccIn]);
+			(F, <<?ServiceIndicators:16, L1:16, C1/binary>>, AccIn) ->
+				L2 = L1 - 4,
+				<<D:L2/binary, R/binary>> = C1,
+				SIs = [SI || <<SI>> <= D],
+				F(F, R, [{?ServiceIndicators, SIs} | AccIn]);
+			(_F, C1, AccIn)  ->
+				{C1, AccIn}
+	end,
+	{Rest2, DPCGroup} = F(F, Rest1, []),
+	OriginatingPointCodeList = proplists:get_value(?OriginatingPointCodeList, DPCGroup, []),
+	ServiceIndicators = proplists:get_value(?ServiceIndicators, DPCGroup, []),
+	Group = {DPC, ServiceIndicators, OriginatingPointCodeList},
+	routing_key2(Rest2, [Group | Acc]);
+routing_key2([{{?DestinationPointCode, DPC}, [], []} | T], Acc) ->
+	routing_key2(T, <<Acc/binary, ?DestinationPointCode:16, 8:16, DPC:32>>);
+routing_key2([{DPC, SIs, OPCs} | T], Acc) ->
+	DestinationPointCode = <<?DestinationPointCode:16, 8:16, DPC:32>>,
+	SIsBin = <<<<SI>> || SI <- SIs>>,
+	SIsLen = size(SIsBin) + 4,
+	ServiceIndicators = <<?ServiceIndicators:16, SIsLen:16, SIsBin/binary>>,
+	OPCsBin = <<<<0, OPC:24>> || OPC <- OPCs>>,
+	OPCsLen = size(OPCsBin) + 4,
+	OriginatingPointCodeList = <<?OriginatingPointCodeList:16, OPCsLen:16, OPCsBin/binary>>,
+	NewAcc = <<Acc/binary, DestinationPointCode/binary,
+			ServiceIndicators/binary, OriginatingPointCodeList/binary>>,
+	routing_key2(T, NewAcc);
+routing_key2(<<>>, Acc) ->
+	Acc;
+routing_key2([], Acc) ->
 	Acc.
 
 %%----------------------------------------------------------------------
@@ -256,25 +354,28 @@ parameter(?CongestionIndications, <<_:24, CL>>, Acc) ->
 parameter(?ConcernedDestination, <<_, ConcernedDestination/binary>>, Acc) ->
 	[{?ConcernedDestination, ConcernedDestination} | Acc];
 parameter(?RoutingKey, RoutingKey, Acc) ->
-	[{?RoutingKey, parameters(RoutingKey)} | Acc];
-parameter(?RegistrationResult, _, Acc) ->
-	Acc;
+	[{?RoutingKey, RoutingKey} | Acc];
+parameter(?RegistrationResult, RegResult, Acc) ->
+	[{?RegistrationResult, registration_result(RegResult)} | Acc];
 parameter(?LocalRoutingKeyIdentifier, <<LRI:32>>, Acc) ->
 	[{?LocalRoutingKeyIdentifier, LRI} | Acc];
 parameter(?DestinationPointCode, <<_Mask, DPC:24>>, Acc) ->
 	[{?DestinationPointCode, DPC} | Acc];
-parameter(?ServiceIndicators, _, Acc) ->
-	Acc;
-parameter(?OriginatingPointCodeList, _, Acc) ->
-	Acc;
+parameter(?ServiceIndicators, ServiceIndicators, Acc) ->
+	SIs = [SI || <<SI>> <= ServiceIndicators],
+	[{?ServiceIndicators, SIs} | Acc];
+parameter(?OriginatingPointCodeList, OPCs, Acc) ->
+	OPCL = [OPC || <<0, OPC:24>> <= OPCs],
+	[{?OriginatingPointCodeList, OPCL} | Acc];
 parameter(?ProtocolData, PD, Acc) ->
 	[{?ProtocolData, protocol_data(PD)} | Acc];
-parameter(?RegistrationStatus, _, Acc) ->
-	Acc;
+parameter(?RegistrationStatus, RegistrationStatus, Acc) ->
+	[{?RegistrationStatus, registration_status(RegistrationStatus)} | Acc];
 parameter(?DeregistrationStatus, _, Acc) ->
 	Acc;
 parameter(_, _, Acc) ->
 	Acc.
+
 
 -type mtp3_user() :: sccp | tup | isup | broadband_isup
 						| satellite_isup | aal2signalling | gcp.
@@ -415,4 +516,87 @@ protocol_data(<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>) ->
 protocol_data(#protocol_data{opc = OPC, dpc = DPC,
 		si = SI, ni = NI, mp = MP, sls = SLS, data = UPD}) ->
 	<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>.
+
+-spec registration_status(RegistrationStatus) -> RegistrationStatus
+	when
+		RegistrationStatus :: binary() | atom().
+%% @doc codec for registraction status
+%% RFC4666, Section-3.6.2
+%% @hidden
+%%
+registration_status(<<0:32>>) -> registered;
+registration_status(<<1:32>>) -> unknown;
+registration_status(<<2:32>>) -> invalid_dpc;
+registration_status(<<3:32>>) -> invalid_na;
+registration_status(<<4:32>>) -> invalid_rk;
+registration_status(<<5:32>>) -> permission_denied;
+registration_status(<<6:32>>) -> can_not_support_unique_routing;
+registration_status(<<7:32>>) -> rk_not_currently_provisioned;
+registration_status(<<8:32>>) -> insufficient_resources;
+registration_status(<<9:32>>) -> unsupported_rk_parameter_field;
+registration_status(<<10:32>>) -> invalid_traffic_handling_mode;
+registration_status(<<11:32>>) -> rk_change_refused;
+registration_status(<<12:32>>) -> rk_already_registered;
+registration_status(registered) -> <<0:32>>;
+registration_status(unknown) -> <<1:32>>;
+registration_status(invalid_dpc) -> <<2:32>>;
+registration_status(invalid_na) -> <<3:32>>;
+registration_status(invalid_rk) -> <<4:32>>;
+registration_status(permission_denied) -> <<5:32>>;
+registration_status(can_not_support_unique_routing) -> <<6:32>>;
+registration_status(rk_not_currently_provisioned) -> <<7:32>>;
+registration_status(insufficient_resources) -> <<8:32>>;
+registration_status(unsupported_rk_parameter_field) -> <<9:32>>;
+registration_status(invalid_traffic_handling_mode) -> <<10:32>>;
+registration_status(rk_change_refused) -> <<11:32>>;
+registration_status(rk_already_registered) -> <<12:32>>.
+
+-spec traffic_mode(Mode) -> Mode
+	when
+		Mode :: integer()
+				| override | loadshare
+				| broadcast.
+traffic_mode(1) -> override;
+traffic_mode(2) -> loadshare;
+traffic_mode(3) -> broadcast;
+traffic_mode(override) -> 1;
+traffic_mode(loadshare) -> 2;
+traffic_mode(broadcast) -> 3.
+
+-spec registration_result(RegResult) -> RegResult
+	when
+		RegResult :: binary() | #registration_result{}.
+%% @hidden
+registration_result(RegResult) when is_binary(RegResult) ->
+	registration_result1(RegResult, #registration_result{});
+registration_result(#registration_result{} = RegResult) ->
+	registration_result1(record_info(fields, registration_result), RegResult, <<>>).
+%% @hidden
+registration_result1(<<?LocalRoutingKeyIdentifier:16, L1:16, Chunk/binary>>, Acc) ->
+	L2 = (L1 - 4) * 8,
+	<<LRKId:L2, Rest/binary>> = Chunk,
+	registration_result1(Rest, Acc#registration_result{lrk_id = LRKId});
+registration_result1(<<?RegistrationStatus:16, L1:16, Chunk/binary>>, Acc) ->
+	L2 = L1 - 4,
+	<<RegStatus:L2/binary, Rest/binary>> = Chunk,
+	registration_result1(Rest, Acc#registration_result{status = registration_status(RegStatus)});
+registration_result1(<<?RoutingContext:16, L1:16, Chunk/binary>>, Acc) ->
+	L2 = (L1 - 4) * 8,
+	<<RC:L2, Rest/binary>> = Chunk,
+	registration_result1(Rest, Acc#registration_result{rc = RC});
+registration_result1(<<>>, Acc) ->
+	Acc.
+%% @hidden
+registration_result1([lrk_id | T], #registration_result{lrk_id = LRKId} = RR, Acc) ->
+	registration_result1(T, RR, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRKId:32>>);
+registration_result1([status | T], #registration_result{status = Status} = RR, Acc)
+		when is_atom(Status) ->
+	Status1 = registration_status(Status),
+	registration_result1(T, RR, <<Acc/binary, ?RegistrationStatus:16, 8:16, Status1/binary>>);
+registration_result1([rc | T], #registration_result{rc = undefined} = RR, Acc) ->
+	registration_result1(T, RR, Acc);
+registration_result1([rc | T], #registration_result{rc = RC} = RR, Acc) ->
+	registration_result1(T, RR, <<Acc/binary, ?RoutingContext:16, 8:16, RC:32>>);
+registration_result1([], _RR, Acc) ->
+	Acc.
 

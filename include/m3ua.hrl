@@ -106,3 +106,17 @@
 		sls :: integer(),
 		data :: binary()}).
 
+-record(m3ua_routing_key,
+		{rc :: pos_integer(),
+		na :: pos_integer(),
+		tmt :: override | loadshare | broadcast,
+		status :: down | inactive | active | pending,
+		as :: term,
+		lrk_id :: pos_integer(),
+		key :: [tuple()]}).
+
+-record(registration_result,
+		{lrk_id :: pos_integer(),
+		status :: atom(),
+		rc :: integer()}).
+

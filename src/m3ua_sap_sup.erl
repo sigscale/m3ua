@@ -1,4 +1,4 @@
-%%% m3ua_sup.erl
+%%% m3ua_sap_sup.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -16,7 +16,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @docfile "{@docsrc supervision.edoc}"
 %%%
--module(m3ua_sup).
+-module(m3ua_sap_sup).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 -behaviour(supervisor).
@@ -35,35 +35,11 @@
 %% @see //stdlib/supervisor:init/1
 %% @private
 %%
-init([] = _Args) ->
-	ChildSpecs = [supervisor(m3ua_endpoint_sup_sup, []),
-			server(m3ua_sap_server, [self()]),
-			server(m3ua_lm_server, [self()])],
-	{ok, {{one_for_all, 1, 5}, ChildSpecs}}.
-
-%%----------------------------------------------------------------------
-%%  internal functions
-%%----------------------------------------------------------------------
-
--spec supervisor(StartMod :: atom(), Args :: [term()]) ->
-	supervisor:child_spec().
-%% @doc Build a supervisor child specification for a
-%% 	{@link //stdlib/supervisor. supervisor} behaviour.
-%% @private
-%%
-supervisor(StartMod, Args) ->
+init(Args) when is_list(Args) ->
+	StartMod = m3ua_sap_server,
 	StartArgs = [StartMod, Args],
 	StartFunc = {supervisor, start_link, StartArgs},
-	{StartMod, StartFunc, permanent, infinity, supervisor, [StartMod]}.
-
--spec server(StartMod :: atom(), Args :: [term()]) ->
-	supervisor:child_spec().
-%% @doc Build a supervisor child specification for a
-%% 	{@link //stdlib/gen_server. gen_server} behaviour.
-%% @private
-%%
-server(StartMod, Args) ->
-	StartArgs = [{local, StartMod}, StartMod, Args, []],
-	StartFunc = {gen_server, start_link, StartArgs},
-	{StartMod, StartFunc, permanent, 4000, worker, [StartMod]}.
+	ChildSpec = {StartMod, StartFunc,
+			temporary, infinity, supervisor, [StartMod]},
+	{ok, {{simple_one_for_one, 0, 1}, [ChildSpec]}}.
 

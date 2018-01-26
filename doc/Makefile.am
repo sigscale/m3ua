@@ -4,6 +4,7 @@
 
 modhtml = m3ua.html m3ua_app.html \
 		m3ua_sup.html \
+		m3ua_sap_sup.html \
 		m3ua_sap_server.html \
 		m3ua_endpoint_sup_sup.html \
 		m3ua_endpoint_sup.html \
@@ -35,7 +36,6 @@ overview.edoc: overview.edoc-in
 	done
 	-cp -n $(top_srcdir)/doc/sigscale-logo.png .
 	-cp -n $(top_srcdir)/doc/supervision.png .
-	-cp -n $(top_srcdir)/doc/messaging-client.png .
 
 CLEANFILES = overview.edoc edoc-info index.html \
 		modules-frame.html overview-summary.html packages-frame.html \

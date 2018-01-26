@@ -26,8 +26,10 @@
 %% export the m3ua_lm_server API
 -export([open/1, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([register/6]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
+-export([getstat/2, getstat/3]).
 
 %% export the callbacks needed for gen_server behaviour
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -72,6 +74,31 @@ close(EP) ->
 sctp_establish(EndPoint, Address, Port, Options) ->
 	gen_server:call(?MODULE, {sctp_establish,
 			EndPoint, Address, Port, Options}).
+
+-spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
+	when
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
+		NA :: pos_integer(),
+		Keys :: [Key],
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
+		AS :: pid() | {local, Name} | {global, GlobalName}
+				| {via, Module, ViaName},
+		Name :: atom(),
+		GlobalName :: term(),
+		Module :: atom(),
+		ViaName :: term(),
+		Result :: {ok, RoutingContext} | {error, Reason},
+		RoutingContext :: pos_integer(),
+		Reason :: term().
+%% @doc Register a routing key for an application server.
+register(EndPoint, Assoc, NA, Keys, Mode, AS) ->
+	gen_server:call(?MODULE,
+			{register, EndPoint, Assoc, NA, Keys, Mode, AS}).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
@@ -153,6 +180,31 @@ asp_active(EndPoint, Assoc) ->
 asp_inactive(EndPoint, Assoc) ->
 	gen_server:call(?MODULE, {asp_inactive, EndPoint, Assoc}).
 
+-spec getstat(EndPoint, Assoc) -> Result
+	when
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an association.
+getstat(EndPoint, Assoc)
+		when is_pid(EndPoint), is_integer(Assoc) ->
+	gen_server:call(?MODULE, {getstat, EndPoint, Assoc, undefined}).
+
+-spec getstat(EndPoint, Assoc, Options) -> Result
+	when
+		EndPoint :: pid(),
+		Assoc :: pos_integer(),
+		Options :: [inet:stat_option()],
+		Result :: {ok, OptionValues} | {error, inet:posix()},
+		OptionValues :: [{inet:stat_option(), Count}],
+		Count :: non_neg_integer().
+%% @doc Get socket statistics for an association.
+getstat(EndPoint, Assoc, Options)
+		when is_pid(EndPoint), is_integer(Assoc), is_list(Options)  ->
+	gen_server:call(?MODULE, {getstat, EndPoint, Assoc, Options}).
+
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server gen_server callbacks
 %%----------------------------------------------------------------------
@@ -225,6 +277,19 @@ handle_call({sctp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
+handle_call({register, EndPoint, Assoc, NA, Keys, Mode, AS}, From,
+		#state{fsms = Fsms, reqs = Reqs} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, AspFsm} ->
+			Ref = make_ref(),
+			gen_fsm:send_event(AspFsm,
+					{register, Ref, self(), NA, Keys, Mode, AS}),
+			NewReqs = gb_trees:insert(Ref, From, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{reply, {error, not_found}, State}
+	end;
 handle_call({AspOp, EndPoint, Assoc}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State)
 		when AspOp == asp_up; AspOp == asp_down;
@@ -237,7 +302,17 @@ handle_call({AspOp, EndPoint, Assoc}, From,
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
 		none ->
-			{reply, {error, asp_not_found}, State}
+			{reply, {error, not_found}, State}
+	end;
+handle_call({getstat, EndPoint, Assoc, Options}, _From,
+		#state{fsms = Fsms} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, Fsm} ->
+			Event = {getstat, Options},
+			Reply = gen_fsm:sync_send_all_state_event(Fsm, Event),
+			{reply, Reply, State};
+		none ->
+			{reply, {error, not_found}, State}
 	end.
 
 -spec handle_cast(Request :: term(), State :: #state{}) ->
@@ -252,7 +327,30 @@ handle_call({AspOp, EndPoint, Assoc}, From,
 %%
 handle_cast(stop, State) ->
 	{stop, normal, State};
-handle_cast({AspOp, Ref, _ASP, _Identifier, _Info},
+handle_cast({asp_up, Ref, _ASP, {error, Reason}},
+		#state{reqs = Reqs} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, {error, Reason}),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({AspOp, Ref, {ok, RC, RK}},
+		#state{reqs = Reqs} = State)
+		when AspOp == register ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, {ok, RC}),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({AspOp, Ref, {ok, _ASP, _Identifier, _Info}},
 		#state{reqs = Reqs} = State)
 		when AspOp == asp_up; AspOp == asp_down;
 		AspOp == asp_active; AspOp == asp_inactive ->

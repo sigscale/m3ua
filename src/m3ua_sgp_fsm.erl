@@ -1,4 +1,4 @@
-%%% m3ua_sgp_fsm.erl
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @copyright 2015-2018 SigScale Global Inc.
 %%% @end
@@ -38,14 +38,15 @@
 -include_lib("kernel/include/inet_sctp.hrl").
 
 -record(statedata,
-		{socket :: gen_sctp:sctp_socket(),
+		{sctp_role :: client | server,
+		socket :: gen_sctp:sctp_socket(),
 		peer_addr :: inet:ip_address(),
 		peer_port :: inet:port_number(),
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		error :: atom(),
-		ual :: non_neg_integer()}).
+		ual :: non_neg_integer(),
+		rcs = gb_trees:empty() :: gb_trees:tree()}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm API
@@ -63,18 +64,15 @@
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init([{sctp, _Socket, PeerAddr, PeerPort,
-		{[], #sctp_assoc_change{state = comm_up,
-		outbound_streams = OutStreams, inbound_streams = InStreams,
-		assoc_id = AssocId}}}]) ->
+init([SctpRole, Socket, Address, Port,
+		#sctp_assoc_change{assoc_id = Assoc,
+		inbound_streams = InStreams, outbound_streams = OutStreams}]) ->
 	process_flag(trap_exit, true),
-	StateData = #statedata{peer_addr = PeerAddr, peer_port = PeerPort,
-			in_streams = InStreams, out_streams = OutStreams,
-			assoc = AssocId},
-	{ok, down, StateData};
-init([{sctp, _Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_assoc_change{state = Other, error = Error}}}]) ->
-	{stop, {Other, Error}}.
+	Statedata = #statedata{sctp_role = SctpRole,
+			socket = Socket, assoc = Assoc,
+			peer_addr = Address, peer_port = Port,
+			in_streams = InStreams, out_streams = OutStreams},
+	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
@@ -156,15 +154,21 @@ handle_event(_Event, _StateName, StateData) ->
 
 -spec handle_sync_event(Event :: term(), From :: {pid(), Tag :: term()},
 		StateName :: atom(), StateData :: #statedata{}) ->
-		{stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
+		{reply, Reply :: term(), NextStateName :: atom(),
+		NewStateData :: #statedata{}} | {stop, Reason :: term(),
+		Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with
 %% 	{@link //stdlib/gen_fsm:sync_send_all_state_event/2.
 %% 	gen_fsm:sync_send_all_state_event/2,3}.
 %% @see //stdlib/gen_fsm:handle_sync_event/4
 %% @private
 %%
-handle_sync_event(Event, _From, _StateName, StateData) ->
-	{stop, Event, not_implemented, StateData}.
+handle_sync_event({getstat, undefined}, _From, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket), StateName, StateData};
+handle_sync_event({getstat, Options}, _From, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket, Options), StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
@@ -176,48 +180,39 @@ handle_sync_event(Event, _From, _StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_info/3
 %% @private
 %%
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, _Data} = Event, StateName,
-		#statedata{socket = undefined} = StateData) ->
-	handle_info(Event, StateName, StateData#statedata{socket = Socket});
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, _StateName,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) when is_binary(Data) ->
-	case catch m3ua_codec:m3ua(Data) of
-		#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP} ->
-			AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
-			Packet = m3ua_codec:m3ua(AspUpAck),
-			case gen_sctp:send(Socket, Assoc, 0, Packet) of
-				ok ->
-					{next_state, inactive, StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		{'EXIT', Reason} ->
-			{stop, Reason, StateData}
-	end;
+handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, StateName,
+		#statedata{socket = Socket} = StateData) when is_binary(Data) ->
+	handle_sgp(Data, StateName, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_assoc_change{state = comm_lost,
-		error = Error, assoc_id = AssocId}}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData#statedata{error = Error}};
+	{next_state, StateName, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = AssocId}}},
-		StateName, #statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = Assoc}}},
+		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData#statedata{ual = UAL}};
 % @todo Track peer address states.
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_paddr_change{addr = {_Ip, _Port},
-		state = addr_confirmed, assoc_id = AssocId}}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+handle_info({sctp, Socket, _, _,
+		{[], #sctp_paddr_change{addr = {PeerAddr, PeerPort},
+		state = addr_confirmed, assoc_id = Assoc}}}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
+	NewStateData = StateData#statedata{peer_addr = PeerAddr,
+			peer_port = PeerPort},
+	{next_state, StateName, NewStateData};
 % @todo Dispatch data to user!
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[#sctp_sndrcvinfo{assoc_id = AssocId}], _Data}}, StateName,
-		#statedata{socket = Socket, assoc = AssocId} = StateData) ->
+		{[#sctp_sndrcvinfo{assoc_id = Assoc}], _Data}}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData}.
+	{next_state, StateName, StateData};
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
+		_StateName, #statedata{socket = Socket, assoc = AssocId} =
+		StateData) ->
+	{stop, shutdown, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) ->
@@ -242,4 +237,197 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+%% @hidden
+handle_sgp(M3UA, StateName, StateData) when is_binary(M3UA) ->
+	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, StateData);
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
+	Packet = m3ua_codec:m3ua(AspUpAck),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
+	Packet = m3ua_codec:m3ua(AspUpAck),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			P0 = m3ua_codec:add_parameter(?ErrorCode, unexpected_message, []),
+			EParams = m3ua_codec:parameters(P0),
+			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+			Packet2 = m3ua_codec:m3ua(ErrorMsg),
+			case gen_sctp:send(Socket, Assoc, 0, Packet2) of
+				ok ->
+					inet:setopts(Socket, [{active, once}]),
+					{next_state, inactive, StateData};
+				{error, eagain} ->
+					% @todo flow control
+					{stop, eagain, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+%% @todo  Registraction - handle registration status
+%% RFC4666 - Section-3.6.2
+handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
+		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	Parameters = m3ua_codec:parameters(ReqParams),
+	RoutingKeys = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
+	RC = generate_rc(),
+	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
+	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RegResult},
+erlang:display({?MODULE, ?LINE, RegRsp}),
+	Packet = m3ua_codec:m3ua(RegRsp),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, NewStateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, NewStateData};
+		{error, Reason} ->
+			{stop, Reason, NewStateData}
+	end;
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
+		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	AspActive = m3ua_codec:parameters(Params),
+	case {m3ua_codec:find_parameter(?RoutingContext, AspActive),
+					m3ua_codec:find_parameter(?RoutingKey, AspActive)} of
+		{{ok, _RC}, {ok, _RK}} ->
+			AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
+			Packet = m3ua_codec:m3ua(AspActiveAck),
+			case gen_sctp:send(Socket, Assoc, 0, Packet) of
+				ok ->
+					inet:setopts(Socket, [{active, once}]),
+					{next_state, active, StateData};
+				{error, eagain} ->
+					% @todo flow control
+					{stop, eagain, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{{error, not_found}, {ok, _RK}} ->
+			P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
+			EParams = m3ua_codec:parameters(P0),
+			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+			Packet = m3ua_codec:m3ua(ErrorMsg),
+			case gen_sctp:send(Socket, Assoc, 0, Packet) of
+				ok ->
+					inet:setopts(Socket, [{active, once}]),
+					{next_state, active, StateData};
+				{error, eagain} ->
+					% @todo flow control
+					{stop, eagain, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end;
+		{{error, not_found}, {error, not_found}} ->
+			P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_routing_context, []),
+			EParams = m3ua_codec:parameters(P0),
+			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+			Packet = m3ua_codec:m3ua(ErrorMsg),
+			case gen_sctp:send(Socket, Assoc, 0, Packet) of
+				ok ->
+					inet:setopts(Socket, [{active, once}]),
+					{next_state, active, StateData};
+				{error, eagain} ->
+					% @todo flow control
+					{stop, eagain, StateData};
+				{error, Reason} ->
+					{stop, Reason, StateData}
+			end
+	end;
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData)
+		when StateName == inactive; StateName == down ->
+	AspActiveAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
+	Packet = m3ua_codec:m3ua(AspActiveAck),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, down, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA}, active,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	AspInactiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
+	Packet = m3ua_codec:m3ua(AspInactiveAck),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
+%% @hidden
+register_asp_results(RoutingKeys, RC, StateData) ->
+	register_asp_results(RoutingKeys, RC, [], StateData).
+%% @hidden
+register_asp_results([RoutingKey | T], RC, Acc, #statedata{rcs = RCs} = StateData) ->
+	try
+		case m3ua_codec:routing_key(RoutingKey) of
+			#m3ua_routing_key{lrk_id = undefined} ->
+				ErRR = #registration_result{status = invalid_rk, rc = RC},
+				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
+				register_asp_results(T, RC, NewAcc, StateData);
+			#m3ua_routing_key{rc = undefined, key = Keys, lrk_id = LRKId} = RK ->
+				SortedKeys = m3ua:sort(Keys),
+				NewRCs = gb_trees:insert(RC, RK#m3ua_routing_key{key = SortedKeys}, RCs),
+				RegResult = #registration_result{lrk_id = LRKId,
+					status = registered, rc = RC},
+				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
+				NewStateData = StateData#statedata{rcs = NewRCs},
+				register_asp_results(T, RC, NewAcc, NewStateData);
+			#m3ua_routing_key{lrk_id = LRKId, key = Keys, rc = ExRC} = RK when LRKId /= undefined ->
+				case gb_trees:lookup(ExRC, RCs) of
+					{value, #m3ua_routing_key{key = ExKeys}} ->
+						SortedKeys = m3ua:sort(Keys ++ ExKeys),
+						NewRCs = gb_trees:insert(ExRC, RK#m3ua_routing_key{key = SortedKeys}, RCs),
+						RegResult = #registration_result{lrk_id = LRKId,
+								status = registered, rc = ExRC},
+						NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
+						NewStateData = StateData#statedata{rcs = NewRCs},
+						register_asp_results(T, RC, NewAcc, NewStateData);
+					none ->
+						ErRR = #registration_result{status = rk_change_refused, rc = RC},
+						NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
+						register_asp_results(T, RC, NewAcc, StateData)
+				end;
+			#m3ua_routing_key{}->
+				ErRR = #registration_result{status = insufficient_resources, rc = RC},
+				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
+				register_asp_results(T, RC, NewAcc, StateData)
+		end
+	catch
+		_:_ ->
+			ErRegResult = #registration_result{status = unknown, rc = RC},
+			NewAcc1 = m3ua_codec:add_parameter(?RegistrationResult, ErRegResult, Acc),
+			register_asp_results(T, RC, NewAcc1, StateData)
+	end;
+register_asp_results([], _RC, Acc, StateData) ->
+	{Acc, StateData}.
+
+%% @hidden
+generate_rc() ->
+	rand:uniform(256).
