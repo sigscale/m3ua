@@ -132,8 +132,8 @@
 		info :: string()}).
 
 -record(m3ua_as,
-		{name :: term(),
-		routing_key :: routing_key(),
+		{routing_key :: routing_key(),
+		name :: term(),
 		min_asp :: pos_integer(),
 		max_asp :: pos_integer(),
 		asp :: [#m3ua_asp{}]}).
