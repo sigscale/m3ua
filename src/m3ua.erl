@@ -29,6 +29,9 @@
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 
+%% export the m3ua private API
+-export([sort/1]).
+
 -type options() :: {sctp_role, client | server}
 						| {m3ua_role, sgp | asp}
 						| {ip, inet:ip_address()}
@@ -40,7 +43,7 @@
 -include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
-%%  The m3ua API
+%%  The m3ua public API
 %%----------------------------------------------------------------------
 
 -spec open() -> Result
@@ -264,6 +267,27 @@ asp_active(EndPoint, Assoc) ->
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
 asp_inactive(EndPoint, Assoc) ->
 	m3ua_lm_server:asp_inactive(EndPoint, Assoc).
+
+%%----------------------------------------------------------------------
+%%  The m3ua private API
+%%----------------------------------------------------------------------
+-spec sort(Keys) -> Keys
+	when
+		Keys :: [{DPC, [SI], [OPC]}],
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer().
+%% @doc uniquly sort list of keys
+%% @private
+sort(Keys) when is_list(Keys) ->
+	sort(Keys, []).
+%% @hidden
+sort([{DPC, SIs, OPCs} | T], Acc) when is_integer(DPC) ->
+	SortedSIs = lists:sort(SIs),
+	SortedOPCs = lists:sort(OPCs),
+	sort(T, [{DPC, SortedSIs, SortedOPCs} | Acc]);
+sort([], Acc) ->
+	lists:sort(Acc).
 
 %%----------------------------------------------------------------------
 %%  internal functions
