@@ -75,6 +75,35 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 	gen_server:call(?MODULE, {sctp_establish,
 			EndPoint, Address, Port, Options}).
 
+-spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
+	when
+		Name :: term(),
+		NA :: undefined | pos_integer(),
+		Keys :: [Key],
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
+		Result :: {ok, #m3ua_as{}} | {error, Reason},
+		Reason :: term().
+%% @doc Add an Application Server (AS).
+as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
+		when ((NA == undefined) orelse is_integer(NA)),
+		is_list(Keys), is_atom(Mode),
+		is_integer(MinASP), is_integer(MaxASP) ->
+	gen_server:call(?MODULE, {as_add,
+			Name, NA, Keys, Mode, MinASP, MaxASP}).
+
+-spec as_delete(Name) -> Result
+	when
+		Name :: term(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Delete an Application Server (AS).
+as_delete(Name) ->
+	gen_server:call(?MODULE, {as_delete, Name}).
+
 -spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
 	when
 		EndPoint :: pid(),
@@ -277,6 +306,28 @@ handle_call({sctp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
+handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
+	F = fun() ->
+				mnesia:write(#m3ua_as{name = Name,
+						routing_key = {NA, Keys, Mode},
+						min_asp = MinASP, max_asp = MaxASP})
+	end,
+	case mnesia:transaction(F) of
+		{atomic, AS} ->
+			{reply, {ok, AS}, State};
+		{aborted, Reason} ->
+			{reply, {error, Reason}, State}
+	end;
+handle_call({as_delete, Name}, _From, State) ->
+	F = fun() ->
+				mnesia:delete(m3ua_as, Name, write)
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			{reply, ok, State};
+		{aborted, Reason} ->
+			{reply, {error, Reason}, State}
+	end;
 handle_call({register, EndPoint, Assoc, NA, Keys, Mode, AS}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
