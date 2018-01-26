@@ -417,6 +417,33 @@ handle_cast({AspOp, Ref, {ok, _ASP, _Identifier, _Info}},
 			{noreply, NewState};
 		none ->
 			{noreply, State}
+	end;
+handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
+	F = fun() ->
+			case mnesia:read(m3ua_asp, Key, write) of
+				[#m3ua_as{asp = Asps} = AS] ->
+					NewAsps = case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
+						{value, Asp1, RemAsp} ->
+							[Asp | RemAsp];
+						false ->
+							Asps
+					end,
+					NewAS = AS#m3ua_as{asp = NewAsps},
+					ok = mnesia:write(NewAS),
+					NewAS;
+				[] ->
+					AS = #m3ua_as{asp = [Asp], routing_key = Key},
+					ok  = mnesia:write(AS),
+					AS
+			end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, _} ->
+			{noreply, State};
+		{error, Reason} ->
+			error_logger:error_report(["AS registration failed",
+						{reason, Reason}, {module, ?MODULE}]),
+			{noreply, State}
 	end.
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->

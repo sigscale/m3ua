@@ -391,21 +391,30 @@ register_asp_results([RoutingKey | T], RC, Acc, #statedata{rcs = RCs} = StateDat
 				ErRR = #registration_result{status = invalid_rk, rc = RC},
 				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
 				register_asp_results(T, RC, NewAcc, StateData);
-			#m3ua_routing_key{rc = undefined, key = Keys, lrk_id = LRKId} = RK ->
+			#m3ua_routing_key{rc = undefined, na = NA, tmt = Mode,
+					key = Keys, lrk_id = LRKId} = RK ->
 				SortedKeys = m3ua:sort(Keys),
 				NewRCs = gb_trees:insert(RC, RK#m3ua_routing_key{key = SortedKeys}, RCs),
 				RegResult = #registration_result{lrk_id = LRKId,
 					status = registered, rc = RC},
+				Asp = #m3ua_asp{id = LRKId, sgp = self()},
+				gen_server:cast(m3ua_lm_server,
+						{'M-RK_REG', self(), {NA, SortedKeys, Mode}, Asp}),
 				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
 				NewStateData = StateData#statedata{rcs = NewRCs},
 				register_asp_results(T, RC, NewAcc, NewStateData);
-			#m3ua_routing_key{lrk_id = LRKId, key = Keys, rc = ExRC} = RK when LRKId /= undefined ->
+			#m3ua_routing_key{lrk_id = LRKId, na = NA, tmt = Mode,
+					key = Keys, rc = ExRC} = RK when LRKId /= undefined ->
 				case gb_trees:lookup(ExRC, RCs) of
 					{value, #m3ua_routing_key{key = ExKeys}} ->
 						SortedKeys = m3ua:sort(Keys ++ ExKeys),
-						NewRCs = gb_trees:insert(ExRC, RK#m3ua_routing_key{key = SortedKeys}, RCs),
+						NewRK = RK#m3ua_routing_key{key = SortedKeys},
+						NewRCs = gb_trees:insert(ExRC, NewRK, RCs),
 						RegResult = #registration_result{lrk_id = LRKId,
 								status = registered, rc = ExRC},
+						Asp = #m3ua_asp{id = LRKId, sgp = self()},
+						gen_server:cast(m3ua_lm_server,
+								{'M-RK_REG', {NA, SortedKeys, Mode}, Asp}),
 						NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
 						NewStateData = StateData#statedata{rcs = NewRCs},
 						register_asp_results(T, RC, NewAcc, NewStateData);
