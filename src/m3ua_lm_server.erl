@@ -42,6 +42,7 @@
 		fsms = gb_trees:empty() :: gb_trees:tree(),
 		reqs = gb_trees:empty() :: gb_trees:tree()}).
 
+-include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
@@ -80,6 +81,8 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 		Name :: term(),
 		NA :: undefined | pos_integer(),
 		Keys :: [Key],
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
 		Key :: {DPC, [SI], [OPC]},
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
