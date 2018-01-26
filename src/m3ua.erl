@@ -101,7 +101,8 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
 		Mode :: overide | loadshare | broadcast,
-		Result :: {ok, #m3ua_as{}} | {error, Reason},
+		Result :: {ok, AS} | {error, Reason},
+		AS :: #m3ua_as{},
 		Reason :: term().
 %% @doc Add an Application Server (AS).
 as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
@@ -110,14 +111,21 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 		is_integer(MinASP), is_integer(MaxASP) ->
 	m3ua_lm_server:as_add(Name, NA, Keys, Mode, MinASP, MaxASP).
 
--spec as_delete(Name) -> Result
+-spec as_delete(RoutingKey) -> Result
 	when
-		Name :: term(),
+		RoutingKey :: {NA, Keys, Mode},
+		NA :: undefined | pos_integer(),
+		Keys :: [Key],
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Delete an Application Server (AS).
-as_delete(Name) ->
-	m3ua_lm_server:as_delete(Name).
+as_delete(RoutingKey) ->
+	m3ua_lm_server:as_delete(RoutingKey).
 
 -spec getstat_endpoint(EndPoint) -> Result
 	when

@@ -89,7 +89,8 @@ sctp_establish(EndPoint, Address, Port, Options) ->
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
 		Mode :: overide | loadshare | broadcast,
-		Result :: {ok, #m3ua_as{}} | {error, Reason},
+		Result :: {ok, AS} | {error, Reason},
+		AS :: #m3ua_as{},
 		Reason :: term().
 %% @doc Add an Application Server (AS).
 as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
@@ -99,14 +100,20 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 	gen_server:call(?MODULE, {as_add,
 			Name, NA, Keys, Mode, MinASP, MaxASP}).
 
--spec as_delete(Name) -> Result
+-spec as_delete(RoutingKey) -> Result
 	when
-		Name :: term(),
+		NA :: undefined | pos_integer(),
+		Keys :: [Key],
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Delete an Application Server (AS).
-as_delete(Name) ->
-	gen_server:call(?MODULE, {as_delete, Name}).
+as_delete(RoutingKey) ->
+	gen_server:call(?MODULE, {as_delete, RoutingKey}).
 
 -spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
 	when
@@ -312,9 +319,9 @@ handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 	F = fun() ->
-				mnesia:write(#m3ua_as{name = Name,
-						routing_key = {NA, Keys, Mode},
-						min_asp = MinASP, max_asp = MaxASP})
+				SortedKeys = m3ua:sort([{NA, Keys, Mode}]),
+				mnesia:write(#m3ua_as{routing_key = {NA, SortedKeys, Mode},
+						name = Name, min_asp = MinASP, max_asp = MaxASP})
 	end,
 	case mnesia:transaction(F) of
 		{atomic, AS} ->
@@ -322,9 +329,10 @@ handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 		{aborted, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({as_delete, Name}, _From, State) ->
+handle_call({as_delete, RoutingKey}, _From, State) ->
 	F = fun() ->
-				mnesia:delete(m3ua_as, Name, write)
+				SortedKey = m3ua:sort([RoutingKey]),
+				mnesia:delete(m3ua_as, SortedKey, write)
 	end,
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
