@@ -91,7 +91,6 @@
 -define(DeregistrationStatus,       531).
 
 -type tmt() :: override | loadshare | broadcast.
--type state() :: down | inactive | active | pending.
 -type key() :: {DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}.
 -type routing_key() :: {NA :: pos_integer(), Keys :: [key()], TMT :: tmt()}.
 
@@ -128,7 +127,7 @@
 -record(m3ua_asp,
 		{id :: pos_integer(),
 		sgp :: pid(),
-		state :: state(),
+		state :: down | inactive | active,
 		info :: string()}).
 
 -record(m3ua_as,
@@ -136,6 +135,7 @@
 		name :: term(),
 		min_asp :: pos_integer(),
 		max_asp :: pos_integer(),
+		state :: down | inactive | active | pending,
 		asp :: [#m3ua_asp{}]}).
 
 
