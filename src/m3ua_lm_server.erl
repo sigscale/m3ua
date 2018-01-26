@@ -27,6 +27,7 @@
 -export([open/1, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([register/6]).
+-export([as_add/6, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([getstat/2, getstat/3]).
