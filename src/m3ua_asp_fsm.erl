@@ -130,10 +130,10 @@ inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 inactive({register, Ref, From, NA, Keys, Mode, AS},
-		#statedata{req = undefined, socket = Socket, assoc = Assoc} =
-		StateData)  ->
+		#statedata{req = undefined, socket = Socket, assoc = Assoc,
+		rc = RC} = StateData)  ->
 	RK = #m3ua_routing_key{na = NA, tmt = Mode, key = Keys,
-			lrk_id = generate_lrk_id(), as = AS},
+			lrk_id = generate_lrk_id(), rc = RC, as = AS},
 	RoutingKey = m3ua_codec:routing_key(RK),
 	Params = m3ua_codec:parameters([{?RoutingKey, RoutingKey}]),
 	RegReq = #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
