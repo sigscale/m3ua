@@ -75,7 +75,7 @@ sequences() ->
 %%
 all() ->
 	[open, close, listen, connect, release, getstat_ep, getstat_assoc,
-			asp_up, register].
+			asp_up, asp_down, register, asp_active].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -137,6 +137,17 @@ asp_up(_Config) ->
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc).
 
+asp_down() ->
+	[{userdata, [{doc, "Bring Application Server Process (ASP) down."}]}].
+
+asp_down(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	ok = m3ua:asp_down(ClientEP, Assoc).
+
 getstat_ep() ->
 	[{userdata, [{doc, "Get SCTP option statistics for an endpoint."}]}].
 
@@ -182,6 +193,20 @@ register(_Config) ->
 	{ok, RoutingContext} = m3ua:register(ClientEP, Assoc,
 			undefined, Keys, loadshare),
 	true = is_integer(RoutingContext).
+
+asp_active() ->
+	[{userdata, [{doc, "Make Application Server Process (ASP) active."}]}].
+
+asp_active(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	Keys = [{rand:uniform(16383), [], []}],
+	{ok, RoutingContext} = m3ua:register(ClientEP, Assoc,
+			undefined, Keys, loadshare),
+	ok = m3ua:asp_active(ClientEP, Assoc).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
