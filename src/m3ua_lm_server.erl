@@ -429,7 +429,7 @@ handle_cast({AspOp, Ref, {ok, _ASP, _Identifier, _Info}},
 	end;
 handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
 	F = fun() ->
-			case mnesia:read(m3ua_asp, Key, write) of
+			case mnesia:read(m3ua_as, Key, write) of
 				[#m3ua_as{asp = Asps} = AS] ->
 					NewAsps = case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
 						{value, Asp1, RemAsp} ->
