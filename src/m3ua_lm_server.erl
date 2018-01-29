@@ -102,6 +102,7 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 
 -spec as_delete(RoutingKey) -> Result
 	when
+		RoutingKey :: {NA, Keys, Mode},
 		NA :: undefined | pos_integer(),
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
