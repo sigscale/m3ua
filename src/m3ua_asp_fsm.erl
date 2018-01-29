@@ -213,8 +213,9 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 active({asp_inactive, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData) ->
-	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
+		assoc = Assoc, rc = RC} = StateData) ->
+	P0 = m3ua_codec:add_parameter(?RoutingContext, [RC], []),
+	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = P0},
 	Message = m3ua_codec:m3ua(AspInActive),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
 		ok ->
