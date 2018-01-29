@@ -44,7 +44,8 @@
 		assoc :: gen_sctp:assoc_id(),
 		ual :: non_neg_integer(),
 		req :: tuple(),
-		rc :: pos_integer()}).
+		rc :: pos_integer(),
+		mode :: override | loadshare | broadcast}).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
@@ -145,14 +146,14 @@ inactive({register, Ref, From, NA, Keys, Mode, AS},
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
 		ok ->
 			Req = {register, Ref, From, RK},
-			NewStateData = StateData#statedata{req = Req},
+			NewStateData = StateData#statedata{req = Req, mode = Mode},
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
 inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc, rc = RC} = StateData) ->
-	P0 = m3ua_codec:add_parameter(?TrafficModeType, loadshare, []),
+		assoc = Assoc, rc = RC, mode = Mode} = StateData) ->
+	P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
 	P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 	Params = m3ua_codec:parameters(P1),
 	AspActive = #m3ua{class = ?ASPTMMessage,
