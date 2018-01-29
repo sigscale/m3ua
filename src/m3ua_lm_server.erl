@@ -320,9 +320,11 @@ handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 	F = fun() ->
-				SortedKeys = m3ua:sort([{NA, Keys, Mode}]),
-				mnesia:write(#m3ua_as{routing_key = {NA, SortedKeys, Mode},
-						name = Name, min_asp = MinASP, max_asp = MaxASP})
+				SortedKeys = m3ua:sort(Keys),
+				AS = #m3ua_as{routing_key = {NA, SortedKeys, Mode},
+						name = Name, min_asp = MinASP, max_asp = MaxASP},
+				ok = mnesia:write(AS),
+				AS
 	end,
 	case mnesia:transaction(F) of
 		{atomic, AS} ->
@@ -449,7 +451,7 @@ handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
 	case mnesia:transaction(F) of
 		{atomic, _} ->
 			{noreply, State};
-		{error, Reason} ->
+		{aborted, Reason} ->
 			error_logger:error_report(["AS registration failed",
 						{reason, Reason}, {module, ?MODULE}]),
 			{noreply, State}
