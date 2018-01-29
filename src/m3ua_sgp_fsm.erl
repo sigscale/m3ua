@@ -308,7 +308,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			{ok, [RC]} ->
 				case gb_trees:lookup(RC, RCs) of
 					{value, #m3ua_routing_key{tmt = Mode} = RK} ->
-						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = active}),
+						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = active}, RCs),
 						P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
 						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 						StateData1 = StateData#statedata{rcs = NewRCs},
@@ -316,7 +316,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
 						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
-						{?ASPTMMessage, ?ASPTMASPACACK, P1, StateData}
+						{?MGMTMessage, ?MGMTError, P1, StateData}
 				end;
 			{error, not_found} ->
 				P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
@@ -355,20 +355,44 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA}, active,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	AspInactiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
-	Packet = m3ua_codec:m3ua(AspInactiveAck),
-	case gen_sctp:send(Socket, Assoc, 0, Packet) of
-		ok ->
-			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData};
-		{error, eagain} ->
-			% @todo flow control
-			{stop, eagain, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end.
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA = Params}, active,
+		#statedata{socket = Socket, assoc = Assoc, rcs = RCs} = StateData) ->
+	try
+		AspInactive = m3ua_codec:parameters(Params),
+		case m3ua_codec:find_parameter(?RoutingContext, AspInactive) of
+			{ok, [RC]} ->
+				case gb_trees:lookup(RC, RCs) of
+					{value, #m3ua_routing_key{} = RK} ->
+						P0 = m3ua_codec:add_parameter(?RoutingContext, [RC], []),
+						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = inactive}, RCs),
+						{?ASPTMMessage, ?ASPTMASPIAACK, P0, StateData#statedata{rcs = NewRCs}};
+					none ->
+						P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_rc, []),
+						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
+						{?MGMTMessage, ?MGMTError, P1, StateData}
+				end;
+			{error, not_found} ->
+				P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
+				{?MGMTMessage, ?MGMTError, P0, StateData}
+		end
+	of
+		{Class, Type, Parameters, NewStateData} ->
+				Message = #m3ua{class = Class, type = Type, params = Parameters},
+				Packet = m3ua_codec:m3ua(Message),
+				case gen_sctp:send(Socket, Assoc, 0, Packet) of
+					ok ->
+						inet:setopts(Socket, [{active, once}]),
+						{next_state, inactive, NewStateData};
+					{error, eagain} ->
+						% @todo flow control
+						{stop, eagain, NewStateData};
+					{error, Reason} ->
+						{stop, Reason, NewStateData}
+				end
+		catch
+			_:Reason ->
+				{stop, Reason, StateData}
+		end.
 
 %% @hidden
 register_asp_results(RoutingKeys, RC, StateData) ->
