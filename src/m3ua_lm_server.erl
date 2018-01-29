@@ -391,7 +391,7 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 %%
 handle_cast(stop, State) ->
 	{stop, normal, State};
-handle_cast({asp_up, Ref, _ASP, {error, Reason}},
+handle_cast({_AspOp, Ref, _ASP, {error, Reason}},
 		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->

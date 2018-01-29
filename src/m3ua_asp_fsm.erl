@@ -86,7 +86,7 @@ init([SctpRole, Socket, Address, Port,
 %% @private
 %%
 down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
-	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
+	gen_server:cast(From, {asp_up, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
@@ -104,7 +104,10 @@ down({asp_up, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
-	end.
+	end;
+down({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
+	gen_server:cast(From, {AspOp, Ref, self(), {error, asp_busy}}),
+	{next_state, down, StateData}.
 
 -spec down(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
@@ -125,8 +128,9 @@ down(Event, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
-inactive(timeout, #statedata{req = {asp_down, Ref, From}} = StateData) ->
-	gen_server:cast(From, {asp_up, Ref, Ref, {error, timeout}}),
+inactive(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
+		when AspOp == asp_active; AspOp == register; AspOp == asp_down ->
+	gen_server:cast(From, {AspOp, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 inactive({register, Ref, From, NA, Keys, Mode, AS},
@@ -179,7 +183,10 @@ inactive({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
-	end.
+	end;
+inactive({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
+	gen_server:cast(From, {AspOp, Ref, self(), {error, asp_busy}}),
+	{next_state, inactive, StateData}.
 
 -spec inactive(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
@@ -200,6 +207,11 @@ inactive(Event, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
 %% @private
 %%
+active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
+		when AspOp == inactive; AspOp == down ->
+	gen_server:cast(From, {AspOp, Ref, self(), {error, timeout}}),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
 active({asp_inactive, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
 	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
@@ -229,7 +241,10 @@ active({asp_down, Ref, From}, #statedata{req = undefined, socket = Socket,
 			{stop, eagain, StateData};
 		{error, Reason} ->
 			{stop, Reason, StateData}
-	end.
+	end;
+active({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
+	gen_server:cast(From, {AspOp, Ref, self(), {error, asp_busy}}),
+	{next_state, active, StateData}.
 
 -spec active(Event :: timeout | term(), From :: {pid(), Tag :: term()},
 		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
