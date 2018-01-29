@@ -289,7 +289,6 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
 	RC = generate_rc(),
 	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
 	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RegResult},
-erlang:display({?MODULE, ?LINE, RegRsp}),
 	Packet = m3ua_codec:m3ua(RegRsp),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
