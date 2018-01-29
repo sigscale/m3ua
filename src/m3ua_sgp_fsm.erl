@@ -309,11 +309,11 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			{ok, [RC]} ->
 				case gb_trees:lookup(RC, RCs) of
 					{value, #m3ua_routing_key{tmt = Mode} = RK} ->
-						NewRCs = gb_trees:update(RC, RK#routing_key{status = active}),
+						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = active}),
 						P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
 						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
-						NewStateData = StateData#statedata{rcs = NewRCs},
-						{?ASPTMMessage, ?ASPTMASPACACK, P1, NewStateData};
+						StateData1 = StateData#statedata{rcs = NewRCs},
+						{?ASPTMMessage, ?ASPTMASPACACK, P1, StateData1};
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
 						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
