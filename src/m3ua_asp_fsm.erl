@@ -390,8 +390,9 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData}
 	end;
-handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, inactive,
-		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
+handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, StateName,
+		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData)
+		when StateName == inactive; StateName == active ->
 	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
