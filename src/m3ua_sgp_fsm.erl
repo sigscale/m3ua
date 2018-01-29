@@ -302,53 +302,38 @@ erlang:display({?MODULE, ?LINE, RegRsp}),
 			{stop, Reason, NewStateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
-		inactive, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	AspActive = m3ua_codec:parameters(Params),
-	case {m3ua_codec:find_parameter(?RoutingContext, AspActive),
-					m3ua_codec:find_parameter(?RoutingKey, AspActive)} of
-		{{ok, _RC}, {ok, _RK}} ->
-			AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
-			Packet = m3ua_codec:m3ua(AspActiveAck),
+		inactive, #statedata{socket = Socket, assoc = Assoc, rcs = RCs} = StateData) ->
+	try
+		AspActive = m3ua_codec:parameters(Params),
+		case {m3ua_codec:find_parameter(?RoutingContext, AspActive),
+						m3ua_codec:find_parameter(?RoutingKey, AspActive)} of
+			{{ok, RC}, {ok, _RK}} ->
+				{?ASPTMMessage, ?ASPTMASPACACK, <<>>, StateData};
+			{{error, not_found}, {ok, _RK}} ->
+				P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
+				EParams = m3ua_codec:parameters(P0),
+				{?MGMTMessage, ?MGMTError, EParams, StateData};
+			{{error, not_found}, {error, not_found}} ->
+				P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_routing_context, []),
+				EParams = m3ua_codec:parameters(P0),
+				{?MGMTMessage, ?MGMTError, EParams}
+		end
+	of
+		{Class, Type, Parameters, NewStateData} ->
+			Packet = #m3ua{class = Class, type = Type, params = Parameters},
 			case gen_sctp:send(Socket, Assoc, 0, Packet) of
 				ok ->
 					inet:setopts(Socket, [{active, once}]),
-					{next_state, active, StateData};
+					{next_state, active, NewStateData};
 				{error, eagain} ->
 					% @todo flow control
-					{stop, eagain, StateData};
+					{stop, eagain, NewStateData};
 				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		{{error, not_found}, {ok, _RK}} ->
-			P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
-			EParams = m3ua_codec:parameters(P0),
-			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
-			Packet = m3ua_codec:m3ua(ErrorMsg),
-			case gen_sctp:send(Socket, Assoc, 0, Packet) of
-				ok ->
-					inet:setopts(Socket, [{active, once}]),
-					{next_state, active, StateData};
-				{error, eagain} ->
-					% @todo flow control
-					{stop, eagain, StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
-			end;
-		{{error, not_found}, {error, not_found}} ->
-			P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_routing_context, []),
-			EParams = m3ua_codec:parameters(P0),
-			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
-			Packet = m3ua_codec:m3ua(ErrorMsg),
-			case gen_sctp:send(Socket, Assoc, 0, Packet) of
-				ok ->
-					inet:setopts(Socket, [{active, once}]),
-					{next_state, active, StateData};
-				{error, eagain} ->
-					% @todo flow control
-					{stop, eagain, StateData};
-				{error, Reason} ->
-					{stop, Reason, StateData}
+					{stop, Reason, NewStateData}
 			end
+	catch
+		_:Reason ->
+			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData)
