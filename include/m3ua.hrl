@@ -90,6 +90,10 @@
 -define(RegistrationStatus,         530).
 -define(DeregistrationStatus,       531).
 
+-type tmt() :: override | loadshare | broadcast.
+-type key() :: {DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}.
+-type routing_key() :: {NA :: pos_integer(), Keys :: [key()], TMT :: tmt()}.
+
 %% M3UA Common Header -- RFC4666, Section-1.3.1
 -record(m3ua,
 		{version :: byte(),
@@ -109,14 +113,29 @@
 -record(m3ua_routing_key,
 		{rc :: pos_integer(),
 		na :: pos_integer(),
-		tmt :: override | loadshare | broadcast,
-		status :: down | inactive | active | pending,
+		tmt :: tmt(),
+		status :: atom(),
 		as :: term,
 		lrk_id :: pos_integer(),
-		key :: [tuple()]}).
+		key :: [key()]}).
 
 -record(registration_result,
 		{lrk_id :: pos_integer(),
 		status :: atom(),
 		rc :: integer()}).
+
+-record(m3ua_asp,
+		{id :: pos_integer(),
+		sgp :: pid(),
+		state :: down | inactive | active,
+		info :: string()}).
+
+-record(m3ua_as,
+		{routing_key :: routing_key(),
+		name :: term(),
+		min_asp :: pos_integer(),
+		max_asp :: pos_integer(),
+		state :: down | inactive | active | pending,
+		asp :: [#m3ua_asp{}]}).
+
 

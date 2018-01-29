@@ -27,6 +27,7 @@
 -export([open/1, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([register/6]).
+-export([as_add/6, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([getstat/2, getstat/3]).
@@ -42,6 +43,7 @@
 		fsms = gb_trees:empty() :: gb_trees:tree(),
 		reqs = gb_trees:empty() :: gb_trees:tree()}).
 
+-include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
@@ -74,6 +76,45 @@ close(EP) ->
 sctp_establish(EndPoint, Address, Port, Options) ->
 	gen_server:call(?MODULE, {sctp_establish,
 			EndPoint, Address, Port, Options}).
+
+-spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
+	when
+		Name :: term(),
+		NA :: undefined | pos_integer(),
+		Keys :: [Key],
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
+		Result :: {ok, AS} | {error, Reason},
+		AS :: #m3ua_as{},
+		Reason :: term().
+%% @doc Add an Application Server (AS).
+as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
+		when ((NA == undefined) orelse is_integer(NA)),
+		is_list(Keys), is_atom(Mode),
+		is_integer(MinASP), is_integer(MaxASP) ->
+	gen_server:call(?MODULE, {as_add,
+			Name, NA, Keys, Mode, MinASP, MaxASP}).
+
+-spec as_delete(RoutingKey) -> Result
+	when
+		RoutingKey :: {NA, Keys, Mode},
+		NA :: undefined | pos_integer(),
+		Keys :: [Key],
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Delete an Application Server (AS).
+as_delete(RoutingKey) ->
+	gen_server:call(?MODULE, {as_delete, RoutingKey}).
 
 -spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
 	when
@@ -277,6 +318,29 @@ handle_call({sctp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
+handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
+	F = fun() ->
+				SortedKeys = m3ua:sort([{NA, Keys, Mode}]),
+				mnesia:write(#m3ua_as{routing_key = {NA, SortedKeys, Mode},
+						name = Name, min_asp = MinASP, max_asp = MaxASP})
+	end,
+	case mnesia:transaction(F) of
+		{atomic, AS} ->
+			{reply, {ok, AS}, State};
+		{aborted, Reason} ->
+			{reply, {error, Reason}, State}
+	end;
+handle_call({as_delete, RoutingKey}, _From, State) ->
+	F = fun() ->
+				SortedKey = m3ua:sort([RoutingKey]),
+				mnesia:delete(m3ua_as, SortedKey, write)
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			{reply, ok, State};
+		{aborted, Reason} ->
+			{reply, {error, Reason}, State}
+	end;
 handle_call({register, EndPoint, Assoc, NA, Keys, Mode, AS}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
@@ -361,6 +425,33 @@ handle_cast({AspOp, Ref, {ok, _ASP, _Identifier, _Info}},
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
 		none ->
+			{noreply, State}
+	end;
+handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
+	F = fun() ->
+			case mnesia:read(m3ua_as, Key, write) of
+				[#m3ua_as{asp = Asps} = AS] ->
+					NewAsps = case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
+						{value, Asp1, RemAsp} ->
+							[Asp | RemAsp];
+						false ->
+							Asps
+					end,
+					NewAS = AS#m3ua_as{asp = NewAsps},
+					ok = mnesia:write(NewAS),
+					NewAS;
+				[] ->
+					AS = #m3ua_as{asp = [Asp], routing_key = Key},
+					ok  = mnesia:write(AS),
+					AS
+			end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, _} ->
+			{noreply, State};
+		{error, Reason} ->
+			error_logger:error_report(["AS registration failed",
+						{reason, Reason}, {module, ?MODULE}]),
 			{noreply, State}
 	end.
 

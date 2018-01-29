@@ -25,7 +25,7 @@
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
--export([register/5, register/6]).
+-export([as_add/6, as_delete/1, register/5, register/6]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 
@@ -40,6 +40,7 @@
 						| sctp:option().
 -export_type([options/0]).
 
+-include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
 %%----------------------------------------------------------------------
@@ -87,6 +88,44 @@ close(EP) when is_pid(EP) ->
 %% @doc Establish an SCTP association.
 sctp_establish(EndPoint, Address, Port, Options) ->
 	m3ua_lm_server:sctp_establish(EndPoint, Address, Port, Options).
+
+-spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
+	when
+		Name :: term(),
+		NA :: undefined | pos_integer(),
+		Keys :: [Key],
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
+		Result :: {ok, AS} | {error, Reason},
+		AS :: #m3ua_as{},
+		Reason :: term().
+%% @doc Add an Application Server (AS).
+as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
+		when ((NA == undefined) orelse is_integer(NA)),
+		is_list(Keys), is_atom(Mode),
+		is_integer(MinASP), is_integer(MaxASP) ->
+	m3ua_lm_server:as_add(Name, NA, Keys, Mode, MinASP, MaxASP).
+
+-spec as_delete(RoutingKey) -> Result
+	when
+		RoutingKey :: {NA, Keys, Mode},
+		NA :: undefined | pos_integer(),
+		Keys :: [Key],
+		Key :: {DPC, [SI], [OPC]},
+		DPC :: pos_integer(),
+		SI :: pos_integer(),
+		OPC :: pos_integer(),
+		Mode :: overide | loadshare | broadcast,
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc Delete an Application Server (AS).
+as_delete(RoutingKey) ->
+	m3ua_lm_server:as_delete(RoutingKey).
 
 -spec getstat_endpoint(EndPoint) -> Result
 	when
