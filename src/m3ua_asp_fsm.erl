@@ -149,7 +149,7 @@ inactive({register, Ref, From, NA, Keys, Mode, AS},
 inactive({asp_active, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc, rc = RC} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?TrafficModeType, loadshare, []),
-	P1 = m3ua_codec:add_parameter(?RoutingContext, RC, P0),
+	P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 	Params = m3ua_codec:parameters(P1),
 	AspActive = #m3ua{class = ?ASPTMMessage,
 		type = ?ASPTMASPAC, params = Params},
