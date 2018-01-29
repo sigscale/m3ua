@@ -305,22 +305,28 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, #statedata{socket = Socket, assoc = Assoc, rcs = RCs} = StateData) ->
 	try
 		AspActive = m3ua_codec:parameters(Params),
-		case {m3ua_codec:find_parameter(?RoutingContext, AspActive),
-						m3ua_codec:find_parameter(?RoutingKey, AspActive)} of
-			{{ok, RC}, {ok, _RK}} ->
-				{?ASPTMMessage, ?ASPTMASPACACK, <<>>, StateData};
-			{{error, not_found}, {ok, _RK}} ->
+		case m3ua_codec:find_parameter(?RoutingContext, AspActive) of
+			{ok, [RC]} ->
+				case gb_trees:lookup(RC, RCs) of
+					{value, #m3ua_routing_key{tmt = Mode} = RK} ->
+						NewRCs = gb_trees:update(RC, RK#routing_key{status = active}),
+						P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
+						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
+						NewStateData = StateData#statedata{rcs = NewRCs},
+						{?ASPTMMessage, ?ASPTMASPACACK, P1, NewStateData};
+					none ->
+						P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
+						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
+						{?ASPTMMessage, ?ASPTMASPACACK, P1, StateData}
+				end;
+			{error, not_found} ->
 				P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
-				EParams = m3ua_codec:parameters(P0),
-				{?MGMTMessage, ?MGMTError, EParams, StateData};
-			{{error, not_found}, {error, not_found}} ->
-				P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_routing_context, []),
-				EParams = m3ua_codec:parameters(P0),
-				{?MGMTMessage, ?MGMTError, EParams}
+				{?MGMTMessage, ?MGMTError, P0, StateData}
 		end
 	of
 		{Class, Type, Parameters, NewStateData} ->
-			Packet = #m3ua{class = Class, type = Type, params = Parameters},
+			Message = #m3ua{class = Class, type = Type, params = Parameters},
+			Packet = m3ua_codec:m3ua(Message),
 			case gen_sctp:send(Socket, Assoc, 0, Packet) of
 				ok ->
 					inet:setopts(Socket, [{active, once}]),
