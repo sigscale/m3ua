@@ -355,7 +355,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA = Params}, active,
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, active,
 		#statedata{socket = Socket, assoc = Assoc, rcs = RCs} = StateData) ->
 	try
 		AspInactive = m3ua_codec:parameters(Params),
