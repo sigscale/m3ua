@@ -399,7 +399,7 @@ register_asp_results([RoutingKey | T], RC, Acc, #statedata{rcs = RCs} = StateDat
 					status = registered, rc = RC},
 				Asp = #m3ua_asp{id = LRKId, sgp = self()},
 				gen_server:cast(m3ua_lm_server,
-						{'M-RK_REG', self(), {NA, SortedKeys, Mode}, Asp}),
+						{'M-RK_REG', {NA, SortedKeys, Mode}, Asp}),
 				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
 				NewStateData = StateData#statedata{rcs = NewRCs},
 				register_asp_results(T, RC, NewAcc, NewStateData);
