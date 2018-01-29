@@ -409,6 +409,14 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
 	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
+	{next_state, down, NewStateData};
+handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params}, active,
+		#statedata{req = {AspOp, Ref, From}, socket = Socket} = StateData) ->
+	Parameters = m3ua_codec:parameters(Params),
+	{ok, Reason} = m3ua_codec:find_parameter(?ErrorCode, Parameters),
+	gen_server:cast(From, {AspOp, Ref, self(), {error, Reason}}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData}.
 
 %% @hidden
