@@ -19,6 +19,54 @@
 %%% 	{@link //m3ua. m3ua} application handling an SCTP association
 %%%   originated from a client.
 %%%
+%%%  <h2><a name="functions">Callbacks</a></h2>
+%%%
+%%%  <h3 class="function"><a name="transfer-4">transfer/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>transfer(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%  </ul></p>
+%%%  </div><p>Called when data has arraived for application server (`AS'). </p>
+%%%
+%%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>pause(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%  </ul></p>
+%%%  </div><p>Call when determines locally that an SS7 destination is unreachable</p>
+%%%
+%%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>resume(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%   </ul></p>
+%%%  </div><p>Call when determines locally that an SS7 destination that was previously
+%%%  unreachable is now reachable</p>
+%%%
+%%%  <h3 class="function"><a name="status-4">status/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>status(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%  </ul></p>
+%%%  </div><p>Call when determines locally that the route to an SS7 destination is congested </p>
+%%%
+%%% @end
 -module(m3ua_sgp_fsm).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
@@ -51,6 +99,35 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm API
 %%----------------------------------------------------------------------
+
+%%----------------------------------------------------------------------
+%%  Interface functions
+%%----------------------------------------------------------------------
+
+-callback transfer(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
+-callback pause(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
+-callback resume(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
+-callback status(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm gen_fsm callbacks
