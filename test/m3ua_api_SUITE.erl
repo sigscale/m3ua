@@ -27,6 +27,7 @@
 -compile(export_all).
 
 -include_lib("common_test/include/ct.hrl").
+-include_lib("kernel/include/inet_sctp.hrl").
 
 %%---------------------------------------------------------------------
 %%  Test server callback functions
@@ -77,7 +78,7 @@ sequences() ->
 all() ->
 	[open, close, listen, connect, release, getstat_ep, getstat_assoc,
 			asp_up, asp_down, register, asp_active, asp_inactive_to_down,
-			asp_active_to_down, asp_active_to_inactive].
+			asp_active_to_down, asp_active_to_inactive, get_sctp_status].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -250,6 +251,15 @@ asp_active_to_inactive(_Config) ->
 			undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	ok = m3ua:asp_inactive(ClientEP, Assoc).
+
+get_sctp_status() ->
+	[{userdata, [{doc, "Get SCTP status of an association"}]}].
+get_sctp_status(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
+	{ok, ClientEP} = m3ua:open(),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	{ok, #sctp_status{assoc_id = AssocId}} = m3ua:sctp_status(ClientEP, Assoc).
 
 %%---------------------------------------------------------------------
 %%  Internal functions

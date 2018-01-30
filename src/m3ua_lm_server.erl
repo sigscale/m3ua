@@ -314,8 +314,14 @@ handle_call({sctp_establish, EndPoint, Address, Port, Options},
 	end;
 handle_call({sctp_release, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
-handle_call({sctp_status, _EndPoint, _Assoc}, _From, State) ->
-	{reply, {error, not_implement}, State};
+handle_call({sctp_status, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, Fsm} ->
+			Reply = gen_fsm:sync_send_all_state_event(Fsm, sctp_status),
+			{reply, Reply, State};
+		none ->
+			{reply, {error, not_found}, State}
+	end;
 handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->

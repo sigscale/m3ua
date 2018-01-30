@@ -295,7 +295,17 @@ handle_sync_event({getstat, undefined}, _From, StateName,
 	{reply, inet:getstat(Socket), StateName, StateData};
 handle_sync_event({getstat, Options}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), StateName, StateData}.
+	{reply, inet:getstat(Socket, Options), StateName, StateData};
+handle_sync_event(sctp_status, _From, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
+	case inet:getopts(Socket, Options) of
+		{ok, SCTPStatus} ->
+			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
+			{reply, {ok, Status}, StateName, StateData};
+		{error, Reason} ->
+			{reply, {error, Reason}, StateName, StateData}
+	end.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
