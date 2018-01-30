@@ -94,6 +94,7 @@
 		req :: tuple(),
 		rc :: pos_integer(),
 		mode :: override | loadshare | broadcast,
+		stream :: integer(),
 		callback :: atom()}).
 
 -include("m3ua.hrl").
@@ -399,10 +400,11 @@ handle_sync_event(sctp_status, _From, StateName,
 %% @see //stdlib/gen_fsm:handle_info/3
 %% @private
 %%
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}},
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{[#sctp_sndrcvinfo{stream = Stream}], Data}},
 		StateName, #statedata{socket = Socket} = StateData)
 		when is_binary(Data) ->
-	handle_asp(Data, StateName, StateData);
+	handle_asp(Data, StateName, StateData#statedata{stream = Stream});
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
 		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
@@ -510,7 +512,23 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params}, acti
 	gen_server:cast(From, {AspOp, Ref, self(), {error, Reason}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
-	{next_state, down, NewStateData}.
+	{next_state, down, NewStateData};
+handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData} = Msg,
+		active, #statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:transfer(self(), Assoc, Stream, Msg);
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:pause(self(), Assoc, Stream, Msg);
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAUD} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:resume(self(), Assoc, Stream, Msg);
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:status(self(), Assoc, Stream, Msg).
 
 %% @hidden
 generate_lrk_id() ->

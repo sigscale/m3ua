@@ -95,6 +95,7 @@
 		assoc :: gen_sctp:assoc_id(),
 		ual :: non_neg_integer(),
 		rcs = gb_trees:empty() :: gb_trees:tree(),
+		stream :: integer(),
 		callback :: atom()}).
 
 %%----------------------------------------------------------------------
@@ -270,9 +271,10 @@ handle_sync_event(sctp_status, _From, StateName,
 %% @see //stdlib/gen_fsm:handle_info/3
 %% @private
 %%
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}}, StateName,
-		#statedata{socket = Socket} = StateData) when is_binary(Data) ->
-	handle_sgp(Data, StateName, StateData);
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{[#sctp_sndrcvinfo{stream = Stream}], Data}},
+		StateName, #statedata{socket = Socket} = StateData) when is_binary(Data) ->
+	handle_sgp(Data, StateName, StateData#statedata{stream = Stream});
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
@@ -482,7 +484,23 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, ac
 		catch
 			_:Reason ->
 				{stop, Reason, StateData}
-		end.
+		end;
+handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData} = Msg,
+		active, #statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:transfer(self(), Assoc, Stream, Msg);
+handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:pause(self(), Assoc, Stream, Msg);
+handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAUD} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:resume(self(), Assoc, Stream, Msg);
+handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:status(self(), Assoc, Stream, Msg).
 
 %% @hidden
 register_asp_results(RoutingKeys, RC, StateData) ->
