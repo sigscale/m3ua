@@ -314,15 +314,23 @@ handle_call({sctp_establish, EndPoint, Address, Port, Options},
 	end;
 handle_call({sctp_release, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
-handle_call({sctp_status, _EndPoint, _Assoc}, _From, State) ->
-	{reply, {error, not_implement}, State};
+handle_call({sctp_status, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, Fsm} ->
+			Reply = gen_fsm:sync_send_all_state_event(Fsm, sctp_status),
+			{reply, Reply, State};
+		none ->
+			{reply, {error, not_found}, State}
+	end;
 handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 	F = fun() ->
-				SortedKeys = m3ua:sort([{NA, Keys, Mode}]),
-				mnesia:write(#m3ua_as{routing_key = {NA, SortedKeys, Mode},
-						name = Name, min_asp = MinASP, max_asp = MaxASP})
+				SortedKeys = m3ua:sort(Keys),
+				AS = #m3ua_as{routing_key = {NA, SortedKeys, Mode},
+						name = Name, min_asp = MinASP, max_asp = MaxASP},
+				ok = mnesia:write(AS),
+				AS
 	end,
 	case mnesia:transaction(F) of
 		{atomic, AS} ->
@@ -391,7 +399,7 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 %%
 handle_cast(stop, State) ->
 	{stop, normal, State};
-handle_cast({asp_up, Ref, _ASP, {error, Reason}},
+handle_cast({_AspOp, Ref, _ASP, {error, Reason}},
 		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
@@ -449,7 +457,7 @@ handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
 	case mnesia:transaction(F) of
 		{atomic, _} ->
 			{noreply, State};
-		{error, Reason} ->
+		{aborted, Reason} ->
 			error_logger:error_report(["AS registration failed",
 						{reason, Reason}, {module, ?MODULE}]),
 			{noreply, State}

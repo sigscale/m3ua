@@ -99,7 +99,7 @@
 		{version :: byte(),
 		class :: byte(),
 		type :: byte(),
-		params = <<>> :: binary()}).
+		params = <<>> :: binary() | [tuple()]}).
 
 -record(protocol_data,
 		{opc :: integer(),
