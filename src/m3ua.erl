@@ -34,6 +34,7 @@
 
 -type options() :: {sctp_role, client | server}
 						| {m3ua_role, sgp | asp}
+						| {callback, atom()}
 						| {ip, inet:ip_address()}
 						| {ifaddr, inet:ip_address()}
 						| {port, inet:port_number()}

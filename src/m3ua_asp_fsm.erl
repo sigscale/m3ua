@@ -93,7 +93,8 @@
 		ual :: non_neg_integer(),
 		req :: tuple(),
 		rc :: pos_integer(),
-		mode :: override | loadshare | broadcast}).
+		mode :: override | loadshare | broadcast,
+		callback :: atom()}).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
@@ -148,12 +149,14 @@
 %%
 init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
-		inbound_streams = InStreams, outbound_streams = OutStreams}]) ->
+		inbound_streams = InStreams, outbound_streams = OutStreams},
+		CbMode]) ->
 	process_flag(trap_exit, true),
 	Statedata = #statedata{sctp_role = SctpRole,
 			socket = Socket, assoc = Assoc,
 			peer_addr = Address, peer_port = Port,
-			in_streams = InStreams, out_streams = OutStreams},
+			in_streams = InStreams, out_streams = OutStreams,
+			callback = CbMode},
 	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->

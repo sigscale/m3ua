@@ -94,7 +94,8 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		ual :: non_neg_integer(),
-		rcs = gb_trees:empty() :: gb_trees:tree()}).
+		rcs = gb_trees:empty() :: gb_trees:tree(),
+		callback :: atom()}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm API
@@ -143,12 +144,14 @@
 %%
 init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
-		inbound_streams = InStreams, outbound_streams = OutStreams}]) ->
+		inbound_streams = InStreams, outbound_streams = OutStreams},
+		CbMode]) ->
 	process_flag(trap_exit, true),
 	Statedata = #statedata{sctp_role = SctpRole,
 			socket = Socket, assoc = Assoc,
 			peer_addr = Address, peer_port = Port,
-			in_streams = InStreams, out_streams = OutStreams},
+			in_streams = InStreams, out_streams = OutStreams,
+			callback = CbMode},
 	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
