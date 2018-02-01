@@ -158,9 +158,9 @@ parameters([{?Status, {other, asp_failure}} | T], Acc) ->
 parameters([{?ASPIdentifier, ASPI} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?ASPIdentifier:16, 8:16, ASPI:32>>);
 parameters([{?AffectedPointCode, APC} | T], Acc) ->
-	APCs = list_to_binary([affected_pc(A) || A <- APC]),
-	Len = size(APCs) + 4,
-	parameters(T, <<Acc/binary, ?AffectedPointCode:16, Len:16, APCs/binary>>);
+	APCBin = affected_pc(APC),
+	Len = size(APCBin) + 4,
+	parameters(T, <<Acc/binary, ?AffectedPointCode:16, Len:16, APCBin/binary>>);
 parameters([{?CorrelationID, CorrelationID} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?CorrelationID:16, 8:16, CorrelationID:32>>);
 parameters([{?NetworkAppearance, NA} | T], Acc) ->
@@ -339,8 +339,7 @@ parameter(?Status, <<2:16, 3:16>>, Acc) ->
 parameter(?ASPIdentifier, <<ASPIdentifier:32>>, Acc) ->
 	[{?ASPIdentifier, ASPIdentifier} | Acc];
 parameter(?AffectedPointCode, APC, Acc) ->
-	APCs = [affected_pc(A) || <<A:4/binary>> <= APC],
-	[{?AffectedPointCode, APCs} | Acc];
+	[{?AffectedPointCode, affected_pc(APC)} | Acc];
 parameter(?CorrelationID, CorrelationID, Acc) ->
 	CId = binary:decode_unsigned(CorrelationID),
 	[{?CorrelationID, CId} | Acc];

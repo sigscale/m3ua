@@ -108,7 +108,6 @@
 		req :: tuple(),
 		rc :: pos_integer(),
 		mode :: override | loadshare | broadcast,
-		stream :: integer(),
 		callback :: atom()}).
 
 -include("m3ua.hrl").
@@ -462,7 +461,7 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[#sctp_sndrcvinfo{stream = Stream}], Data}},
 		StateName, #statedata{socket = Socket} = StateData)
 		when is_binary(Data) ->
-	handle_asp(Data, StateName, StateData#statedata{stream = Stream});
+	handle_asp(Data, StateName, Stream, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
 		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
@@ -512,23 +511,23 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%  internal functions
 %%----------------------------------------------------------------------
 %% @hidden
-handle_asp(M3UA, StateName, StateData) when is_binary(M3UA) ->
-	handle_asp(m3ua_codec:m3ua(M3UA), StateName, StateData);
+handle_asp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
+	handle_asp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK}, down,
-		#statedata{req = {asp_up, Ref, From}, socket = Socket} = StateData) ->
+		_Stream, #statedata{req = {asp_up, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_up, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
-		#statedata{req = {asp_active, Ref, From}, socket = Socket} = StateData) ->
+		_Stream, #statedata{req = {asp_active, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_active, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
 %% @todo handle RC and RK
 handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
-		inactive, #statedata{socket = Socket, req = {register, Ref, From,
+		inactive, _Stream, #statedata{socket = Socket, req = {register, Ref, From,
 		#m3ua_routing_key{lrk_id = LRKId, na = NA, tmt = TMT, as = AS, key = Keys}}} =
 		StateData) ->
 	Params1 = m3ua_codec:parameters(Params),
@@ -545,48 +544,61 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 			{next_state, inactive, StateData}
 	end;
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, StateName,
-		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData)
+		_Stream, #statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData)
 		when StateName == inactive; StateName == active ->
 	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK}, active,
-		#statedata{req = {asp_inactive, Ref, From}, socket = Socket} = StateData) ->
+		_Stream, #statedata{req = {asp_inactive, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_inactive, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
-		#statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
+		_Stream, #statedata{req = {asp_down, Ref, From}, socket = Socket} = StateData) ->
 	gen_server:cast(From, {asp_down, Ref, {ok, self(), undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params}, active,
-		#statedata{req = {AspOp, Ref, From}, socket = Socket} = StateData) ->
+		_Stream, #statedata{req = {AspOp, Ref, From}, socket = Socket} = StateData) ->
 	Parameters = m3ua_codec:parameters(Params),
 	{ok, Reason} = m3ua_codec:find_parameter(?ErrorCode, Parameters),
 	gen_server:cast(From, {AspOp, Ref, self(), {error, Reason}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData} = Msg,
-		active, #statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
+		active, Stream, #statedata{callback = CbMode, assoc = Assoc} = StateData)
 		when CbMode /= undefined ->
-	CbMode:transfer(self(), Assoc, Stream, Msg);
-handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA} = Msg, _StateName,
-		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+	Parameters = m3ua_codec:parameters(Params),
+	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
+			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
+	CbMode:transfer(self(), Assoc, Stream, OPC, DPC, SLS, SIO, Data),
+	{next_state, active, StateData};
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
+		_StateName, Stream, #statedata{callback = CbMode, assoc = Assoc} = StateData)
 		when CbMode /= undefined ->
-	CbMode:pause(self(), Assoc, Stream, Msg);
-handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAUD} = Msg, _StateName,
-		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+	Parameters = m3ua_codec:parameters(Params),
+	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
+	CbMode:pause(self(), Assoc, Stream, APCs),
+	{next_state, inactive, StateData};
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
+		_StateName, Stream, #statedata{callback = CbMode, assoc = Assoc} = StateData)
 		when CbMode /= undefined ->
-	CbMode:resume(self(), Assoc, Stream, Msg);
-handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON} = Msg, _StateName,
-		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+	Parameters = m3ua_codec:parameters(Params),
+	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
+	CbMode:resume(self(), Assoc, Stream, APCs),
+	{next_state, active, StateData};
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
+		StateName, Stream, #statedata{callback = CbMode, assoc = Assoc} = StateData)
 		when CbMode /= undefined ->
-	CbMode:status(self(), Assoc, Stream, Msg).
+	Parameters = m3ua_codec:parameters(Params),
+	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
+	CbMode:status(self(), Assoc, Stream, APCs),
+	{next_state, StateName, StateData}.
 
 %% @hidden
 generate_lrk_id() ->
