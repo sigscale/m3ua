@@ -34,10 +34,11 @@
 %% M3UA SSNM Message types
 -define(SSNMReserved,       0).
 -define(SSNMDUNA,           1).
--define(SSNMDAUD,           2).
--define(SSNMSCON,           3).
--define(SSNMDUPU,           4).
--define(SSNMDRST,           5).
+-define(SSNMDUVA,           2).
+-define(SSNMDAUD,           3).
+-define(SSNMSCON,           4).
+-define(SSNMDUPU,           5).
+-define(SSNMDRST,           6).
 
 %% M3UA ASPSM Message types
 -define(ASPSMReserved,      0).

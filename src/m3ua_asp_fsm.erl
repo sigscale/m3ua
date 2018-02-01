@@ -534,7 +534,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA} = Msg, _StateName,
 		Stream, #statedata{callback = CbMode, assoc = Assoc}) when CbMode /= undefined ->
 	CbMode:pause(self(), Assoc, Stream, Msg),
 	{next_state, inactive, StateData};
-handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAUD} = Msg, _StateName,
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA} = Msg, _StateName,
 		Stream, #statedata{callback = CbMode, assoc = Assoc}) when CbMode /= undefined ->
 	CbMode:resume(self(), Assoc, Stream, Msg),
 	{next_state, active, StateData};
