@@ -28,7 +28,11 @@
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>Data = term()</tt></li>
+%%%    <li><tt>OPC = pos_integer() </tt></li>
+%%%    <li><tt>DCP = pos_integer() </tt></li>
+%%%    <li><tt>SLS = non_neg_integer() </tt></li>
+%%%    <li><tt>SIO = non_neg_integer() </tt></li>
+%%%    <li><tt>Data = binary() </tt></li>
 %%%  </ul></p>
 %%%  </div><p>Called when data has arraived for application server (`AS'). </p>
 %%%
@@ -39,7 +43,8 @@
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>Data = term()</tt></li>
+%%%    <li><tt>DPCs = [DPC]</tt></li>
+%%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%  </ul></p>
 %%%  </div><p>Call when determines locally that an SS7 destination is unreachable</p>
 %%%
@@ -50,7 +55,8 @@
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>Data = term()</tt></li>
+%%%    <li><tt>DPCs = [DPC]</tt></li>
+%%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%   </ul></p>
 %%%  </div><p>Call when determines locally that an SS7 destination that was previously
 %%%  unreachable is now reachable</p>
@@ -62,7 +68,8 @@
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>Data = term()</tt></li>
+%%%    <li><tt>DPCs = [DPC]</tt></li>
+%%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%  </ul></p>
 %%%  </div><p>Call when determines locally that the route to an SS7 destination is congested </p>
 %%%
@@ -106,30 +113,37 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback transfer(EP, Assoc, Stream, Data) -> ok
+-callback transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> ok
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
-		Data :: term().
--callback pause(EP, Assoc, Stream, Data) -> ok
+		OPC :: pos_integer(),
+		DPC :: pos_integer(),
+		SLS :: non_neg_integer(),
+		SIO :: non_neg_integer(),
+		Data :: binary().
+-callback pause(EP, Assoc, Stream, DPCs) -> ok
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
-		Data :: term().
--callback resume(EP, Assoc, Stream, Data) -> ok
+		DPCs :: [DPC],
+		DPC :: pos_integer().
+-callback resume(EP, Assoc, Stream, DPCs) -> ok
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
-		Data :: term().
--callback status(EP, Assoc, Stream, Data) -> ok
+		DPCs :: [DPC],
+		DPC :: pos_integer().
+-callback status(EP, Assoc, Stream, DPCs) -> ok
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
-		Data :: term().
+		DPCs :: [DPC],
+		DPC :: pos_integer().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm gen_fsm callbacks
