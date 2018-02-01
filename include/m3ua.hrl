@@ -34,7 +34,7 @@
 %% M3UA SSNM Message types
 -define(SSNMReserved,       0).
 -define(SSNMDUNA,           1).
--define(SSNMDUVA,           2).
+-define(SSNMDAVA,           2).
 -define(SSNMDAUD,           3).
 -define(SSNMSCON,           4).
 -define(SSNMDUPU,           5).
