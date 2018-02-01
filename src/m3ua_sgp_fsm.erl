@@ -501,17 +501,21 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, ac
 		end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData} = Msg,
 		active, Stream, #statedata{callback = CbMode, assoc = Assoc}) when CbMode /= undefined ->
-	CbMode:transfer(self(), Assoc, Stream, Msg);
+	CbMode:transfer(self(), Assoc, Stream, Msg),
+	{next_state, active, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA} = Msg, _StateName,
 		Stream, #statedata{callback = CbMode, assoc = Assoc}) when CbMode /= undefined ->
-	CbMode:pause(self(), Assoc, Stream, Msg);
+	CbMode:pause(self(), Assoc, Stream, Msg),
+	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAUD} = Msg, _StateName,
 		Stream, #statedata{callback = CbMode, assoc = Assoc})
 		when CbMode /= undefined ->
-	CbMode:resume(self(), Assoc, Stream, Msg);
-handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON} = Msg, _StateName,
+	CbMode:resume(self(), Assoc, Stream, Msg),
+	{next_state, active, StateData};
+handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON} = Msg, StateName,
 		Stream, #statedata{callback = CbMode, assoc = Assoc}) when CbMode /= undefined ->
-	CbMode:status(self(), Assoc, Stream, Msg).
+	CbMode:status(self(), Assoc, Stream, Msg),
+	{next_state, StateName, StateData};
 
 %% @hidden
 register_asp_results(RoutingKeys, RC, StateData) ->
