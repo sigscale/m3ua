@@ -96,7 +96,7 @@
 
 %% M3UA Common Header -- RFC4666, Section-1.3.1
 -record(m3ua,
-		{version :: byte(),
+		{version = 1 :: byte(),
 		class :: byte(),
 		type :: byte(),
 		params = <<>> :: binary() | [tuple()]}).

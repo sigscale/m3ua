@@ -95,13 +95,13 @@ get_all_parameter(Tag, Params) ->
 %% @doc codec for M3UA Common Message Header
 %% RFC4666, Section-1.3.1
 %%
-m3ua(<<_V, _Reserved, Class, Type, _Len:32, Data/binary>>) ->
-	#m3ua{class = Class, type = Type, params = Data};
+m3ua(<<Version, _Reserved, Class, Type, _Len:32, Data/binary>>) ->
+	#m3ua{version = Version, class = Class, type = Type, params = Data};
 m3ua(#m3ua{params = Data} = M3UA) when is_list(Data) ->
 	m3ua(M3UA#m3ua{params = parameters(Data)});
-m3ua(#m3ua{class = Class, type = Type, params = Data}) when is_binary(Data) ->
+m3ua(#m3ua{version = Version, class = Class, type = Type, params = Data}) when is_binary(Data) ->
 	Len = size(Data) + 8,
-	<<1, 0, Class, Type, Len:32, Data/binary>>.
+	<<Version, 0, Class, Type, Len:32, Data/binary>>.
 
 -spec parameters(Message) -> Message
 	when
