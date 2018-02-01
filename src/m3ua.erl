@@ -28,6 +28,7 @@
 -export([as_add/6, as_delete/1, register/5, register/6]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
+-export([transfer/8]).
 
 %% export the m3ua private API
 -export([sort/1]).
@@ -307,6 +308,29 @@ asp_active(EndPoint, Assoc) ->
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
 asp_inactive(EndPoint, Assoc) ->
 	m3ua_lm_server:asp_inactive(EndPoint, Assoc).
+
+-spec transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> Result
+	when
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		OPC :: pos_integer(),
+		DPC :: pos_integer(),
+		SLS :: non_neg_integer(),
+		SIO :: non_neg_integer(),
+		Data :: binary(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc MTP-TRANSFER request.
+%%
+%% Called by an MTP user to transfer data using the MTP service.
+transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
+		when is_pid(EP), is_integer(Assoc),
+		is_integer(Stream), Stream =/= 0,
+		is_integer(OPC), is_integer(DPC), is_integer(SLS),
+		is_integer(SIO), is_binary(Data) ->
+	Params = {Assoc, Stream, OPC, DPC, SLS, SIO, Data},
+	gen_fsm:sync_send_event(EP, {'MTP-TRANSFER', request, Params}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API

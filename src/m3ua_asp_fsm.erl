@@ -17,61 +17,68 @@
 %%% @doc This {@link //stdlib/gen_fsm. gen_fsm} behaviour callback module
 %%% 	implements a communicating finite state machine within the
 %%% 	{@link //m3ua. m3ua} application handling an SCTP association
-%%% 	for an Application Server Process (ASP).
+%%%   for an Application Server Process (ASP).
+%%%
+%%% 	This behaviour module provides an MTP service primitives interface
+%%% 	for an MTP user. A calback module name is provided in the
+%%% 	`{callback, Module}' option when opening an `Endpoint'. MTP service
+%%% 	primitive indications are delivered to the MTP user by calling the
+%%% 	corresponding callback function as defined below.
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
 %%%  <h3 class="function"><a name="transfer-4">transfer/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>transfer(Assoc, Stream, OPC, DPC, SLS, SIO, Data)
+%%% 		-&gt; ok </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>OPC = pos_integer() </tt></li>
-%%%    <li><tt>DCP = pos_integer() </tt></li>
+%%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>SLS = non_neg_integer() </tt></li>
 %%%    <li><tt>SIO = non_neg_integer() </tt></li>
 %%%    <li><tt>Data = binary() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>Called when data has arraived for application server (`AS'). </p>
+%%%  </div><p>MTP-TRANSFER indication.</p>
+%%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
 %%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>pause(Assoc, Stream, Data) -&gt; ok </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>Call when determines locally that an SS7 destination is unreachable</p>
+%%%  </div><p>MTP-PAUSE indication.</p>
+%%%  <p>Called when an SS7 destination is unreachable.</p>
 %%%
 %%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>resume(Assoc, Stream, Data) -&gt; ok </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%   </ul></p>
-%%%  </div><p>Call when determines locally that an SS7 destination that was previously
-%%%  unreachable is now reachable</p>
+%%%  </div><p>MTP-RESUME indication.</p>
+%%%  <p>Called when a previously unreachable SS7 destination
+%%%  becomes reachable.</p>
 %%%
 %%%  <h3 class="function"><a name="status-4">status/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>status(Assoc, Stream, Data) -&gt; ok </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>Call when determines locally that the route to an SS7 destination is congested </p>
+%%%  </div><p>Called when congestion occurs for an SS7 destination
+%%% 	or to indicate an unavailable remote user part.</p>
 %%%
 %%% @end
 -module(m3ua_asp_fsm).
@@ -79,8 +86,8 @@
 
 -behaviour(gen_fsm).
 
-%% export the m3ua_asp_fsm API
--export([]).
+%% export the m3ua_asp_fsm public API
+-export([transfer/8]).
 
 %% export the callbacks needed for gen_fsm behaviour
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3,
@@ -109,10 +116,6 @@
 
 
 -define(Tack, 2000).
-
-%%----------------------------------------------------------------------
-%%  The m3ua_asp_fsm API
-%%----------------------------------------------------------------------
 
 %%----------------------------------------------------------------------
 %%  Interface functions
@@ -149,6 +152,33 @@
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
 		DPC :: pos_integer().
+
+%%----------------------------------------------------------------------
+%%  The m3ua_asp_fsm public API
+%%----------------------------------------------------------------------
+
+-spec transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> Result
+	when
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		OPC :: pos_integer(),
+		DPC :: pos_integer(),
+		SLS :: non_neg_integer(),
+		SIO :: non_neg_integer(),
+		Data :: binary(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc MTP-TRANSFER request.
+%%
+%% Called by an MTP user to transfer data using the MTP service.
+transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
+		when is_pid(EP), is_integer(Assoc),
+		is_integer(Stream), Stream =/= 0,
+		is_integer(OPC), is_integer(DPC), is_integer(SLS),
+		is_integer(SIO), is_binary(Data) ->
+	Params = {Assoc, Stream, OPC, DPC, SLS, SIO, Data},
+	gen_fsm:sync_send_event(EP, {'MTP-TRANSFER', request, Params}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm gen_fsm callbacks
@@ -207,15 +237,16 @@ down({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefine
 	gen_server:cast(From, {AspOp, Ref, self(), {error, asp_busy}}),
 	{next_state, down, StateData}.
 
--spec down(Event :: timeout | term(), From :: {pid(), Tag :: term()},
-		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
-            NewStateData :: #statedata{}}.
+-spec down(Event :: timeout | term(),
+		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
+		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
+		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>down</b> state.
 %% @private
 %%
-down(Event, _From, StateData) ->
-	{stop, Event, not_implemeted, StateData}.
+down({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
+	{reply, {error, unexpected_message}, down, StateData}.
 
 -spec inactive(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
@@ -286,15 +317,16 @@ inactive({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= unde
 	gen_server:cast(From, {AspOp, Ref, self(), {error, asp_busy}}),
 	{next_state, inactive, StateData}.
 
--spec inactive(Event :: timeout | term(), From :: {pid(), Tag :: term()},
-		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
-            NewStateData :: #statedata{}}.
+-spec inactive(Event :: timeout | term(),
+		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
+		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
+		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>inactive</b> state.
 %% @private
 %%
-inactive(Event, _From, StateData) ->
-	{stop, Event, not_implemeted, StateData}.
+inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
+	{reply, {error, unexpected_message}, down, StateData}.
 
 -spec active(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
@@ -345,15 +377,27 @@ active({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefi
 	gen_server:cast(From, {AspOp, Ref, self(), {error, asp_busy}}),
 	{next_state, active, StateData}.
 
--spec active(Event :: timeout | term(), From :: {pid(), Tag :: term()},
-		StateData :: #statedata{}) -> {stop, Reason :: term(), Reply :: term(),
-            NewStateData :: #statedata{}}.
+-spec active(Event :: timeout | term(),
+		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
+		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
+		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
 %% @private
 %%
-active(Event, _From, StateData) ->
-	{stop, Event, not_implemeted, StateData}.
+active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
+		_From, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData},
+	Packet = m3ua_codec:m3ua(TransferMsg),
+	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
+		ok ->
+			{reply, ok, down, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
