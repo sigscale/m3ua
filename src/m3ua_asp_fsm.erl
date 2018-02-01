@@ -16,8 +16,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @doc This {@link //stdlib/gen_fsm. gen_fsm} behaviour callback module
 %%% 	implements a communicating finite state machine within the
-%%% 	{@link //m3ua. m3ua} application handling an outgoing SCTP
-%%%   association to a server.
+%%% 	{@link //m3ua. m3ua} application handling an SCTP association
+%%% 	for an Application Server Process (ASP).
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%

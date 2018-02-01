@@ -17,7 +17,7 @@
 %%% @doc This {@link //stdlib/gen_fsm. gen_fsm} behaviour callback module
 %%% 	implements a communicating finite state machine within the
 %%% 	{@link //m3ua. m3ua} application handling an SCTP association
-%%%   originated from a client.
+%%%   for a Signaling Gateway Process (SGP).
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
