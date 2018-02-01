@@ -23,7 +23,7 @@
 %%%
 %%%  <h3 class="function"><a name="transfer-4">transfer/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
@@ -38,7 +38,7 @@
 %%%
 %%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>pause(EP, Assoc, Stream, DPCs) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
@@ -50,7 +50,7 @@
 %%%
 %%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>resume(EP, Assoc, Stream, DPCs) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
@@ -63,7 +63,7 @@
 %%%
 %%%  <h3 class="function"><a name="status-4">status/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>status(EP, Assoc, Stream, DPCs) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>EndPoint = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
