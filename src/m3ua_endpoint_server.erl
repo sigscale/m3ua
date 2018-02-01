@@ -41,7 +41,8 @@
 		options :: [tuple()],
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
-		fsms = gb_trees:empty() :: gb_trees:tree()}).
+		fsms = gb_trees:empty() :: gb_trees:tree(),
+		callback :: atom()}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_endpoint_server API
@@ -77,13 +78,20 @@ init([Sup, Opts] = _Args) ->
 		false ->
 			{asp, Opts1}
 	end,
+	{CallBack, Opts3} = case lists:keytake(callback, 1, Opts2) of
+		{value, {m3ua_role, R3}, O3} ->
+			{R3, O3};
+		false ->
+			{undefined, Opts2}
+	end,
 	Options = [{active, once},
 			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}}
-			| Opts2],
+			| Opts3],
 	case gen_sctp:open(Options) of
 		{ok, Socket} ->
 			State = #state{sup = Sup, socket = Socket,
-					sctp_role = SctpRole, m3ua_role = M3uaRole, options = Options},
+					sctp_role = SctpRole, m3ua_role = M3uaRole,
+					options = Options, callback = CallBack},
 			init1(State);
 		{error, Reason} ->
 			{stop, Reason}
@@ -210,13 +218,13 @@ get_sup(#state{sup = Sup, asp_sup = undefined, sgp_sup = undefined} = State) ->
 
 %% @hidden
 connect(Address, Port, Options, FsmSup,
-		#state{socket = Socket, fsms = Fsms} = State) ->
+		#state{socket = Socket, fsms = Fsms, callback = CbMode} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
 		{ok, #sctp_assoc_change{assoc_id = Assoc}  = AssocChange} ->
 			case gen_sctp:peeloff(Socket, Assoc) of
 				{ok, NewSocket} ->
 				   case supervisor:start_child(FsmSup,
-							[[client, NewSocket, Address, Port, AssocChange],
+							[[client, NewSocket, Address, Port, AssocChange, CbMode],
 							[{debug, [trace]}]]) of
 						{ok, Fsm} ->
 							case gen_sctp:controlling_process(NewSocket, Fsm) of
@@ -242,11 +250,11 @@ connect(Address, Port, Options, FsmSup,
 %% @hidden
 accept(Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc} = AssocChange,
-		Sup, #state{fsms = Fsms} = State) ->
+		Sup, #state{fsms = Fsms, callback = CbMode} = State) ->
 	case gen_sctp:peeloff(Socket, Assoc) of
 		{ok, NewSocket} ->
 			case supervisor:start_child(Sup, [[server,
-					NewSocket, Address, Port, AssocChange], [{debug, [trace]}]]) of
+					NewSocket, Address, Port, AssocChange, CbMode], [{debug, [trace]}]]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(NewSocket, Fsm) of
 						ok ->

@@ -19,6 +19,54 @@
 %%% 	{@link //m3ua. m3ua} application handling an outgoing SCTP
 %%%   association to a server.
 %%%
+%%%  <h2><a name="functions">Callbacks</a></h2>
+%%%
+%%%  <h3 class="function"><a name="transfer-4">transfer/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>transfer(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%  </ul></p>
+%%%  </div><p>Called when data has arraived for application server (`AS'). </p>
+%%%
+%%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>pause(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%  </ul></p>
+%%%  </div><p>Call when determines locally that an SS7 destination is unreachable</p>
+%%%
+%%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>resume(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%   </ul></p>
+%%%  </div><p>Call when determines locally that an SS7 destination that was previously
+%%%  unreachable is now reachable</p>
+%%%
+%%%  <h3 class="function"><a name="status-4">status/4</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>status(EP, Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EndPoint = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>Data = term()</tt></li>
+%%%  </ul></p>
+%%%  </div><p>Call when determines locally that the route to an SS7 destination is congested </p>
+%%%
+%%% @end
 -module(m3ua_asp_fsm).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
@@ -45,15 +93,48 @@
 		ual :: non_neg_integer(),
 		req :: tuple(),
 		rc :: pos_integer(),
-		mode :: override | loadshare | broadcast}).
+		mode :: override | loadshare | broadcast,
+		stream :: integer(),
+		callback :: atom()}).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+
 -define(Tack, 2000).
+
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm API
 %%----------------------------------------------------------------------
+
+%%----------------------------------------------------------------------
+%%  Interface functions
+%%----------------------------------------------------------------------
+
+-callback transfer(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
+-callback pause(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
+-callback resume(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
+-callback status(EP, Assoc, Stream, Data) -> ok
+	when
+		EP :: pos_integer(),
+		Assoc :: pos_integer(),
+		Stream :: pos_integer(),
+		Data :: term().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm gen_fsm callbacks
@@ -69,12 +150,14 @@
 %%
 init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
-		inbound_streams = InStreams, outbound_streams = OutStreams}]) ->
+		inbound_streams = InStreams, outbound_streams = OutStreams},
+		CbMode]) ->
 	process_flag(trap_exit, true),
 	Statedata = #statedata{sctp_role = SctpRole,
 			socket = Socket, assoc = Assoc,
 			peer_addr = Address, peer_port = Port,
-			in_streams = InStreams, out_streams = OutStreams},
+			in_streams = InStreams, out_streams = OutStreams,
+			callback = CbMode},
 	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
@@ -317,10 +400,11 @@ handle_sync_event(sctp_status, _From, StateName,
 %% @see //stdlib/gen_fsm:handle_info/3
 %% @private
 %%
-handle_info({sctp, Socket, _PeerAddr, _PeerPort, {_AncData, Data}},
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{[#sctp_sndrcvinfo{stream = Stream}], Data}},
 		StateName, #statedata{socket = Socket} = StateData)
 		when is_binary(Data) ->
-	handle_asp(Data, StateName, StateData);
+	handle_asp(Data, StateName, StateData#statedata{stream = Stream});
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
 		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
@@ -428,7 +512,23 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params}, acti
 	gen_server:cast(From, {AspOp, Ref, self(), {error, Reason}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
-	{next_state, down, NewStateData}.
+	{next_state, down, NewStateData};
+handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData} = Msg,
+		active, #statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:transfer(self(), Assoc, Stream, Msg);
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:pause(self(), Assoc, Stream, Msg);
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAUD} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:resume(self(), Assoc, Stream, Msg);
+handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON} = Msg, _StateName,
+		#statedata{callback = CbMode, assoc = Assoc, stream = Stream})
+		when CbMode /= undefined ->
+	CbMode:status(self(), Assoc, Stream, Msg).
 
 %% @hidden
 generate_lrk_id() ->

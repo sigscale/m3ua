@@ -34,6 +34,7 @@
 
 -type options() :: {sctp_role, client | server}
 						| {m3ua_role, sgp | asp}
+						| {callback, atom()}
 						| {ip, inet:ip_address()}
 						| {ifaddr, inet:ip_address()}
 						| {port, inet:port_number()}
@@ -310,13 +311,14 @@ asp_inactive(EndPoint, Assoc) ->
 %%----------------------------------------------------------------------
 %%  The m3ua private API
 %%----------------------------------------------------------------------
+
 -spec sort(Keys) -> Keys
 	when
 		Keys :: [{DPC, [SI], [OPC]}],
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer().
-%% @doc uniquly sort list of keys
+%% @doc Uniquely sort list of routing keys.
 %% @private
 sort(Keys) when is_list(Keys) ->
 	sort(Keys, []).
