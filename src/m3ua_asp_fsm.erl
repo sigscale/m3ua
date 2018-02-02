@@ -387,7 +387,7 @@ active({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefi
 active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 		_From, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
-	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData),
+	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
 	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
