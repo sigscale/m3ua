@@ -115,7 +115,12 @@ parameters(Message) when is_list(Message) ->
 	parameters(Message, <<>>).
 %% @hidden
 parameters(<<Tag:16, Len:16, Chunk/binary>>, Acc) ->
-	DataLen = Len - 4,
+	DataLen = case Len rem 4 of
+		0 ->
+			Len - 4;
+		Pad ->
+			(Len + Pad) - 4
+	end,
 	<<Data:DataLen/binary, Rest/binary>> = Chunk,
 	parameters(Rest, parameter(Tag, Data, Acc));
 parameters([{?InfoString, InfoString} | T], Acc) ->
