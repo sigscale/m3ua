@@ -45,7 +45,7 @@
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="transfer-4">transfer/4</a></h3>
+%%%  <h3 class="function"><a name="transfer-9">transfer/9</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State)
 %%% 		-&gt; Result </tt>
@@ -66,7 +66,7 @@
 %%%  </div><p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
-%%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
+%%%  <h3 class="function"><a name="pause-5">pause/5</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>pause(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
@@ -83,7 +83,7 @@
 %%%  </div><p>MTP-PAUSE indication.</p>
 %%%  <p>Called when an SS7 destination is unreachable.</p>
 %%%
-%%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
+%%%  <h3 class="function"><a name="resume-5">resume/5</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>resume(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
@@ -101,7 +101,7 @@
 %%%  <p>Called when a previously unreachable SS7 destination
 %%%  becomes reachable.</p>
 %%%
-%%%  <h3 class="function"><a name="status-4">status/4</a></h3>
+%%%  <h3 class="function"><a name="status-5">status/5</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>status(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
