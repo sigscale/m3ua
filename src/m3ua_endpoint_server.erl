@@ -181,8 +181,9 @@ handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 		#state{sctp_role = server, sgp_sup = Sup,
 		socket = Socket} = State) ->
 	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State);
-handle_info({sctp, _Socket, _PeerAddr, _PeerPort,
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
+	inet:setopts(Socket, [{active, once}]),
 	{noreply, State}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
