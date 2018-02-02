@@ -262,17 +262,28 @@ init([SctpRole, Socket, Address, Port,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		CbMod]) ->
 	Args = [{self(), Address, Port, Assoc, InStreams, OutStreams}],
-	case CbMod:init(Args) of
-		{ok, AsState} ->
+	case CbMod of
+		undefined ->
 			process_flag(trap_exit, true),
 			Statedata = #statedata{sctp_role = SctpRole,
 					socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
-					callback = CbMod, as_state = AsState},
+					callback = CbMod},
 			{ok, down, Statedata};
-		{error, Reason} ->
-			{stop, Reason}
+		CbMod ->
+			case CbMod:init(Args) of
+				{ok, AsState} ->
+					process_flag(trap_exit, true),
+					Statedata = #statedata{sctp_role = SctpRole,
+							socket = Socket, assoc = Assoc,
+							peer_addr = Address, peer_port = Port,
+							in_streams = InStreams, out_streams = OutStreams,
+							callback = CbMod, as_state = AsState},
+					{ok, down, Statedata};
+				{error, Reason} ->
+					{stop, Reason}
+			end
 	end.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
