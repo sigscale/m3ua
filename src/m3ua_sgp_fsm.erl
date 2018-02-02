@@ -149,7 +149,7 @@
 		rcs = gb_trees:empty() :: gb_trees:tree(),
 		stream :: integer(),
 		callback :: atom(),
-		as_state :: term()}).
+		sg_state :: term()}).
 
 %%----------------------------------------------------------------------
 %%  Interface functions
@@ -266,7 +266,7 @@ init([SctpRole, Socket, Address, Port,
 					socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
-					callback = CbMod, as_state = AsState},
+					callback = CbMod, sg_state = AsState},
 			{ok, down, Statedata};
 		{error, Reason} ->
 			{stop, Reason}
