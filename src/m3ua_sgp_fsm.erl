@@ -152,9 +152,9 @@
 %%  The m3ua_sgp_fsm public API
 %%----------------------------------------------------------------------
 
--spec transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> Result
+-spec transfer(SGP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> Result
 	when
-		EP :: pid(),
+		SGP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		OPC :: pos_integer(),
@@ -167,13 +167,13 @@
 %% @doc MTP-TRANSFER request.
 %%
 %% Called by an MTP user to transfer data using the MTP service.
-transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
-		when is_pid(EP), is_integer(Assoc),
+transfer(SGP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
+		when is_pid(SGP), is_integer(Assoc),
 		is_integer(Stream), Stream =/= 0,
 		is_integer(OPC), is_integer(DPC), is_integer(SLS),
 		is_integer(SIO), is_binary(Data) ->
 	Params = {Assoc, Stream, OPC, DPC, SLS, SIO, Data},
-	gen_fsm:sync_send_event(EP, {'MTP-TRANSFER', request, Params}).
+	gen_fsm:sync_send_event(SGP, {'MTP-TRANSFER', request, Params}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm gen_fsm callbacks
