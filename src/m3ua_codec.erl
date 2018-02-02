@@ -512,8 +512,14 @@ error_code(no_configure_AS_for_ASP) -> <<42:32>>.
 protocol_data(<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>) ->
 	#protocol_data{opc = OPC, dpc = DPC,
 			si = SI, ni = NI, mp = MP, sls = SLS, data = UPD};
+protocol_data(#protocol_data{ni = undefined} = PD) ->
+	protocol_data(PD#protocol_data{ni = 0});
+protocol_data(#protocol_data{mp = undefined} = PD) ->
+	protocol_data(PD#protocol_data{mp = 0});
 protocol_data(#protocol_data{opc = OPC, dpc = DPC,
-		si = SI, ni = NI, mp = MP, sls = SLS, data = UPD}) ->
+		si = SI, ni = NI, mp = MP, sls = SLS, data = UPD})
+		when is_integer(OPC), is_integer(DPC), is_integer(SI),
+		is_integer(NI), is_integer(MP), is_integer(SLS), is_binary(UPD) ->
 	<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>.
 
 -spec registration_status(RegistrationStatus) -> RegistrationStatus
