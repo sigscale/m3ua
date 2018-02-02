@@ -27,11 +27,30 @@
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
-%%%  <h3 class="function"><a name="transfer-4">transfer/4</a></h3>
+%%%  <h3 class="function"><a name="init-1">init/1</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Assoc, Stream, OPC, DPC, SLS, SIO, Data)
-%%% 		-&gt; ok </tt>
+%%%  <p><tt>init(Args)
+%%% 		-&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>Args = [{Sgp, Address, Port, Assoc, InStreams, OutStreams}] </tt></li>
+%%%    <li><tt>Sgp = pid() </tt></li>
+%%%    <li><tt>Address = inet:ip_address() | inet:hostname() </tt></li>
+%%%    <li><tt>Port = inet:port_number() </tt></li>
+%%%    <li><tt>Assoc = pos_integer() </tt></li>
+%%%    <li><tt>InStreams = pos_integer() </tt></li>
+%%%    <li><tt>OutStreams = pos_integer() </tt></li>
+%%%    <li><tt>Result = {ok, State} | {error, Reason} </tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
+%%%  <h3 class="function"><a name="transfer-9">transfer/9</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State)
+%%% 		-&gt; Result </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>OPC = pos_integer() </tt></li>
@@ -39,43 +58,62 @@
 %%%    <li><tt>SLS = non_neg_integer() </tt></li>
 %%%    <li><tt>SIO = non_neg_integer() </tt></li>
 %%%    <li><tt>Data = binary() </tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
 %%%  </div><p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
-%%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
+%%%  <h3 class="function"><a name="pause-5">pause/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>pause(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
 %%%  </div><p>MTP-PAUSE indication.</p>
 %%%  <p>Called when an SS7 destination is unreachable.</p>
 %%%
-%%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
+%%%  <h3 class="function"><a name="resume-5">resume/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>resume(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
 %%%   </ul></p>
 %%%  </div><p>MTP-RESUME indication.</p>
 %%%  <p>Called when a previously unreachable SS7 destination
 %%%  becomes reachable.</p>
 %%%
-%%%  <h3 class="function"><a name="status-4">status/4</a></h3>
+%%%  <h3 class="function"><a name="status-5">status/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(Assoc, Stream, Data) -&gt; ok </tt>
+%%%  <p><tt>status(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
@@ -110,13 +148,26 @@
 		ual :: non_neg_integer(),
 		rcs = gb_trees:empty() :: gb_trees:tree(),
 		stream :: integer(),
-		callback :: atom()}).
+		callback :: atom(),
+		sg_state :: term()}).
 
 %%----------------------------------------------------------------------
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> ok
+-callback init(Args) -> Result
+	when
+		Args :: [{Sgp, Address, Port, Assoc, InStreams, OutStreams}],
+		Sgp :: pid(),
+		Address :: inet:ip_address() | inet:hostname(),
+		Port :: inet:port_number(),
+		Assoc :: pos_integer(),
+		InStreams :: pos_integer(),
+		OutStreams :: pos_integer(),
+		Result :: {ok, State} | {error, Reason},
+		State :: term(),
+		Reason :: term().
+-callback transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
@@ -125,28 +176,44 @@
 		DPC :: pos_integer(),
 		SLS :: non_neg_integer(),
 		SIO :: non_neg_integer(),
-		Data :: binary().
--callback pause(EP, Assoc, Stream, DPCs) -> ok
+		Data :: binary(),
+		State :: term(),
+		Result :: {ok, NewState} | {error, Reason},
+		NewState :: term(),
+		Reason :: term().
+-callback pause(EP, Assoc, Stream, DPCs, State) -> Result 
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		DPC :: pos_integer().
--callback resume(EP, Assoc, Stream, DPCs) -> ok
+		DPC :: pos_integer(),
+		State :: term(),
+		Result :: {ok, NewState} | {error, Reason},
+		NewState :: term(),
+		Reason :: term().
+-callback resume(EP, Assoc, Stream, DPCs, State) -> Result 
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		DPC :: pos_integer().
--callback status(EP, Assoc, Stream, DPCs) -> ok
+		DPC :: pos_integer(),
+		State :: term(),
+		Result :: {ok, NewState} | {error, Reason},
+		NewState :: term(),
+		Reason :: term().
+-callback status(EP, Assoc, Stream, DPCs, State) -> Result
 	when
 		EP :: pos_integer(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		DPC :: pos_integer().
+		DPC :: pos_integer(),
+		State :: term(),
+		Result :: {ok, NewState} | {error, Reason},
+		NewState :: term(),
+		Reason :: term().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm public API
@@ -190,14 +257,31 @@ transfer(SGP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
 init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
-		CbMode]) ->
-	process_flag(trap_exit, true),
-	Statedata = #statedata{sctp_role = SctpRole,
-			socket = Socket, assoc = Assoc,
-			peer_addr = Address, peer_port = Port,
-			in_streams = InStreams, out_streams = OutStreams,
-			callback = CbMode},
-	{ok, down, Statedata}.
+		CbMod]) ->
+	Args = [{self(), Address, Port, Assoc, InStreams, OutStreams}],
+	case CbMod of
+		undefined ->
+			process_flag(trap_exit, true),
+			Statedata = #statedata{sctp_role = SctpRole,
+					socket = Socket, assoc = Assoc,
+					peer_addr = Address, peer_port = Port,
+					in_streams = InStreams, out_streams = OutStreams,
+					callback = CbMod},
+			{ok, down, Statedata};
+		CbMod ->
+			case CbMod:init(Args) of
+				{ok, SgState} ->
+					process_flag(trap_exit, true),
+					Statedata = #statedata{sctp_role = SctpRole,
+							socket = Socket, assoc = Assoc,
+							peer_addr = Address, peer_port = Port,
+							in_streams = InStreams, out_streams = OutStreams,
+							callback = CbMod, sg_state = SgState},
+					{ok, down, Statedata};
+				{error, Reason} ->
+					{stop, Reason}
+			end
+	end.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
