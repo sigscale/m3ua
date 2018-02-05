@@ -27,24 +27,6 @@
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
-%%%  <h3 class="function"><a name="init-1">init/1</a></h3>
-%%%  <div class="spec">
-%%%  <p><tt>init(Args)
-%%% 		-&gt; Result </tt>
-%%%  <ul class="definitions">
-%%%    <li><tt>Args = [{Sgp, Address, Port, Assoc, InStreams, OutStreams}] </tt></li>
-%%%    <li><tt>Sgp = pid() </tt></li>
-%%%    <li><tt>Address = inet:ip_address() | inet:hostname() </tt></li>
-%%%    <li><tt>Port = inet:port_number() </tt></li>
-%%%    <li><tt>Assoc = pos_integer() </tt></li>
-%%%    <li><tt>InStreams = pos_integer() </tt></li>
-%%%    <li><tt>OutStreams = pos_integer() </tt></li>
-%%%    <li><tt>Result = {ok, State} | {error, Reason} </tt></li>
-%%%    <li><tt>State = term() </tt></li>
-%%%    <li><tt>Reason = term() </tt></li>
-%%%  </ul></p>
-%%%  </div>
-%%%
 %%%  <h3 class="function"><a name="transfer-9">transfer/9</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State)
@@ -190,18 +172,6 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback init(Args) -> Result
-	when
-		Args :: [{Sgp, Address, Port, Assoc, InStreams, OutStreams}],
-		Sgp :: pid(),
-		Address :: inet:ip_address() | inet:hostname(),
-		Port :: inet:port_number(),
-		Assoc :: pos_integer(),
-		InStreams :: pos_integer(),
-		OutStreams :: pos_integer(),
-		Result :: {ok, State} | {error, Reason},
-		State :: term(),
-		Reason :: term().
 -callback transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		EP :: pid(),
@@ -305,30 +275,13 @@ init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		CbMod]) ->
-	Args = [{self(), Address, Port, Assoc, InStreams, OutStreams}],
-	case CbMod of
-		undefined ->
-			process_flag(trap_exit, true),
-			Statedata = #statedata{sctp_role = SctpRole,
-					socket = Socket, assoc = Assoc,
-					peer_addr = Address, peer_port = Port,
-					in_streams = InStreams, out_streams = OutStreams,
-					callback = CbMod},
-			{ok, down, Statedata};
-		CbMod ->
-			case CbMod:init(Args) of
-				{ok, AsState} ->
-					process_flag(trap_exit, true),
-					Statedata = #statedata{sctp_role = SctpRole,
-							socket = Socket, assoc = Assoc,
-							peer_addr = Address, peer_port = Port,
-							in_streams = InStreams, out_streams = OutStreams,
-							callback = CbMod, as_state = AsState},
-					{ok, down, Statedata};
-				{error, Reason} ->
-					{stop, Reason}
-			end
-	end.
+	process_flag(trap_exit, true),
+	Statedata = #statedata{sctp_role = SctpRole,
+			socket = Socket, assoc = Assoc,
+			peer_addr = Address, peer_port = Port,
+			in_streams = InStreams, out_streams = OutStreams,
+			callback = CbMod},
+	{ok, down, Statedata}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
