@@ -100,36 +100,43 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
-%%%  <h3 class="function"><a name="asp_up-1">asp_up/1</a></h3>
+%%%  <h3 class="function"><a name="asp_up-2">asp_up/2</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_up(Sgp) -&gt; ok </tt>
+%%%  <p><tt>asp_up(Sgp, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_down-1">asp_down/1</a></h3>
+%%%  <h3 class="function"><a name="asp_down-2">asp_down/2</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_down(Sgp) -&gt; ok </tt>
+%%%  <p><tt>asp_down(Sgp, State) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_active-1">asp_active/1</a></h3>
+%%%  <h3 class="function"><a name="asp_active-2">asp_active/2</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_active(Sgp) -&gt; ok </tt>
+%%%  <p><tt>asp_active(Sgp, State) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_inactive-1">asp_inactive/1</a></h3>
+%%%  <h3 class="function"><a name="asp_inactive-2">asp_inactive/2</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_inactive(Sgp) -&gt; ok </tt>
+%%%  <p><tt>asp_inactive(Sgp, State) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
@@ -217,18 +224,26 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback sgp_up(Sgp) -> ok
+-callback asp_up(Sgp, State) -> Result
 	when
-		Sgp :: pid().
--callback sgp_down(Sgp) -> ok
+		Sgp :: pid(),
+		State :: term(),
+		Result :: {ok, State}.
+-callback asp_down(Sgp, State) -> Result
 	when
-		Sgp :: pid().
--callback sgp_active(Sgp) -> ok
+		Sgp :: pid(),
+		State :: term(),
+		Result :: {ok, State}.
+-callback asp_active(Sgp, State) -> Result
 	when
-		Sgp :: pid().
--callback sgp_inactive(Sgp) -> ok
+		Sgp :: pid(),
+		State :: term(),
+		Result :: {ok, State}.
+-callback asp_inactive(Sgp, State) -> Result
 	when
-		Sgp :: pid().
+		Sgp :: pid(),
+		State :: term(),
+		Result :: {ok, State}.
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm public API
