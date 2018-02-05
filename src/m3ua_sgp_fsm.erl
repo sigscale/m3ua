@@ -27,11 +27,12 @@
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
-%%%  <h3 class="function"><a name="transfer-9">transfer/9</a></h3>
+%%%  <h3 class="function"><a name="transfer-10">transfer/10</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State)
+%%%  <p><tt>transfer(Sgp, EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State)
 %%% 		-&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
@@ -48,10 +49,11 @@
 %%%  </div><p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
-%%%  <h3 class="function"><a name="pause-5">pause/5</a></h3>
+%%%  <h3 class="function"><a name="pause-6">pause/6</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
+%%%  <p><tt>pause(Sgp, EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
@@ -65,10 +67,11 @@
 %%%  </div><p>MTP-PAUSE indication.</p>
 %%%  <p>Called when an SS7 destination is unreachable.</p>
 %%%
-%%%  <h3 class="function"><a name="resume-5">resume/5</a></h3>
+%%%  <h3 class="function"><a name="resume-6">resume/6</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
+%%%  <p><tt>resume(Sgp, EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
@@ -85,8 +88,9 @@
 %%%
 %%%  <h3 class="function"><a name="status-5">status/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(EP, Assoc, Stream, Data, State) -&gt; Result </tt>
+%%%  <p><tt>status(Sgp, EP, Assoc, Stream, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
@@ -100,41 +104,49 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
-%%%  <h3 class="function"><a name="asp_up-2">asp_up/2</a></h3>
+%%%  <h3 class="function"><a name="asp_up-4">asp_up/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_up(Sgp, State) -&gt; Result </tt>
+%%%  <p><tt>asp_up(Sgp, EP, Assoc, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_down-2">asp_down/2</a></h3>
+%%%  <h3 class="function"><a name="asp_down-4">asp_down/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_down(Sgp, State) -&gt; ok </tt>
+%%%  <p><tt>asp_down(Sgp, EP, Assoc, State) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_active-2">asp_active/2</a></h3>
+%%%  <h3 class="function"><a name="asp_active-4">asp_active/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_active(Sgp, State) -&gt; ok </tt>
+%%%  <p><tt>asp_active(Sgp, EP, Assoc, State) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_inactive-2">asp_inactive/2</a></h3>
+%%%  <h3 class="function"><a name="asp_inactive-4">asp_inactive/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_inactive(Sgp, State) -&gt; ok </tt>
+%%%  <p><tt>asp_inactive(Sgp, EP, Assoc, State) -&gt; ok </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
@@ -177,9 +189,10 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) -> Result
+-callback transfer(Sgp, EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
-		EP :: pos_integer(),
+		Sgp :: pid(),
+		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		OPC :: pos_integer(),
@@ -191,9 +204,10 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback pause(EP, Assoc, Stream, DPCs, State) -> Result 
+-callback pause(Sgp, EP, Assoc, Stream, DPCs, State) -> Result 
 	when
-		EP :: pos_integer(),
+		Sgp :: pid(),
+		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
@@ -202,9 +216,10 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback resume(EP, Assoc, Stream, DPCs, State) -> Result 
+-callback resume(Sgp, EP, Assoc, Stream, DPCs, State) -> Result 
 	when
-		EP :: pos_integer(),
+		Sgp :: pid(),
+		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
@@ -213,9 +228,10 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback status(EP, Assoc, Stream, DPCs, State) -> Result
+-callback status(Sgp, EP, Assoc, Stream, DPCs, State) -> Result
 	when
-		EP :: pos_integer(),
+		Sgp :: pid(),
+		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
@@ -224,24 +240,32 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback asp_up(Sgp, State) -> Result
+-callback asp_up(Sgp, EP, Assoc, State) -> Result
 	when
 		Sgp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback asp_down(Sgp, State) -> Result
+-callback asp_down(Sgp, EP, Assoc, State) -> Result
 	when
 		Sgp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback asp_active(Sgp, State) -> Result
+-callback asp_active(Sgp, EP, Assoc, State) -> Result
 	when
 		Sgp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback asp_inactive(Sgp, State) -> Result
+-callback asp_inactive(Sgp, EP, Assoc, State) -> Result
 	when
 		Sgp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
 
