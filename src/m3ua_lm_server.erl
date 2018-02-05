@@ -422,13 +422,13 @@ handle_cast({AspOp, Ref, {ok, RC, RK}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({AspOp, Ref, {ok, ASP, CbMod, _Identifier, _Info}},
+handle_cast({AspOp, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}},
 		#state{reqs = Reqs} = State)
 		when AspOp == asp_up; AspOp == asp_down;
 		AspOp == asp_active; AspOp == asp_inactive ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			apply(CbMod, AspOp, [ASP]),
+			apply(CbMod, AspOp, [Asp, EP, Assoc, UState]),
 			gen_server:reply(From, ok),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -436,7 +436,7 @@ handle_cast({AspOp, Ref, {ok, ASP, CbMod, _Identifier, _Info}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({SgpIndication, CbMod, State, Sgp}, #state{} = State) when
+handle_cast({SgpIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
 		SgpIndication == 'M-ASP_UP'; SgpIndication == 'M-ASP_DOWN';
 		SgpIndication == 'M-ASP_ACTIVE'; SgpIndication == 'M-ASP_INACTIVE' ->
 	Function = case SgpIndication of
@@ -445,7 +445,7 @@ handle_cast({SgpIndication, CbMod, State, Sgp}, #state{} = State) when
 		'M-ASP_ACTIVE' -> asp_active;
 		'M-ASP_INACTIVE' -> asp_inactive
 	end,
-	apply(CbMod, Function, [Sgp, State]),
+	{ok, _UState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
 	{noreply, State};
 handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
 	F = fun() ->
