@@ -437,13 +437,13 @@ handle_cast({AspOp, Ref, {ok, ASP, CbMod, _Identifier, _Info}},
 			{noreply, State}
 	end;
 handle_cast({SgpIndication, CbMod, Sgp}, #state{} = State) when
-		SgpIndication == 'M-AS_UP';SgpIndication == 'M-AS_DOWN';
-		SgpIndication == 'M-AS_ACTIVE'; SgpIndication == 'M-AS_INACTIVE' ->
+		SgpIndication == 'M-ASP_UP'; SgpIndication == 'M-ASP_DOWN';
+		SgpIndication == 'M-ASP_ACTIVE'; SgpIndication == 'M-ASP_INACTIVE' ->
 	Function = case SgpIndication of
-		'M-AS_UP' -> asp_up;
-		'M-AS_DOWN' -> asp_down;
-		'M-AS_ACTIVE' -> asp_active;
-		'M-AS_INACTIVE' -> asp_inactive
+		'M-ASP_UP' -> asp_up;
+		'M-ASP_DOWN' -> asp_down;
+		'M-ASP_ACTIVE' -> asp_active;
+		'M-ASP_INACTIVE' -> asp_inactive
 	end,
 	apply(CbMod, Function, [Sgp]),
 	{noreply, State};
