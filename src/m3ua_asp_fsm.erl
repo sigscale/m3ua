@@ -658,33 +658,33 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params}, acti
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
-		active, Stream, #statedata{callback = CbMod, assoc = Assoc} = StateData)
+		active, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	CbMod:transfer(self(), Assoc, Stream, OPC, DPC, SLS, SIO, Data),
+	CbMod:transfer(self(), Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
 	{next_state, active, StateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		_StateName, Stream, #statedata{callback = CbMod, assoc = Assoc} = StateData)
+		_StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:pause(self(), Assoc, Stream, APCs),
+	CbMod:pause(self(), Assoc, Stream, APCs, State),
 	{next_state, inactive, StateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		_StateName, Stream, #statedata{callback = CbMod, assoc = Assoc} = StateData)
+		_StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:resume(self(), Assoc, Stream, APCs),
+	CbMod:resume(self(), Assoc, Stream, APCs, State),
 	{next_state, active, StateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
-		StateName, Stream, #statedata{callback = CbMod, assoc = Assoc} = StateData)
+		StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:status(self(), Assoc, Stream, APCs),
+	CbMod:status(self(), Assoc, Stream, APCs, State),
 	{next_state, StateName, StateData}.
 
 %% @hidden

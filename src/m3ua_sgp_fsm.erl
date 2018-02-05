@@ -634,40 +634,40 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, ac
 				{stop, Reason, StateData}
 		end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
-		_ActiveState, Stream, #statedata{socket = Socket, callback = CbMode,
+		_ActiveState, Stream, #statedata{socket = Socket, callback = {CbMod, State}
 		assoc = Assoc} = StateData)
-		when CbMode /= undefined ->
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	CbMode:transfer(self(), Assoc, Stream, OPC, DPC, SLS, SIO, Data),
+	CbMod:transfer(self(), Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		_StateName, Stream, #statedata{socket = Socket, callback = CbMode,
+		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State}
 		assoc = Assoc} = StateData)
-		when CbMode /= undefined ->
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMode:pause(self(), Assoc, Stream, APCs),
+	CbMod:pause(self(), Assoc, Stream, APCs, State),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		_StateName, Stream, #statedata{socket = Socket, callback = CbMode,
+		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State}
 		assoc = Assoc} = StateData)
-		when CbMode /= undefined ->
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMode:resume(self(), Assoc, Stream, APCs),
+	CbMod:resume(self(), Assoc, Stream, APCs, State),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
-		StateName, Stream, #statedata{socket = Socket, callback = CbMode,
+		StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State}
 		assoc = Assoc} = StateData)
-		when CbMode /= undefined ->
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMode:status(self(), Assoc, Stream, APCs),
+	CbMod:status(self(), Assoc, Stream, APCs, State),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData}.
 
