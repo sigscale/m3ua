@@ -118,6 +118,39 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
+%%%  <h3 class="function"><a name="asp_up-1">asp_up/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_up(Sgp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
+%%%  <h3 class="function"><a name="asp_down-1">asp_down/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_down(Sgp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
+%%%  <h3 class="function"><a name="asp_active-1">asp_active/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_active(Sgp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
+%%%  <h3 class="function"><a name="asp_inactive-1">asp_inactive/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_inactive(Sgp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
 %%% @end
 -module(m3ua_sgp_fsm).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
@@ -214,6 +247,18 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
+-callback sgp_up(Sgp) -> ok
+	when
+		Sgp :: pid().
+-callback sgp_down(Sgp) -> ok
+	when
+		Sgp :: pid().
+-callback sgp_active(Sgp) -> ok
+	when
+		Sgp :: pid().
+-callback sgp_inactive(Sgp) -> ok
+	when
+		Sgp :: pid().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm public API
@@ -477,11 +522,13 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
-		_Stream, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod} =
+		StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
+			gen_server:cast(m3ua_lm_server, {'M-ASP_UP', CbMod, self()}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};
 		{error, eagain} ->
@@ -537,7 +584,8 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
 			{stop, Reason, NewStateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
-		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs} = StateData) ->
+		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs,
+		callback = CbMod} = StateData) ->
 	try
 		AspActive = m3ua_codec:parameters(Params),
 		case m3ua_codec:find_parameter(?RoutingContext, AspActive) of
@@ -548,6 +596,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 						P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
 						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 						StateData1 = StateData#statedata{rcs = NewRCs},
+						gen_server:cast(m3ua_lm_server, {'M-ASP_ACTIVE', CbMod, self()}),
 						{?ASPTMMessage, ?ASPTMASPACACK, P1, StateData1};
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
@@ -577,12 +626,13 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
-		_Stream, #statedata{socket = Socket, assoc = Assoc} = StateData)
+		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod} = StateData)
 		when StateName == inactive; StateName == active ->
 	AspActiveAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 	Packet = m3ua_codec:m3ua(AspActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
+			gen_server:cast(m3ua_lm_server, {'M-ASP_DOWN', CbMod, self()}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, down, StateData};
 		{error, eagain} ->
@@ -592,7 +642,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, active,
-		_Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs} = StateData) ->
+		_Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs, callback = CbMod} =
+		StateData) ->
 	try
 		AspInactive = m3ua_codec:parameters(Params),
 		case m3ua_codec:find_parameter(?RoutingContext, AspInactive) of
@@ -601,6 +652,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, ac
 					{value, #m3ua_routing_key{} = RK} ->
 						P0 = m3ua_codec:add_parameter(?RoutingContext, [RC], []),
 						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = inactive}, RCs),
+						gen_server:cast(m3ua_lm_server, {'M-ASP_INACTIVE', CbMod, self()}),
 						{?ASPTMMessage, ?ASPTMASPIAACK, P0, StateData#statedata{rcs = NewRCs}};
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_rc, []),
