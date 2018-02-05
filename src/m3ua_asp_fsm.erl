@@ -249,26 +249,18 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback asp_up(Asp, EP, Assoc) -> ok
+-callback asp_up(Asp) -> ok
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer().
--callback asp_down(Asp, EP, Assoc) -> ok
+		Asp :: pid().
+-callback asp_down(Asp) -> ok
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer().
--callback asp_active(Asp, EP, Assoc) -> ok
+		Asp :: pid().
+-callback asp_active(Asp) -> ok
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer().
--callback asp_inactive(Asp, EP, Assoc) -> ok
+		Asp :: pid().
+-callback asp_inactive(Asp) -> ok
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer().
+		Asp :: pid().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm public API
