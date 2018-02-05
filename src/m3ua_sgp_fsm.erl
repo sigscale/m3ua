@@ -369,7 +369,7 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
-			{reply, ok, down, StateData};
+			{reply, ok, active, StateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, eagain, StateData};
