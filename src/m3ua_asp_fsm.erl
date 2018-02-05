@@ -118,6 +118,38 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
+%%%  <h3 class="function"><a name="asp_up-1">asp_up/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_up(Asp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
+%%%  <h3 class="function"><a name="asp_down-1">asp_down/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_down(Asp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
+%%%  <h3 class="function"><a name="asp_active-1">asp_active/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_active(Asp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
+%%%  <h3 class="function"><a name="asp_inactive-1">asp_inactive/1</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>asp_inactive(Asp) -&gt; ok </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
 %%% @end
 -module(m3ua_asp_fsm).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
@@ -217,6 +249,26 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
+-callback asp_up(Asp, EP, Assoc) -> ok
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer().
+-callback asp_down(Asp, EP, Assoc) -> ok
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer().
+-callback asp_active(Asp, EP, Assoc) -> ok
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer().
+-callback asp_inactive(Asp, EP, Assoc) -> ok
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm public API
