@@ -78,7 +78,8 @@ sequences() ->
 all() ->
 	[open, close, listen, connect, release, getstat_ep, getstat_assoc,
 			asp_up, asp_down, register, asp_active, asp_inactive_to_down,
-			asp_active_to_down, asp_active_to_inactive, get_sctp_status].
+			asp_active_to_down, asp_active_to_inactive, get_sctp_status,
+			mtp_transfer].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -260,6 +261,37 @@ get_sctp_status(_Config) ->
 	{ok, ClientEP} = m3ua:open(),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	{ok, #sctp_status{assoc_id = AssocId}} = m3ua:sctp_status(ClientEP, Assoc).
+
+mtp_transfer() ->
+	[{userdata, [{doc, "Send MTP Transfer Message"}]}].
+mtp_transfer(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port,
+		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	Keys = [{rand:uniform(16383), [], []}],
+	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
+			undefined, Keys, loadshare),
+	ok = m3ua:asp_active(ClientEP, Assoc),
+	Asp = receive
+		{asp, active, PID1} ->
+			PID1
+	end,
+	Stream = 1,
+	OPC = rand:uniform(1000),
+	DPC = rand:uniform(1000),
+	SIO = rand:uniform(10),
+	SLS = rand:uniform(10),
+	Data = crypto:strong_rand_bytes(100),
+	ok = m3ua_asp_fsm:transfer(Asp, Assoc, Stream, OPC, DPC, SLS, SIO, Data),
+	receive
+		{asp, transfer, {Stream, DPC, OPC, SLS, SIO, Data}} ->
+			ok
+	end.
+
+
 
 %%---------------------------------------------------------------------
 %%  Internal functions
