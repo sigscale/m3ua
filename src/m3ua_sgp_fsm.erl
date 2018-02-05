@@ -489,13 +489,13 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
-		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod} =
-		StateData) ->
+		_Stream, #statedata{socket = Socket, assoc = Assoc,
+		callback = {CbMod, State}} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua_lm_server, {'M-ASP_UP', CbMod, self()}),
+			gen_server:cast(m3ua_lm_server, {'M-ASP_UP', CbMod, State, self()}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};
 		{error, eagain} ->
@@ -552,7 +552,7 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs,
-		callback = CbMod} = StateData) ->
+		callback = {CbMod, State}} = StateData) ->
 	try
 		AspActive = m3ua_codec:parameters(Params),
 		case m3ua_codec:find_parameter(?RoutingContext, AspActive) of
@@ -563,7 +563,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 						P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
 						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 						StateData1 = StateData#statedata{rcs = NewRCs},
-						gen_server:cast(m3ua_lm_server, {'M-ASP_ACTIVE', CbMod, self()}),
+						gen_server:cast(m3ua_lm_server, {'M-ASP_ACTIVE', CbMod, State, self()}),
 						{?ASPTMMessage, ?ASPTMASPACACK, P1, StateData1};
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
@@ -593,13 +593,13 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
-		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod} = StateData)
-		when StateName == inactive; StateName == active ->
+		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = {CbMod, State}} =
+		StateData) when StateName == inactive; StateName == active ->
 	AspActiveAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 	Packet = m3ua_codec:m3ua(AspActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua_lm_server, {'M-ASP_DOWN', CbMod, self()}),
+			gen_server:cast(m3ua_lm_server, {'M-ASP_DOWN', CbMod, State, self()}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, down, StateData};
 		{error, eagain} ->
@@ -608,9 +608,9 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, active,
-		_Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs, callback = CbMod} =
-		StateData) ->
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
+		active, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs,
+		callback = {CbMod, State}} = StateData) ->
 	try
 		AspInactive = m3ua_codec:parameters(Params),
 		case m3ua_codec:find_parameter(?RoutingContext, AspInactive) of
@@ -619,7 +619,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, ac
 					{value, #m3ua_routing_key{} = RK} ->
 						P0 = m3ua_codec:add_parameter(?RoutingContext, [RC], []),
 						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = inactive}, RCs),
-						gen_server:cast(m3ua_lm_server, {'M-ASP_INACTIVE', CbMod, self()}),
+						gen_server:cast(m3ua_lm_server, {'M-ASP_INACTIVE', CbMod, State, self()}),
 						{?ASPTMMessage, ?ASPTMASPIAACK, P0, StateData#statedata{rcs = NewRCs}};
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_rc, []),
@@ -649,7 +649,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params}, ac
 				{stop, Reason, StateData}
 		end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
-		_ActiveState, Stream, #statedata{socket = Socket, callback = {CbMod, State}
+		_ActiveState, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
@@ -659,7 +659,7 @@ handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State}
+		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
@@ -668,7 +668,7 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State}
+		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
@@ -677,7 +677,7 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, StateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
-		StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State}
+		StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),

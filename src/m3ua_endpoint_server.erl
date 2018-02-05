@@ -42,7 +42,7 @@
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
 		fsms = gb_trees:empty() :: gb_trees:tree(),
-		callback :: atom()}).
+		callback :: {Module :: atom(), State :: term()}}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_endpoint_server API

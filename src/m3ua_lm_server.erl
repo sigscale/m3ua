@@ -436,7 +436,7 @@ handle_cast({AspOp, Ref, {ok, ASP, CbMod, _Identifier, _Info}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({SgpIndication, CbMod, Sgp}, #state{} = State) when
+handle_cast({SgpIndication, CbMod, State, Sgp}, #state{} = State) when
 		SgpIndication == 'M-ASP_UP'; SgpIndication == 'M-ASP_DOWN';
 		SgpIndication == 'M-ASP_ACTIVE'; SgpIndication == 'M-ASP_INACTIVE' ->
 	Function = case SgpIndication of
@@ -445,7 +445,7 @@ handle_cast({SgpIndication, CbMod, Sgp}, #state{} = State) when
 		'M-ASP_ACTIVE' -> asp_active;
 		'M-ASP_INACTIVE' -> asp_inactive
 	end,
-	apply(CbMod, Function, [Sgp]),
+	apply(CbMod, Function, [Sgp, State]),
 	{noreply, State};
 handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
 	F = fun() ->
