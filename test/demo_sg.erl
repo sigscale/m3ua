@@ -30,33 +30,33 @@
 %%  The m3ua_sgp_fsm callback 
 %%----------------------------------------------------------------------
 
-transfer(Sgp, EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) ->
+transfer(Sgp, _EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) ->
 	Args = [Sgp, Assoc, Stream, DPC, OPC, SLS, SIO, Data],
 	proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
-	{ok, Sgp}.
-
-pause(Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
 	{ok, State}.
 
-resume(Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+pause(_Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
 	{ok, State}.
 
-status(Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+resume(_Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
 	{ok, State}.
 
-asp_up(Sgp, EP, Assoc, State) ->
+status(_Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+	{ok, State}.
+
+asp_up(_Sgp, _EP, _Assoc, State) ->
 	State ! {sgp, asp_up, indication},
 	{ok, State}.
 
-asp_down(Sgp, EP, Assoc, State) ->
+asp_down(_Sgp, _EP, _Assoc, State) ->
 	State ! {sgp, asp_down, indication},
 	{ok, State}.
 
-asp_active(Sgp, EP, Assoc, State) ->
+asp_active(_Sgp, _EP, _Assoc, State) ->
 	State ! {sgp, asp_active, indication},
 	{ok, State}.
 
-asp_inactive(Sgp, EP, Assoc, State) ->
+asp_inactive(_Sgp, _EP, _Assoc, State) ->
 	State ! {sgp, asp_inactive, indication},
 	{ok, State}.
 

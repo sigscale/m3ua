@@ -30,30 +30,30 @@
 %%  The m3ua_asp_fsm callback 
 %%----------------------------------------------------------------------
 
-transfer(Sgp, EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) ->
+transfer(_Asp, _EP, _Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) ->
 	Msg = {Stream, OPC, DPC, SLS, SIO, Data},
 	State ! {asp, transfer, Msg},
 	{ok, State}.
 
-pause(Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+pause(_Asp, _EP, _Assoc, _Stream, _DPCs, State) ->
 	{ok, State}.
 
-resume(Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+resume(_Asp, _EP, _Assoc, _Stream, _DPCs, State) ->
 	{ok, State}.
 
-status(Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+status(_Asp, _EP, _Assoc, _Stream, _DPCs, State) ->
 	{ok, State}.
 
-asp_up(Sgp, _EP, _Assoc, State) ->
+asp_up(_Asp, _EP, _Assoc, State) ->
 	{ok, State}.
 
-asp_down(Sgp, _EP, _Assoc, State) ->
+asp_down(_Asp, _EP, _Assoc, State) ->
 	{ok, State}.
 
-asp_active(Sgp, _EP, _Assoc, PID) ->
-	PID ! {asp, active, Sgp},
+asp_active(Asp, _EP, _Assoc, PID) ->
+	PID ! {asp, active, Asp},
 	{ok, PID}.
 
-asp_inactive(Sgp, _EP, _Assoc, State) ->
+asp_inactive(_Asp, _EP, _Assoc, State) ->
 	{ok, State}.
 
