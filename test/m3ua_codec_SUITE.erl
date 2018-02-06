@@ -130,6 +130,41 @@ asp_down_ack(_Config) ->
 	0 = size(BinAspDownAck) rem 4,
 	RecAspDownAck = m3ua_codec:m3ua(BinAspDownAck).
 
+asp_active() ->
+	[{userdata, [{doc, "ASP Active Message encoding and decoding"}]}].
+
+asp_active(_Config) ->
+	Mode  = lists:nth(rand:uniform(3), [override, loadshare, broadcast]),
+	TMT = [{?TrafficModeType, Mode}],
+	RCs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
+	RoutingContext = [{?RoutingContext, RCs}],
+	Parameters = TMT ++ RoutingContext,
+	RecAspActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC,
+			params = Parameters},
+	BinAspActive = m3ua_codec:m3ua(RecAspActive),
+	0 = size(BinAspActive) rem 4,
+	#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC,
+			params = Params} = m3ua_codec:m3ua(BinAspActive),
+	Parameters = m3ua_codec:parameters(Params).
+
+asp_active_ack() ->
+	[{userdata, [{doc, "ASP Active Ack Message encoding and decoding"}]}].
+
+asp_active_ack(_Config) ->
+	Mode  = lists:nth(rand:uniform(3), [override, loadshare, broadcast]),
+	TMT = [{?TrafficModeType, Mode}],
+	RCs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
+	RoutingContext = [{?RoutingContext, RCs}],
+	Parameters = TMT ++ RoutingContext,
+	RecAspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK,
+			params = Parameters},
+	BinAspActiveAck = m3ua_codec:m3ua(RecAspActiveAck),
+	0 = size(BinAspActiveAck) rem 4,
+	#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK,
+			params = Params} = m3ua_codec:m3ua(BinAspActiveAck),
+	Parameters = m3ua_codec:parameters(Params).
+
+
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
