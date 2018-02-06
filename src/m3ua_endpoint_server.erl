@@ -140,6 +140,8 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 handle_call({establish, Address, Port, Options}, _From,
 		#state{sctp_role = client, asp_sup = Sup} = State) ->
 	connect(Address, Port, Options, Sup, State);
+handle_call({release, Assoc}, _From, #state{socket = Socket} = State) ->
+	{reply, gen_sctp:abort(Socket, #sctp_assoc_change{assoc_id = Assoc}), State};
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
 handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->

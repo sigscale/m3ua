@@ -312,8 +312,22 @@ handle_call({sctp_establish, EndPoint, Address, Port, Options},
 		{error, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({sctp_release, _EndPoint, _Assoc}, _From, State) ->
-	{reply, {error, not_implement}, State};
+handle_call({sctp_release, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, _} ->
+			case catch gen_server:call(EndPoint, {release, Assoc}) of
+				ok ->
+					NewFsms	= gb_trees:delete({EndPoint, Assoc}, Fsms),
+					NewState = State#state{fsms = NewFsms},
+					{reply, ok, NewState};
+				{error, Reason} ->
+					{reply, {error, Reason}, State};
+				{'EXIT', Reason} ->
+					{reply, {error, Reason}, State}
+			end;
+		none ->
+			{reply, {error, invalid_assco}, State}
+	end;
 handle_call({sctp_status, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
