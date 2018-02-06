@@ -110,7 +110,7 @@ asp_up_ack(_Config) ->
 	0 = size(Params) rem 4,
 	AspIdentifier = m3ua_codec:parameters(Params).
 
-asp_down(_Config) ->
+asp_down() ->
 	[{userdata, [{doc, "ASP Down Message encoding and decoding"}]}].
 
 asp_down(_Config) ->
