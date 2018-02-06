@@ -136,8 +136,9 @@ asp_up() ->
 
 asp_up(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
+			{callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc).
 
@@ -146,8 +147,9 @@ asp_down() ->
 
 asp_down(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
+			{callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	ok = m3ua:asp_down(ClientEP, Assoc).
@@ -189,8 +191,9 @@ register() ->
 
 register(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
+			{callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [7,8], []}],
@@ -203,8 +206,9 @@ asp_active() ->
 
 asp_active(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
+			{callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -217,8 +221,9 @@ asp_inactive_to_down() ->
 
 asp_inactive_to_down(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
+			{callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	ok = m3ua:asp_down(ClientEP, Assoc).
@@ -228,8 +233,9 @@ asp_active_to_down() ->
 
 asp_active_to_down(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
+			{callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -243,8 +249,9 @@ asp_active_to_inactive() ->
 
 asp_active_to_inactive(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
+			{callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
