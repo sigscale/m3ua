@@ -77,7 +77,7 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[asp_up, asp_up_ack, asp_down, asp_down_ack].
+	[asp_up, asp_up_ack, asp_down, asp_down_ack, asp_active, asp_active_ack].
 
 %%---------------------------------------------------------------------
 %%  Test cases
