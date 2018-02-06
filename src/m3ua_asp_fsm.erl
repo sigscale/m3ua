@@ -571,6 +571,14 @@ handle_sync_event(sctp_status, _From, StateName,
 			{reply, {ok, Status}, StateName, StateData};
 		{error, Reason} ->
 			{reply, {error, Reason}, StateName, StateData}
+	end;
+handle_sync_event(sctp_release, _From, _StateName,
+		#statedata{socket = Socket} = StateData) ->
+	case gen_sctp:close(Socket) of
+		ok ->
+			{stop, normal, ok, StateData};
+		{error, Reason} ->
+			{stop, Reason, {error, Reason}, StateData}
 	end.
 
 -spec handle_info(Info :: term(), StateName :: atom(),

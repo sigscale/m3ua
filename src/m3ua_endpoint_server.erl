@@ -140,8 +140,22 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 handle_call({establish, Address, Port, Options}, _From,
 		#state{sctp_role = client, asp_sup = Sup} = State) ->
 	connect(Address, Port, Options, Sup, State);
-handle_call({release, Assoc}, _From, #state{socket = Socket} = State) ->
-	{reply, gen_sctp:abort(Socket, #sctp_assoc_change{assoc_id = Assoc}), State};
+handle_call({release, Assoc}, _From, #state{fsms = Fsms} = State) ->
+	case gb_trees:lookup(Assoc, Fsms) of
+		{value, Fsm} ->
+			case catch gen_fsm:sync_send_all_state_event(Fsm, sctp_release) of
+				ok ->
+					NewFsms = gb_trees:delete(Assoc, Fsms),
+					NewState = State#state{fsms = NewFsms},
+					{reply, ok, NewState};
+				{error, Reason} ->
+					{reply, {error, Reason}, State};
+				{'EXIT', Reason} ->
+					{reply, {error, Reason}, State}
+			end;
+		none ->
+			{reply, {error, invalid_assoc}, State}
+	end;
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
 handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->
