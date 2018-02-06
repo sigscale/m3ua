@@ -712,7 +712,7 @@ handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc,
-		ep = EP} = StateData)
+		ep = EP, socket = Socket} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
@@ -722,7 +722,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc,
-		ep = EP} = StateData)
+		ep = EP, socket = Socket} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
@@ -732,7 +732,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc,
-		ep = EP} = StateData)
+		ep = EP, socket = Socket} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
