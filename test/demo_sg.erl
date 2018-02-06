@@ -45,13 +45,19 @@ status(Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
 	{ok, State}.
 
 asp_up(Sgp, EP, Assoc, State) ->
+erlang:display({?MODULE, ?LINE, State}),
+	State ! {sgp, asp_up, indicaiton},
 	{ok, State}.
 
 asp_down(Sgp, EP, Assoc, State) ->
+	State ! {sgp, asp_down, indicaiton},
 	{ok, State}.
 
 asp_active(Sgp, EP, Assoc, State) ->
+	State ! {sgp, asp_active, indicaiton},
 	{ok, State}.
 
 asp_inactive(Sgp, EP, Assoc, State) ->
+	State ! {sgp, asp_inactive, indicaiton},
 	{ok, State}.
+

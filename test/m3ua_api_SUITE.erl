@@ -79,7 +79,8 @@ all() ->
 	[open, close, listen, connect, release, getstat_ep, getstat_assoc,
 			asp_up, asp_down, register, asp_active, asp_inactive_to_down,
 			asp_active_to_down, asp_active_to_inactive, get_sctp_status,
-			mtp_transfer].
+			mtp_transfer, asp_up_indication, asp_active_indication,
+			asp_inactive_indication, asp_down_indication].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -298,8 +299,80 @@ mtp_transfer(_Config) ->
 			ok
 	end.
 
+asp_up_indication() ->
+	[{userdata, [{doc, "Received M-ASP_UP indication"}]}].
 
+asp_up_indication(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port,
+		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+erlang:display({?MODULE, ?LINE, self()}),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	receive
+		{sgp, asp_up, indication} ->
+			ok
+	end.
 
+asp_active_indication() ->
+	[{userdata, [{doc, "Received M-ASP_ACTIVE indication"}]}].
+
+asp_active_indication(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port,
+		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	Keys = [{rand:uniform(16383), [], []}],
+	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
+			undefined, Keys, loadshare),
+	ok = m3ua:asp_active(ClientEP, Assoc),
+	receive
+		{sgp, asp_active, indication} ->
+			ok
+	end.
+
+asp_inactive_indication() ->
+	[{userdata, [{doc, "Received M-ASP_INACTIVE indication"}]}].
+
+asp_inactive_indication(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port,
+		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	Keys = [{rand:uniform(16383), [], []}],
+	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
+			undefined, Keys, loadshare),
+	ok = m3ua:asp_active(ClientEP, Assoc),
+	ok = m3ua:asp_inactive(ClientEP, Assoc),
+	receive
+		{sgp, asp_inactive, indication} ->
+			ok
+	end.
+
+asp_down_indication() ->
+	[{userdata, [{doc, "Received M-ASP_DOWN indication"}]}].
+
+asp_down_indication(_Config) ->
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port,
+		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	Keys = [{rand:uniform(16383), [], []}],
+	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
+			undefined, Keys, loadshare),
+	ok = m3ua:asp_active(ClientEP, Assoc),
+	ok = m3ua:asp_down(ClientEP, Assoc),
+	receive
+		{sgp, asp_down, indication} ->
+			ok
+	end.
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
