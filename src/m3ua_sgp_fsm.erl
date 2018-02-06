@@ -405,8 +405,10 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 
 -spec handle_event(Event :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
-		{next_state, NextStateName :: term(), NewStateData ::#statedata{}}
-		| {stop, Reason :: term(), NewStateData :: #statedata{}}.
+	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
+			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
+				timeout() | hibernate}
+			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with
 %% 	{@link //stdlib/gen_fsm:send_all_state_event/2.
 %% 	gen_fsm:send_all_state_event/2}.
