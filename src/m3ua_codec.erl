@@ -244,7 +244,9 @@ routing_key1(<<?NetworkAppearance:16, Len:16, Chunk/binary>>, Acc) ->
 	<<NA:VLen, Rest/binary>> = Chunk,
 	routing_key1(Rest, Acc#m3ua_routing_key{na = NA});
 routing_key1(<<?DestinationPointCode:16, _/binary>> = Chunk, Acc) ->
-	Acc#m3ua_routing_key{key = routing_key2(Chunk, [])}.
+	Acc#m3ua_routing_key{key = routing_key2(Chunk, [])};
+routing_key1(Pad, Acc) when (size(Pad) rem 4) /= 0 ->
+	Acc.
 %% @hidden
 routing_key1([lrk_id | T], #m3ua_routing_key{lrk_id = LRKId} = RK, Acc) ->
 	routing_key1(T, RK, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRKId:32>>);
@@ -303,6 +305,8 @@ routing_key2([{DPC, SIs, OPCs} | T], Acc) ->
 	NewAcc = <<Acc/binary, DestinationPointCode/binary,
 			ServiceIndicators/binary, OriginatingPointCodeList/binary>>,
 	routing_key2(T, NewAcc);
+routing_key2(Pad, Acc) when (size(Pad) rem 4) /= 0 ->
+	Acc;
 routing_key2(<<>>, Acc) ->
 	Acc;
 routing_key2([], Acc) ->
@@ -594,6 +598,8 @@ registration_result1(<<?RoutingContext:16, L1:16, Chunk/binary>>, Acc) ->
 	L2 = (L1 - 4) * 8,
 	<<RC:L2, Rest/binary>> = Chunk,
 	registration_result1(Rest, Acc#registration_result{rc = RC});
+registration_result1(Pad, Acc) when (size(Pad) rem 4) /= 0 ->
+	Acc;
 registration_result1(<<>>, Acc) ->
 	Acc.
 %% @hidden
