@@ -4,6 +4,7 @@
 ## Process this file with automake to produce Makefile.in
 
 testmods = m3ua_api_SUITE \
+			m3ua_codec_SUITE \
 			demo_as \
 			demo_sg
 
