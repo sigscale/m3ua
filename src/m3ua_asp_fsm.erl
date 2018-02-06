@@ -181,7 +181,7 @@
 		rc :: pos_integer(),
 		mode :: override | loadshare | broadcast,
 		ep :: pid(),
-		callback :: atom(),
+		callback :: {Module :: atom(), State :: term()},
 		as_state :: term()}).
 
 -include("m3ua.hrl").
@@ -533,6 +533,9 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
+handle_event({_AspOp, State}, StateName, #statedata{callback = {CbMod, _}} = StateData) ->
+	NewStateData = StateData#statedata{callback = {CbMod, State}},
+	{next_state, StateName, NewStateData};
 handle_event(_Event, _StateName, StateData) ->
 	{stop, not_implemented, StateData}.
 
@@ -704,32 +707,39 @@ handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 	Parameters = m3ua_codec:parameters(Params),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	CbMod:transfer(self(), EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
-	{next_state, active, StateData};
+	{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc,
 		ep = EP} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:pause(self(), EP, Assoc, Stream, APCs, State),
-	{next_state, inactive, StateData};
+	{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, APCs, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc,
 		ep = EP} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:resume(self(), EP, Assoc, Stream, APCs, State),
-	{next_state, active, StateData};
+	{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, APCs, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{callback = {CbMod, State}, assoc = Assoc,
 		ep = EP} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:status(self(), EP, Assoc, Stream, APCs, State),
-	{next_state, StateName, StateData}.
+	{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, APCs, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, StateName, NewStateData}.
 
 %% @hidden
 generate_lrk_id() ->

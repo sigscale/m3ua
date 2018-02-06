@@ -183,7 +183,7 @@
 		rcs = gb_trees:empty() :: gb_trees:tree(),
 		stream :: integer(),
 		ep :: pid(),
-		callback :: atom(),
+		callback :: {Module :: atom(), State :: term()},
 		sg_state :: term()}).
 
 %%----------------------------------------------------------------------
@@ -405,13 +405,20 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 
 -spec handle_event(Event :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
-		{stop, Reason :: term(), NewStateData :: #statedata{}}.
+		{next_state, NextStateName :: term(), NewStateData ::#statedata{}}
+		| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with
 %% 	{@link //stdlib/gen_fsm:send_all_state_event/2.
 %% 	gen_fsm:send_all_state_event/2}.
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
+handle_event({Indication,  State}, StateName,
+		#statedata{callback = {CbMod, _}} = StateData)
+		when Indication == 'M-ASP_UP'; Indication == 'M-ASP_DOWN';
+		Indication == 'M-ASP_ACTIVE'; Indication == 'M-ASP_INACTIVE' ->
+	NewStateData = StateData#statedata{callback = {CbMod, State}},
+	{next_state, StateName, NewStateData};
 handle_event(_Event, _StateName, StateData) ->
 	{stop, not_implemented, StateData}.
 
@@ -681,36 +688,40 @@ handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 	Parameters = m3ua_codec:parameters(Params),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	CbMod:transfer(self(), EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
+	{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, active, StateData};
+	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:pause(self(), EP, Assoc, Stream, APCs, State),
+	{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, APCs, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, inactive, StateData};
+	{next_state, inactive, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:resume(self(), EP, Assoc, Stream, APCs, State),
+	{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, APCs, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, active, StateData};
+	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_paramter(?AffectedPointCode, Parameters),
-	CbMod:status(self(), EP, Assoc, Stream, APCs, State),
+	{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, APCs, State),
+	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData}.
+	{next_state, StateName, NewStateData}.
 
 %% @hidden
 register_asp_results(RoutingKeys, RC, StateData) ->
