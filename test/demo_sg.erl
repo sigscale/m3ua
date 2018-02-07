@@ -19,7 +19,7 @@
 
 -behaviour(m3ua_sgp_fsm).
 
--export([transfer/10, pause/6, resume/6, status/6]).
+-export([transfer/11, pause/7, resume/7, status/7]).
 -export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
 
 %%----------------------------------------------------------------------
@@ -30,18 +30,18 @@
 %%  The m3ua_sgp_fsm callback 
 %%----------------------------------------------------------------------
 
-transfer(Sgp, _EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) ->
+transfer(Sgp, _EP, Assoc, Stream, _RK, OPC, DPC, SLS, SIO, Data, State) ->
 	Args = [Sgp, Assoc, Stream, DPC, OPC, SLS, SIO, Data],
 	proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
 	{ok, State}.
 
-pause(_Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+pause(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-resume(_Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+resume(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-status(_Sgp, _EP, _Assoc, _Stream, _DPCs, State) ->
+status(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
 asp_up(_Sgp, _EP, _Assoc, State) ->

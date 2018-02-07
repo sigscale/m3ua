@@ -451,17 +451,39 @@ handle_cast({AspOp, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}
 		none ->
 			{noreply, State}
 	end;
-handle_cast({SgpIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
-		SgpIndication == 'M-ASP_UP'; SgpIndication == 'M-ASP_DOWN';
-		SgpIndication == 'M-ASP_ACTIVE'; SgpIndication == 'M-ASP_INACTIVE' ->
-	Function = case SgpIndication of
+handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, RK, UState}, #state{} = State) when
+		TrafficMaintIndication == 'M-ASP_ACTIVE'; TrafficMaintIndication == 'M-ASP_INACTIVE' ->
+	F = fun() ->
+		case mnesia:read(m3ua_as, RK, write) of
+			[] ->
+				ok;
+			[#m3ua_as{max_asp = Max, min_asp = Min, asp = Asps}]
+					when length(Asps) =< Max, length(Asps) >= Min ->
+				ok;
+			[#m3ua_as{}] ->
+				ok
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, _} ->
+			Function = case TrafficMaintIndication of
+				'M-ASP_ACTIVE' -> asp_active;
+				'M-ASP_INACTIVE' -> asp_inactive
+			end,
+			{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
+			ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaintIndication, NewUState}),
+			{noreply, State};
+		{aborted, _Reason} ->
+			{noreply, State}
+	end;
+handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
+		StateMainIndication == 'M-ASP_UP'; StateMainIndication == 'M-ASP_DOWN' ->
+	Function = case StateMainIndication of
 		'M-ASP_UP' -> asp_up;
-		'M-ASP_DOWN' -> asp_down;
-		'M-ASP_ACTIVE' -> asp_active;
-		'M-ASP_INACTIVE' -> asp_inactive
+		'M-ASP_DOWN' -> asp_down
 	end,
 	{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
-	ok = gen_fsm:send_all_state_event(Sgp, {SgpIndication, NewUState}),
+	ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
 	{noreply, State};
 handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
 	F = fun() ->

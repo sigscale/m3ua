@@ -601,12 +601,13 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		case m3ua_codec:find_parameter(?RoutingContext, AspActive) of
 			{ok, [RC]} ->
 				case gb_trees:lookup(RC, RCs) of
-					{value, #m3ua_routing_key{tmt = Mode} = RK} ->
+					{value, #m3ua_routing_key{tmt = Mode, na = NA, key = Keys} = RK} ->
 						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = active}, RCs),
 						P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
 						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 						StateData1 = StateData#statedata{rcs = NewRCs},
-						gen_server:cast(m3ua_lm_server, {'M-ASP_ACTIVE', CbMod, self(), EP, Assoc, State}),
+						gen_server:cast(m3ua_lm_server, {'M-ASP_ACTIVE', CbMod, self(), EP, Assoc,
+								{NA, m3ua:sort(Keys), Mode}, State}),
 						{?ASPTMMessage, ?ASPTMASPACACK, P1, StateData1};
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
@@ -659,10 +660,11 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		case m3ua_codec:find_parameter(?RoutingContext, AspInactive) of
 			{ok, [RC]} ->
 				case gb_trees:lookup(RC, RCs) of
-					{value, #m3ua_routing_key{} = RK} ->
+					{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys} = RK} ->
 						P0 = m3ua_codec:add_parameter(?RoutingContext, [RC], []),
 						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = inactive}, RCs),
-						gen_server:cast(m3ua_lm_server, {'M-ASP_INACTIVE', CbMod, self(), EP, Assoc, State}),
+						gen_server:cast(m3ua_lm_server, {'M-ASP_INACTIVE', CbMod, self(), EP, Assoc,
+								{NA, m3ua:sort(Keys), TMT}, State}),
 						{?ASPTMMessage, ?ASPTMASPIAACK, P0, StateData#statedata{rcs = NewRCs}};
 					none ->
 						P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_rc, []),
@@ -693,42 +695,86 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP} = StateData)
+		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
+	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
+		{ok, [RC]} ->
+			case gb_trees:lookup(RC, RCs) of
+				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
+					{NA, Keys, TMT};
+				none ->
+					undefined
+			end;
+		{error, not_found} ->
+			undefined
+	end,
+	{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP} = StateData)
+		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, APCs, State),
+	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
+		{ok, [RC]} ->
+			case gb_trees:lookup(RC, RCs) of
+				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
+					{NA, Keys, TMT};
+				none ->
+					undefined
+			end;
+		{error, not_found} ->
+			undefined
+	end,
+	{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, RK, APCs, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP} = StateData)
+		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, APCs, State),
+	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
+		{ok, [RC]} ->
+			case gb_trees:lookup(RC, RCs) of
+				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
+					{NA, Keys, TMT};
+				none ->
+					undefined
+			end;
+		{error, not_found} ->
+			undefined
+	end,
+	{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, RK, APCs, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP} = StateData)
+		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, APCs, State),
+	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
+		{ok, [RC]} ->
+			case gb_trees:lookup(RC, RCs) of
+				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
+					{NA, Keys, TMT};
+				none ->
+					undefined
+			end;
+		{error, not_found} ->
+			undefined
+	end,
+	{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, RK, APCs, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.

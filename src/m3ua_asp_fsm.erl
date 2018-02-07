@@ -514,10 +514,11 @@ active({AspOp, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefi
 %% @private
 %%
 active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
-		_From, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		_From, #statedata{socket = Socket, assoc = Assoc, rc = RC} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
-	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
+	P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
+	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P1},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
@@ -723,7 +724,8 @@ handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 	Parameters = m3ua_codec:parameters(Params),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State),
+	{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream,
+			undefined, OPC, DPC, SLS, SIO, Data, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
@@ -732,7 +734,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, APCs, State),
+	{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, undefined, APCs, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, NewStateData};
@@ -742,7 +744,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, APCs, State),
+	{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, undefined, APCs, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
@@ -752,7 +754,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, APCs, State),
+	{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, undefined, APCs, State),
 	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.
