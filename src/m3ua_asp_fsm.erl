@@ -27,15 +27,16 @@
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
-%%%  <h3 class="function"><a name="transfer-10">transfer/10</a></h3>
+%%%  <h3 class="function"><a name="transfer-11">transfer/11</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Asp, EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State)
+%%%  <p><tt>transfer(Asp, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State)
 %%% 		-&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>RK = routing_key()</tt></li>
 %%%    <li><tt>OPC = pos_integer() </tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>SLS = non_neg_integer() </tt></li>
@@ -49,14 +50,15 @@
 %%%  </div><p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
-%%%  <h3 class="function"><a name="pause-6">pause/6</a></h3>
+%%%  <h3 class="function"><a name="pause-7">pause/7</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(Asp, EP, Assoc, Stream, Data, State) -&gt; Result </tt>
+%%%  <p><tt>pause(Asp, EP, Assoc, Stream, RK, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>RK = routing_key()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
@@ -67,14 +69,15 @@
 %%%  </div><p>MTP-PAUSE indication.</p>
 %%%  <p>Called when an SS7 destination is unreachable.</p>
 %%%
-%%%  <h3 class="function"><a name="resume-6">resume/6</a></h3>
+%%%  <h3 class="function"><a name="resume-7">resume/7</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(Asp, EP, Assoc, Stream, Data, State) -&gt; Result </tt>
+%%%  <p><tt>resume(Asp, EP, Assoc, Stream, RK, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>RK = routing_key()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
@@ -86,14 +89,15 @@
 %%%  <p>Called when a previously unreachable SS7 destination
 %%%  becomes reachable.</p>
 %%%
-%%%  <h3 class="function"><a name="status-6">status/6</a></h3>
+%%%  <h3 class="function"><a name="status-7">status/7</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(Asp, EP, Assoc, Stream, Data, State) -&gt; Result </tt>
+%%%  <p><tt>status(Asp, EP, Assoc, Stream, RK, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
+%%%    <li><tt>RK = routing_key()</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
@@ -130,7 +134,7 @@
 %%%
 %%%  <h3 class="function"><a name="asp_active-4">asp_active/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_active(Asp, State) -&gt; Result </tt>
+%%%  <p><tt>asp_active(Asp, EP, Assoc, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
@@ -193,12 +197,13 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback transfer(Asp, EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data, State) -> Result
+-callback transfer(Asp, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
+		RK :: routing_key(),
 		OPC :: pos_integer(),
 		DPC :: pos_integer(),
 		SLS :: non_neg_integer(),
@@ -208,37 +213,40 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback pause(Asp, EP, Assoc, Stream, DPCs, State) -> Result
+-callback pause(Asp, EP, Assoc, Stream, RK, DPCs, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
+		RK :: routing_key(),
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback resume(Asp, EP, Assoc, Stream, DPCs, State) -> Result
+-callback resume(Asp, EP, Assoc, Stream, RK, DPCs, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
+		RK :: routing_key(),
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback status(Asp, EP, Assoc, Stream, DPCs, State) -> Result
+-callback status(Asp, EP, Assoc, Stream, RK, DPCs, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
+		RK :: routing_key(),
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
