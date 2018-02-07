@@ -116,7 +116,7 @@
 		na :: pos_integer(),
 		tmt :: tmt(),
 		status :: atom(),
-		as :: term,
+		as :: term(),
 		lrk_id :: pos_integer(),
 		key :: [key()]}).
 
