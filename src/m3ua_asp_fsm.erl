@@ -656,6 +656,10 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %% @hidden
 handle_asp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_asp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
+handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTNotify}, StateName, _Stream,
+		#statedata{socket = Socket} = StateData) ->
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, StateName, StateData};
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK}, down,
 		_Stream, #statedata{req = {asp_up, Ref, From}, socket = Socket,
 		callback = {CbMod, State}, ep = EP, assoc = Assoc} = StateData) ->
