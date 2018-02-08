@@ -137,6 +137,6 @@
 		min_asp :: pos_integer(),
 		max_asp :: pos_integer(),
 		state :: down | inactive | active | pending,
-		asp :: [#m3ua_asp{}]}).
+		asp = [] :: [#m3ua_asp{}]}).
 
 
