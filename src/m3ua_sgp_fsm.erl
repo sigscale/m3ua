@@ -575,23 +575,14 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 	end;
 %% @todo  Registraction - handle registration status
 %% RFC4666 - Section-3.6.2
-handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = ReqParams},
+handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	Parameters = m3ua_codec:parameters(ReqParams),
-	RoutingKeys = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
-	RC = generate_rc(),
-	{RegResult, NewStateData} = register_asp_results(RoutingKeys, RC, StateData),
-	RegRsp = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RegResult},
-	Packet = m3ua_codec:m3ua(RegRsp),
-	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+	case gen_server:call(m3ua_lm_server, {'M-RK_REG', self(), Socket, Assoc, Msg}) of
 		ok ->
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, NewStateData};
-		{error, eagain} ->
-			% @todo flow control
-			{stop, eagain, NewStateData};
+			{next_state, inactive, StateData};
 		{error, Reason} ->
-			{stop, Reason, NewStateData}
+			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs,
@@ -779,63 +770,3 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.
 
-%% @hidden
-register_asp_results(RoutingKeys, RC, StateData) ->
-	register_asp_results(RoutingKeys, RC, [], StateData).
-%% @hidden
-register_asp_results([RoutingKey | T], RC, Acc, #statedata{rcs = RCs} = StateData) ->
-	try
-		case m3ua_codec:routing_key(RoutingKey) of
-			#m3ua_routing_key{lrk_id = undefined} ->
-				ErRR = #registration_result{status = invalid_rk, rc = RC},
-				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
-				register_asp_results(T, RC, NewAcc, StateData);
-			#m3ua_routing_key{rc = undefined, na = NA, tmt = Mode,
-					key = Keys, lrk_id = LRKId} = RK ->
-				SortedKeys = m3ua:sort(Keys),
-				NewRCs = gb_trees:insert(RC, RK#m3ua_routing_key{key = SortedKeys}, RCs),
-				RegResult = #registration_result{lrk_id = LRKId,
-					status = registered, rc = RC},
-				Asp = #m3ua_asp{id = LRKId, sgp = self()},
-				gen_server:cast(m3ua_lm_server,
-						{'M-RK_REG', {NA, SortedKeys, Mode}, Asp}),
-				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
-				NewStateData = StateData#statedata{rcs = NewRCs},
-				register_asp_results(T, RC, NewAcc, NewStateData);
-			#m3ua_routing_key{lrk_id = LRKId, na = NA, tmt = Mode,
-					key = Keys, rc = ExRC} = RK when LRKId /= undefined ->
-				case gb_trees:lookup(ExRC, RCs) of
-					{value, #m3ua_routing_key{key = ExKeys}} ->
-						SortedKeys = m3ua:sort(Keys ++ ExKeys),
-						NewRK = RK#m3ua_routing_key{key = SortedKeys},
-						NewRCs = gb_trees:insert(ExRC, NewRK, RCs),
-						RegResult = #registration_result{lrk_id = LRKId,
-								status = registered, rc = ExRC},
-						Asp = #m3ua_asp{id = LRKId, sgp = self()},
-						gen_server:cast(m3ua_lm_server,
-								{'M-RK_REG', {NA, SortedKeys, Mode}, Asp}),
-						NewAcc = m3ua_codec:add_parameter(?RegistrationResult, RegResult, Acc),
-						NewStateData = StateData#statedata{rcs = NewRCs},
-						register_asp_results(T, RC, NewAcc, NewStateData);
-					none ->
-						ErRR = #registration_result{status = rk_change_refused, rc = RC},
-						NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
-						register_asp_results(T, RC, NewAcc, StateData)
-				end;
-			#m3ua_routing_key{}->
-				ErRR = #registration_result{status = insufficient_resources, rc = RC},
-				NewAcc = m3ua_codec:add_parameter(?RegistrationResult, ErRR, Acc),
-				register_asp_results(T, RC, NewAcc, StateData)
-		end
-	catch
-		_:_ ->
-			ErRegResult = #registration_result{status = unknown, rc = RC},
-			NewAcc1 = m3ua_codec:add_parameter(?RegistrationResult, ErRegResult, Acc),
-			register_asp_results(T, RC, NewAcc1, StateData)
-	end;
-register_asp_results([], _RC, Acc, StateData) ->
-	{Acc, StateData}.
-
-%% @hidden
-generate_rc() ->
-	rand:uniform(256).
