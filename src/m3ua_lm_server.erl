@@ -531,7 +531,7 @@ get_sups(#state{sup = TopSup, ep_sup_sup = undefined} = State) ->
 	State#state{ep_sup_sup = EPSupSup}.
 
 handle_registration(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
-	Sgp, Socket, Assoc, State) ->
+		Sgp, Socket, Assoc, State) ->
 	Parameters = m3ua_codec:parameters(Params),
 	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
 	RC = rand:uniform(255),
@@ -548,19 +548,12 @@ handle_registration(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Param
 	end.
 %% @hidden
 handle_registration1([RoutingKey | T], Sgp, Socket, Assoc, RC, _AsState, Acc) ->
-	#m3ua_routing_key{rc = NewRC, na = NA,
-			tmt = Mode, key = Keys, lrk_id = LRKId} =
-	case m3ua_codec:routing_key(RoutingKey) of
-		#m3ua_routing_key{rc = undefined}  = RK ->
-			RK#m3ua_routing_key{rc = RC};
-		RK ->
-			RK
-	end,
-	{Result, NewAsState} = handle_registration2(Sgp, NA, Mode, NewRC, LRKId, m3ua:sort(Keys)),
+	{Result, NewAsState} = handle_registration2(m3ua_codec:routing_key(RoutingKey), Sgp),
 	handle_registration1(T, Sgp, Socket, Assoc, RC, Result ++ Acc, NewAsState);
 handle_registration1([], _Sgp, Socket, Assoc, _RC, Acc, AsState) ->
 	Message1 = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Acc},
 	Packet1 = m3ua_codec:m3ua(Message1),
+erlang:display({?MODULE, ?LINE, Acc, AsState}),
 	case gen_sctp:send(Socket, Assoc, 0, Packet1) of
 		ok ->
 			Params = m3ua_codec:add_parameter(?Status, {assc, AsState}, []),
@@ -583,24 +576,89 @@ handle_registration1([], _Sgp, Socket, Assoc, _RC, Acc, AsState) ->
 			throw(Reason)
 	end.
 %% @hidden
-handle_registration2(Sgp, NA, Mode, RC, LRKId, Keys) ->
-	case mnesia:read(m3ua_as, {NA, Keys, Mode}) of
+handle_registration2(#m3ua_routing_key{lrk_id = undefined, key = Keys}, _Sgp) ->
+	AsState = case mnesia:read(m3ua_as, m3ua:sort(Keys)) of
 		[] ->
-			RegResult = #registration_result{lrk_id = LRKId,
-				status = registered, rc = RC},
-			Asp = #m3ua_asp{sgp = Sgp, state = inactive},
-			AS = #m3ua_as{asp = [Asp]},
-			mnesia:write(AS),
-			Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
-			{Message, inactive};
+			inactive;
+		[#m3ua_as{state = State}] ->
+			State
+	end,
+	RegResult = #registration_result{status = unsupported_rk_parameter_field_, rc = 0},
+	Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
+	{Message, AsState};
+handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC, lrk_id = LRKId}, Sgp) ->
+	SortedKeys = m3ua:sort(Keys),
+	RK = {NA, SortedKeys, Mode},
+	case mnesia:read(m3ua_as, {NA, Keys, Mode}, write) of
+		[] when RC == undefined ->
+			NewRC = erlang:phash2(rand:uniform(16#7FFFFFFF), 255),
+			M3UAAsp1 = #m3ua_asp{sgp = Sgp, state = inactive},
+			AS1 = #m3ua_as{routing_key = RK, asp = [M3UAAsp1]},
+			Asp1 = #asp{sgp = Sgp, rc = NewRC, rk = RK},
+			ok = mnesia:write(AS1),
+			ok = mnesia:write(Asp1),
+			Registered1 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC},
+			RegisteredMsg1 = [{?RegistrationResult, Registered1}],
+			{RegisteredMsg1, inactive};
+		[] ->
+			case mnesia:read(asp, Sgp, write) of
+				[] ->
+					M3UAAsp2 = #m3ua_asp{sgp = Sgp, state = inactive},
+					AS2 = #m3ua_as{routing_key = RK, asp = [M3UAAsp2]},
+					Asp2 = #asp{sgp = Sgp, rc = RC, rk = RK},
+					mnesia:write(AS2),
+					mnesia:write(Asp2),
+					Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
+					RegisteredMsg2 = [{?RegistrationResult, Registered2}],
+					{RegisteredMsg2, inactive};
+				RegAsps ->
+					case lists:keytake(RC, #asp.rc, RegAsps) of
+						{value, #asp{rk = ExRK} = ExASP, _} ->
+							case mnesia:read(m3ua_as, ExRK, write) of
+								[] ->
+									M3UAAsp3 = #m3ua_asp{sgp = Sgp, state = inactive},
+									AS3 = #m3ua_as{routing_key = RK, asp = [M3UAAsp3]},
+									Asp3 = #asp{sgp = Sgp, rc = RC, rk = RK},
+									mnesia:write(AS3),
+									mnesia:write(Asp3),
+									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
+									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
+									{RegisteredMsg2, inactive};
+								[#m3ua_as{state = State} = ExAS] ->
+									NewKey = m3ua:sort(SortedKeys ++ element(2, ExRK)),
+									AS3 = ExAS#m3ua_as{routing_key = setelement(2, ExRK, NewKey)},
+									Asp3 = ExASP#asp{rk = setelement(2, ExRK, NewKey)},
+									mnesia:write(AS3),
+									mnesia:write(Asp3),
+									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
+									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
+									{RegisteredMsg2, State}
+							end;
+						false ->
+							M3UAAsp4 = #m3ua_asp{sgp = Sgp, state = inactive},
+							AS4 = #m3ua_as{routing_key = RK, asp = [M3UAAsp4]},
+							Asp4 = #asp{sgp = Sgp, rc = RC, rk = RK},
+							mnesia:write(AS4),
+							mnesia:write(Asp4),
+							Registered3 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
+							RegisteredMsg3 = [{?RegistrationResult, Registered3}],
+							{RegisteredMsg3, inactive}
+					end
+			end;
 		[#m3ua_as{asp = Asps, min_asp = Min, max_asp = Max, state = AsState} = AS] ->
 			case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
-				{value, _, _} ->
-					RegResult = #registration_result{lrk_id = LRKId,
-						status = rk_already_registered, rc = RC},
-					Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
-					{Message, AsState};
+				{value, #m3ua_asp{}, _} ->
+					AlreadyReg = #registration_result{lrk_id = LRKId,
+						status = rk_already_registered, rc = 0},
+					AlreadyRegMsg = [{?RegistrationResult, AlreadyReg}],
+					{AlreadyRegMsg, AsState};
 				false ->
+					NewRC1 = case RC of
+						undefined ->
+							erlang:phash2(rand:uniform(16#7FFFFFFF), 255);
+						_ ->
+							RC
+					end,
 					F = fun(#m3ua_as{state = active}) -> true; (_) -> false end,
 					ActiveLen = length(lists:filter(F, Asps)),
 					NewAsState = case (ActiveLen >= Min) and (ActiveLen =< Max) of
@@ -609,12 +667,14 @@ handle_registration2(Sgp, NA, Mode, RC, LRKId, Keys) ->
 						false ->
 							inactive
 					end,
-					Asp = #m3ua_asp{sgp = Sgp, state = inactive},
-					NewAS = AS#m3ua_as{asp = [Asp | Asps]},
-					mnesia:write(NewAS),
-					RegResult = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
-					Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
-					{Message, NewAsState}
+					M3UAAsp5 = #m3ua_asp{sgp = Sgp, state = inactive},
+					AS5 = AS#m3ua_as{routing_key = RK, asp = [M3UAAsp5 | Asps]},
+					Asp5 = #asp{sgp = Sgp, rc = NewRC1, rk = RK},
+					mnesia:write(AS5),
+					mnesia:write(Asp5),
+					Registered4 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC1},
+					RegisteredMsg4 = [{?RegistrationResult, Registered4}],
+					{RegisteredMsg4, NewAsState}
 			end
 	end.
-
+	
