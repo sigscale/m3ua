@@ -423,6 +423,28 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
+handle_event({'NTFY', NotifyFor, _RC}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	Params = case NotifyFor of
+		'AS_ACTIVE' ->
+			[{?Status, {assoc, active}}];
+		'AS_INACTIVE' ->
+			[{?Status, {assoc, inactive}}];
+		'AS_PENDING' ->
+			[{?Status, {assoc, pending}}]
+	end,
+	Notify = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
+	Message = m3ua_codec:m3ua(Notify),
+	case gen_sctp:send(Socket, Assoc, 0, Message) of
+		ok ->
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, StateName, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 handle_event({Indication,  State}, StateName,
 		#statedata{callback = {CbMod, _}} = StateData)
 		when Indication == 'M-ASP_UP'; Indication == 'M-ASP_DOWN';
@@ -581,46 +603,22 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
-		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs,
-		callback = {CbMod, State}, ep = EP} = StateData) ->
-	try
-		AspActive = m3ua_codec:parameters(Params),
-		case m3ua_codec:find_parameter(?RoutingContext, AspActive) of
-			{ok, [RC]} ->
-				case gb_trees:lookup(RC, RCs) of
-					{value, #m3ua_routing_key{tmt = Mode, na = NA, key = Keys} = RK} ->
-						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = active}, RCs),
-						P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
-						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
-						StateData1 = StateData#statedata{rcs = NewRCs},
-						gen_server:cast(m3ua_lm_server, {'M-ASP_ACTIVE', CbMod, self(), EP, Assoc,
-								{NA, m3ua:sort(Keys), Mode}, State}),
-						{?ASPTMMessage, ?ASPTMASPACACK, P1, StateData1};
-					none ->
-						P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
-						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
-						{?MGMTMessage, ?MGMTError, P1, StateData}
-				end;
-			{error, not_found} ->
-				P0 = m3ua_codec:add_parameter(?ErrorCode, missing_parameter, []),
-				{?MGMTMessage, ?MGMTError, P0, StateData}
-		end
-	of
-		{Class, Type, Parameters, NewStateData} ->
-			Message = #m3ua{class = Class, type = Type, params = Parameters},
-			Packet = m3ua_codec:m3ua(Message),
-			case gen_sctp:send(Socket, Assoc, 0, Packet) of
-				ok ->
-					inet:setopts(Socket, [{active, once}]),
-					{next_state, active, NewStateData};
-				{error, eagain} ->
-					% @todo flow control
-					{stop, eagain, NewStateData};
-				{error, Reason} ->
-					{stop, Reason, NewStateData}
-			end
-	catch
-		_:Reason ->
+		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
+		callback = {CbMod, State}} = StateData) ->
+	AspActive = m3ua_codec:parameters(Params),
+	RCs = proplists:get_value(?RoutingContext, AspActive),
+	Message = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
+	Packet = m3ua_codec:m3ua(Message),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			gen_server:cast(m3ua_lm_server,
+					{'M-ASP_ACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
