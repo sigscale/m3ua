@@ -399,9 +399,7 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 			{reply, Reply, State};
 		none ->
 			{reply, {error, not_found}, State}
-	end;
-handle_call({'M-RK_REG', Sgp, Socket, Assoc, Msg}, _From, State) ->
-	handle_registration(Msg, Sgp, Socket, Assoc, State).
+	end.
 
 -spec handle_cast(Request :: term(), State :: #state{}) ->
 	{noreply, NewState :: #state{}}
@@ -487,33 +485,8 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 	{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
 	ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
 	{noreply, State};
-handle_cast({'M-RK_REG', Key, #m3ua_asp{sgp = Sgp} = Asp}, #state{} = State) ->
-	F = fun() ->
-			case mnesia:read(m3ua_as, Key, write) of
-				[#m3ua_as{asp = Asps} = AS] ->
-					NewAsps = case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
-						{value, Asp1, RemAsp} ->
-							[Asp | RemAsp];
-						false ->
-							Asps
-					end,
-					NewAS = AS#m3ua_as{asp = NewAsps},
-					ok = mnesia:write(NewAS),
-					NewAS;
-				[] ->
-					AS = #m3ua_as{asp = [Asp], routing_key = Key},
-					ok  = mnesia:write(AS),
-					AS
-			end
-	end,
-	case mnesia:transaction(F) of
-		{atomic, _} ->
-			{noreply, State};
-		{aborted, Reason} ->
-			error_logger:error_report(["AS registration failed",
-						{reason, Reason}, {module, ?MODULE}]),
-			{noreply, State}
-	end.
+handle_cast({'M-RK_REG', Sgp, Socket, Assoc, Msg}, State) ->
+	handle_registration(Msg, Sgp, Socket, Assoc, State).
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->
 	{noreply, NewState :: #state{}}
@@ -566,12 +539,12 @@ handle_registration(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Param
 			handle_registration1(RKs, Sgp, Socket, Assoc, RC, inactive, [])
 	end,
 	case mnesia:transaction(F) of
-		{atomic, Result} ->
-			{reply, Result, State};
-		{aborted, {throw, Reason}} ->
-			{reply, {error, Reason}, State};
+		{atomic, ok} ->
+			{noreply, State};
 		{aborted, Reason} ->
-			{reply, {error, Reason}, State}
+			error_logger:error_report(["asp registration failed",
+						{reason, Reason}, {module, ?MODULE}]),
+			{noreply, State}
 	end.
 %% @hidden
 handle_registration1([RoutingKey | T], Sgp, Socket, Assoc, RC, _AsState, Acc) ->

@@ -577,13 +577,9 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 %% RFC4666 - Section-3.6.2
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	case gen_server:call(m3ua_lm_server, {'M-RK_REG', self(), Socket, Assoc, Msg}) of
-		ok ->
-			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
-	end;
+	gen_server:cast(m3ua_lm_server, {'M-RK_REG', self(), Socket, Assoc, Msg}),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs,
 		callback = {CbMod, State}, ep = EP} = StateData) ->
