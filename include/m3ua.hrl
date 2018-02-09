@@ -128,6 +128,7 @@
 -record(m3ua_asp,
 		{id :: pos_integer(),
 		sgp :: pid(),
+		rc :: integer(),
 		state :: down | inactive | active,
 		info :: string()}).
 
