@@ -135,9 +135,9 @@
 -record(m3ua_as,
 		{routing_key :: routing_key(),
 		name :: term(),
-		min_asp :: pos_integer(),
+		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
-		state :: down | inactive | active | pending,
+		state = inactive :: down | inactive | active | pending,
 		asp = [] :: [#m3ua_asp{}]}).
 
 -record(asp,
