@@ -248,6 +248,8 @@ routing_key1(<<?DestinationPointCode:16, _/binary>> = Chunk, Acc) ->
 routing_key1(Pad, Acc) when (size(Pad) rem 4) /= 0 ->
 	Acc.
 %% @hidden
+routing_key1([lrk_id | T], #m3ua_routing_key{lrk_id = undefined} = RK, Acc) ->
+	routing_key1(T, RK, Acc);
 routing_key1([lrk_id | T], #m3ua_routing_key{lrk_id = LRKId} = RK, Acc) ->
 	routing_key1(T, RK, <<Acc/binary, ?LocalRoutingKeyIdentifier:16, 8:16, LRKId:32>>);
 routing_key1([rc | T], #m3ua_routing_key{rc = undefined} = RK, Acc) ->
