@@ -163,7 +163,7 @@ install1(Nodes) ->
 install2(Nodes) ->
 	case mnesia:wait_for_tables([schema], ?WAITFORSCHEMA) of
 		ok ->
-			install3(Nodes);
+			install3(Nodes, []);
 		{error, Reason} ->
 			error_logger:error_report([mnesia:error_description(Reason),
 				{error, Reason}]),
@@ -174,19 +174,38 @@ install2(Nodes) ->
 			{error, timeout}
 	end.
 %% @hidden
-install3(Nodes) ->
+install3(Nodes, Tables) ->
 	case mnesia:create_table(m3ua_as, [{disc_copies, Nodes},
 			{attributes, record_info(fields, m3ua_as)}]) of
 		{atomic, ok} ->
 			error_logger:info_msg("Created new m3ua_as table.~n"),
-			{ok, [m3ua_as]};
+			install4(Nodes, [m3ua_as | Tables]);
 		{aborted, {not_active, _, Node} = Reason} ->
 			error_logger:error_report(["Mnesia not started on node",
 					{node, Node}]),
 			{error, Reason};
 		{aborted, {already_exists, m3ua_as}} ->
 			error_logger:info_msg("Found existing m3ua_as table.~n"),
-			{ok, [m3ua_as]};
+			install4(Nodes, [m3ua_as | Tables]);
+		{aborted, Reason} ->
+			error_logger:error_report([mnesia:error_description(Reason),
+				{error, Reason}]),
+			{error, Reason}
+	end.
+%% @hidden
+install4(Nodes, Tables) ->
+	case mnesia:create_table(asp, [{disc_copies, Nodes},
+			{type, bag}, {attributes, record_info(fields, asp)}]) of
+		{atomic, ok} ->
+			error_logger:info_msg("Created new asp table.~n"),
+			{ok, [asp | Tables]};
+		{aborted, {not_active, _, Node} = Reason} ->
+			error_logger:error_report(["Mnesia not started on node",
+					{node, Node}]),
+			{error, Reason};
+		{aborted, {already_exists, asp}} ->
+			error_logger:info_msg("Found existing asp table.~n"),
+			{ok, [asp | Tables]};
 		{aborted, Reason} ->
 			error_logger:error_report([mnesia:error_description(Reason),
 				{error, Reason}]),

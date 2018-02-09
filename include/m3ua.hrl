@@ -140,4 +140,8 @@
 		state :: down | inactive | active | pending,
 		asp = [] :: [#m3ua_asp{}]}).
 
+-record(asp,
+		{sgp :: pid(),
+		rc :: integer(),
+		rk :: routing_key()}).
 
