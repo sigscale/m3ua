@@ -638,46 +638,24 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
-		active, _Stream, #statedata{socket = Socket, assoc = Assoc, rcs = RCs,
-		callback = {CbMod, State}, ep = EP} = StateData) ->
-	try
-		AspInactive = m3ua_codec:parameters(Params),
-		case m3ua_codec:find_parameter(?RoutingContext, AspInactive) of
-			{ok, [RC]} ->
-				case gb_trees:lookup(RC, RCs) of
-					{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys} = RK} ->
-						P0 = m3ua_codec:add_parameter(?RoutingContext, [RC], []),
-						NewRCs = gb_trees:update(RC, RK#m3ua_routing_key{status = inactive}, RCs),
-						gen_server:cast(m3ua_lm_server, {'M-ASP_INACTIVE', CbMod, self(), EP, Assoc,
-								{NA, m3ua:sort(Keys), TMT}, State}),
-						{?ASPTMMessage, ?ASPTMASPIAACK, P0, StateData#statedata{rcs = NewRCs}};
-					none ->
-						P0 = m3ua_codec:add_parameter(?ErrorCode, invalid_rc, []),
-						P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
-						{?MGMTMessage, ?MGMTError, P1, StateData}
-				end;
-			{error, not_found} ->
-				P0 = m3ua_codec:add_parameter(?ErrorCode, no_configure_AS_for_ASP, []),
-				{?MGMTMessage, ?MGMTError, P0, StateData}
-		end
-	of
-		{Class, Type, Parameters, NewStateData} ->
-				Message = #m3ua{class = Class, type = Type, params = Parameters},
-				Packet = m3ua_codec:m3ua(Message),
-				case gen_sctp:send(Socket, Assoc, 0, Packet) of
-					ok ->
-						inet:setopts(Socket, [{active, once}]),
-						{next_state, inactive, NewStateData};
-					{error, eagain} ->
-						% @todo flow control
-						{stop, eagain, NewStateData};
-					{error, Reason} ->
-						{stop, Reason, NewStateData}
-				end
-		catch
-			_:Reason ->
-				{stop, Reason, StateData}
-		end;
+		active, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
+		callback = {CbMod, State}} = StateData) ->
+	AspInActive = m3ua_codec:parameters(Params),
+	RCs = proplists:get_value(?RoutingContext, AspInActive),
+	Message = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
+	Packet = m3ua_codec:m3ua(Message),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			gen_server:cast(m3ua_lm_server,
+					{'M-ASP_ACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, eagain, StateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
