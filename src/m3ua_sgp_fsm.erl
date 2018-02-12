@@ -427,11 +427,11 @@ handle_event({'NTFY', NotifyFor, _RC}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Params = case NotifyFor of
 		'AS_ACTIVE' ->
-			[{?Status, {assoc, active}}];
+			[{?Status, {assc, active}}];
 		'AS_INACTIVE' ->
-			[{?Status, {assoc, inactive}}];
+			[{?Status, {assc, inactive}}];
 		'AS_PENDING' ->
-			[{?Status, {assoc, pending}}]
+			[{?Status, {assc, pending}}]
 	end,
 	Notify = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
 	Message = m3ua_codec:m3ua(Notify),
