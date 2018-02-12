@@ -137,7 +137,7 @@
 		name :: term(),
 		min_asp = 1 :: pos_integer(),
 		max_asp :: pos_integer(),
-		state = inactive :: down | inactive | active | pending,
+		state = down :: down | inactive | active | pending,
 		asp = [] :: [#m3ua_asp{}]}).
 
 -record(asp,
