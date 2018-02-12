@@ -647,7 +647,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			gen_server:cast(m3ua_lm_server,
-					{'M-ASP_ACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
+					{'M-ASP_INACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};
 		{error, eagain} ->
