@@ -463,7 +463,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 					_ ->
 						F1 = fun(RC, Acc) ->
 							case lists:keyfind(RC, #asp.rc, Asps) of
-								{_, MatchAsp} ->
+								 #asp{} = MatchAsp ->
 									[MatchAsp | Acc];
 								false ->
 									Acc
