@@ -583,13 +583,50 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 	end;
 handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
 		StateMainIndication == 'M-ASP_UP'; StateMainIndication == 'M-ASP_DOWN' ->
-	Function = case StateMainIndication of
-		'M-ASP_UP' -> asp_up;
-		'M-ASP_DOWN' -> asp_down
+ 	F = fun() ->
+			case mnesia:read(asp, Sgp, write) of
+				[] ->
+					ok;
+				[#asp{rk = RK} | _] ->
+					case mnesia:read(m3ua_as, RK, write) of
+						[] ->
+							ok;
+						[#m3ua_as{asp = Asps, min_asp = Min} = AS]
+								when StateMainIndication == 'M-ASP_DOWN' ->
+							F = fun(#m3ua_asp{state = active}) -> true; (_) -> false end,
+							Len = length(lists:filter(F, Asps)),
+							case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
+								{value, #m3ua_asp{state = active} = Asp, RemAsp}
+										when (Len - 1) >= Min ->
+									NewAsp = Asp#m3ua_asp{state = down},
+									NewAS = AS#m3ua_as{asp = [NewAsp | RemAsp]},
+									mnesia:write(NewAS);
+								{value, Asp, RemAsp} ->
+									NewAsp = Asp#m3ua_asp{state = down},
+									NewAS = AS#m3ua_as{state = inactive, asp = [NewAsp | RemAsp]},
+									mnesia:write(NewAS);
+								false ->
+									ok
+							end;
+						[#m3ua_as{}] when StateMainIndication == 'M-ASP_UP' ->
+							ok
+					end
+			end
 	end,
-	{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
-	ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
-	{noreply, State};
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			Function = case StateMainIndication of
+				'M-ASP_UP' -> asp_up;
+				'M-ASP_DOWN' -> asp_down
+			end,
+			{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
+			ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
+			{noreply, State};
+		{aborted, Reason} ->
+			error_logger:error_report(["State maintenance indication failed",
+						StateMainIndication, {reason, Reason}, {module, ?MODULE}]),
+			{noreply, State}
+	end;
 handle_cast({'M-RK_REG', Sgp, Socket, Assoc, Msg}, State) ->
 	handle_registration(Msg, Sgp, Socket, Assoc, State).
 
