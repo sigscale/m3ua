@@ -82,7 +82,8 @@ all() ->
 			asp_active_to_down, asp_active_to_inactive, get_sctp_status,
 			mtp_transfer, asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
-			as_state_change_traffic_maintenance].
+			as_state_change_traffic_maintenance, as_state_active,
+			as_state_inactive].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -465,11 +466,133 @@ as_state_change_traffic_maintenance(_Config) ->
 	#m3ua_as{state = active, asp = Asps6} = F1(),
 	3 = length(FilterState(active, Asps6)).
 
+as_state_active() ->
+	[{userdata, [{doc, "Suffient ASPs, AS state change to active"}]}].
+
+as_state_active(_Config) ->
+	MinAsps = 3,
+	MaxAsps = 5,
+	Mode = loadshare,
+	NA = rand:uniform(10),
+	DPC = rand:uniform(255),
+	SIs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
+	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
+	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
+	RK = {NA, Keys, Mode},
+	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port,
+		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+	{ok, ClientEP1} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, ClientEP2} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, ClientEP3} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, Assoc1} = m3ua:sctp_establish(ClientEP1, {127,0,0,1}, Port, []),
+	{ok, Assoc2} = m3ua:sctp_establish(ClientEP2, {127,0,0,1}, Port, []),
+	{ok, Assoc3} = m3ua:sctp_establish(ClientEP3, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP1, Assoc1),
+	ok = m3ua:asp_up(ClientEP2, Assoc2),
+	ok = m3ua:asp_up(ClientEP3, Assoc3),
+	F1  = fun() ->
+		F2 = fun() ->
+			case mnesia:read(m3ua_as, RK, read)  of
+				[] ->
+					not_found;
+				[#m3ua_as{} = As] ->
+					As
+			end
+		end,
+		case mnesia:transaction(F2) of
+			{atomic, As1} ->
+				As1;
+			{aboarted, Reason} ->
+				Reason
+		end
+	end,
+	FilterState = fun(IsAspState, Asps) ->
+			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+					true;
+				(_) ->
+					false
+			end,
+			lists:filter(F, Asps)
+	end,
+	{ok, _RoutingContext1} = m3ua:register(ClientEP1, Assoc1, NA, Keys, Mode),
+	{ok, _RoutingContext2} = m3ua:register(ClientEP2, Assoc2, NA, Keys, Mode),
+	{ok, _RoutingContext3} = m3ua:register(ClientEP3, Assoc3, NA, Keys, Mode),
+	ok = m3ua:asp_active(ClientEP1, Assoc1),
+	ok = m3ua:asp_active(ClientEP2, Assoc2),
+	#m3ua_as{state = inactive, asp = Asps5} = F1(),
+	2 = length(FilterState(active, Asps5)),
+	ok = m3ua:asp_active(ClientEP3, Assoc3),
+	#m3ua_as{state = active, asp = Asps6} = F1(),
+	3 = length(FilterState(active, Asps6)).
 
 
+as_state_inactive() ->
+	[{userdata, [{doc, "Insuffient ASPs, AS state change active to inactive"}]}].
+
+as_state_inactive(_Config) ->
+	MinAsps = 3,
+	MaxAsps = 5,
+	Mode = loadshare,
+	NA = rand:uniform(10),
+	DPC = rand:uniform(255),
+	SIs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
+	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
+	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
+	RK = {NA, Keys, Mode},
+	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
+	Port = rand:uniform(66559) + 1024,
+	{ok, _ServerEP} = m3ua:open(Port,
+		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+	{ok, ClientEP1} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, ClientEP2} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, ClientEP3} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, Assoc1} = m3ua:sctp_establish(ClientEP1, {127,0,0,1}, Port, []),
+	{ok, Assoc2} = m3ua:sctp_establish(ClientEP2, {127,0,0,1}, Port, []),
+	{ok, Assoc3} = m3ua:sctp_establish(ClientEP3, {127,0,0,1}, Port, []),
+	ok = m3ua:asp_up(ClientEP1, Assoc1),
+	ok = m3ua:asp_up(ClientEP2, Assoc2),
+	ok = m3ua:asp_up(ClientEP3, Assoc3),
+	F1  = fun() ->
+		F2 = fun() ->
+			case mnesia:read(m3ua_as, RK, read)  of
+				[] ->
+					not_found;
+				[#m3ua_as{} = As] ->
+					As
+			end
+		end,
+		case mnesia:transaction(F2) of
+			{atomic, As1} ->
+				As1;
+			{aboarted, Reason} ->
+				Reason
+		end
+	end,
+	FilterState = fun(IsAspState, Asps) ->
+			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+					true;
+				(_) ->
+					false
+			end,
+			lists:filter(F, Asps)
+	end,
+	{ok, _RoutingContext1} = m3ua:register(ClientEP1, Assoc1, NA, Keys, Mode),
+	{ok, _RoutingContext2} = m3ua:register(ClientEP2, Assoc2, NA, Keys, Mode),
+	{ok, _RoutingContext3} = m3ua:register(ClientEP3, Assoc3, NA, Keys, Mode),
+	ok = m3ua:asp_active(ClientEP1, Assoc1),
+	ok = m3ua:asp_active(ClientEP2, Assoc2),
+	ok = m3ua:asp_active(ClientEP3, Assoc3),
+	#m3ua_as{state = active, asp = Asps1} = F1(),
+	3 = length(FilterState(active, Asps1)),
+	ok = m3ua:asp_inactive(ClientEP1, Assoc1),
+	#m3ua_as{state = inactive, asp = Asps2} = F1(),
+	2 = length(FilterState(active, Asps2)).
 
 
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
+
 
