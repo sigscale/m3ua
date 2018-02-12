@@ -494,10 +494,10 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
-												NewAS = AS#m3ua_as{state = pending, asp = NewAsps},
+												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS),
 												F4 = fun(#m3ua_asp{sgp = SGP}) ->
-													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_PENDING', RC})
+													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
 											false ->
@@ -544,10 +544,10 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
-												NewAS = AS#m3ua_as{state = pending, asp = NewAsps},
+												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS),
 												F4 = fun(#m3ua_asp{sgp = SGP}) ->
-													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_PENDING', RC})
+													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
 											false ->
