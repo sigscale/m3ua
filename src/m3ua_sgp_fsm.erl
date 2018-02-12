@@ -184,7 +184,6 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		ual :: non_neg_integer(),
-		rcs = gb_trees:empty() :: gb_trees:tree(),
 		stream :: integer(),
 		ep :: pid(),
 		callback :: {Module :: atom(), State :: term()},
