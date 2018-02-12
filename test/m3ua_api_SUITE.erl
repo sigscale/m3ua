@@ -451,19 +451,19 @@ as_state_change_traffic_maintenance(_Config) ->
 	{ok, _RoutingContext3} = m3ua:register(ClientEP3, Assoc3, NA, Keys, Mode),
 	#m3ua_as{state = inactive, asp = Asps3} = F1(),
 	true = IsAllState(inactive, Asps3),
-	2 = length(Asps3),
+	3 = length(Asps3),
 	%% Active ASP 1
 	ok = m3ua:asp_active(ClientEP1, Assoc1),
 	#m3ua_as{state = inactive, asp = Asps4} = F1(),
-	1 = length(FilterState(inactive, Asps4)),
+	1 = length(FilterState(active, Asps4)),
 	%% Active ASP 2
 	ok = m3ua:asp_active(ClientEP2, Assoc2),
 	#m3ua_as{state = inactive, asp = Asps5} = F1(),
-	2 = length(FilterState(inactive, Asps5)),
+	2 = length(FilterState(active, Asps5)),
 	%% Active ASP 3
 	ok = m3ua:asp_active(ClientEP3, Assoc3),
 	#m3ua_as{state = active, asp = Asps6} = F1(),
-	3 = length(FilterState(inactive, Asps6)).
+	3 = length(FilterState(active, Asps6)).
 
 
 
