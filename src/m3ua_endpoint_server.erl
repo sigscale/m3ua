@@ -137,13 +137,13 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 		asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
-handle_call({establish, Address, Port, Options}, _From,
+handle_call({'M-SCTP_ESTABLISH', request, Address, Port, Options}, _From,
 		#state{sctp_role = client, asp_sup = Sup} = State) ->
 	connect(Address, Port, Options, Sup, State);
-handle_call({release, Assoc}, _From, #state{fsms = Fsms} = State) ->
+handle_call({'M-SCTP_RELEASE', request, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup(Assoc, Fsms) of
 		{value, Fsm} ->
-			case catch gen_fsm:sync_send_all_state_event(Fsm, sctp_release) of
+			case catch gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
 				ok ->
 					NewFsms = gb_trees:delete(Assoc, Fsms),
 					NewState = State#state{fsms = NewFsms},

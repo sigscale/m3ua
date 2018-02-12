@@ -74,8 +74,8 @@ close(EP) ->
 %% @doc Establish an SCTP association.
 %% @private
 sctp_establish(EndPoint, Address, Port, Options) ->
-	gen_server:call(?MODULE, {sctp_establish,
-			EndPoint, Address, Port, Options}).
+	gen_server:call(?MODULE, {'M-SCTP_ESTABLISH',
+			request, EndPoint, Address, Port, Options}).
 
 -spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
 	when
@@ -139,7 +139,7 @@ as_delete(RoutingKey) ->
 %% @doc Register a routing key for an application server.
 register(EndPoint, Assoc, NA, Keys, Mode, AS) ->
 	gen_server:call(?MODULE,
-			{register, EndPoint, Assoc, NA, Keys, Mode, AS}).
+			{'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AS}).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
@@ -150,7 +150,7 @@ register(EndPoint, Assoc, NA, Keys, Mode, AS) ->
 %% @doc Release an established SCTP association.
 %% @private
 sctp_release(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {sctp_release, EndPoint, Assoc}).
+	gen_server:call(?MODULE, {'M-SCTP_RELEASE', request, EndPoint, Assoc}).
 
 -spec sctp_status(EndPoint, Assoc) -> Result
 	when
@@ -161,7 +161,7 @@ sctp_release(EndPoint, Assoc) ->
 %% @doc Report the status of an SCTP association.
 %% @private
 sctp_status(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {sctp_status, EndPoint, Assoc}).
+	gen_server:call(?MODULE, {'M-SCTP_STATUS', request, EndPoint, Assoc}).
 
 -spec asp_status(EndPoint, Assoc) -> Result
 	when
@@ -173,7 +173,7 @@ sctp_status(EndPoint, Assoc) ->
 %% @doc Report the status of local or remote ASP.
 %% @private
 asp_status(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {asp_status, EndPoint, Assoc}).
+	gen_server:call(?MODULE, {'M-ASP_STATUS', request, EndPoint, Assoc}).
 
 -spec asp_up(EndPoint, Assoc) -> Result
 	when
@@ -185,7 +185,7 @@ asp_status(EndPoint, Assoc) ->
 %%  and send an ASP Up message to its peer.
 %% @private
 asp_up(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {asp_up, EndPoint, Assoc}).
+	gen_server:call(?MODULE, {'M-ASP_UP', request, EndPoint, Assoc}).
 
 -spec asp_down(EndPoint, Assoc) -> Result
 	when
@@ -197,7 +197,7 @@ asp_up(EndPoint, Assoc) ->
 %%  and send an ASP Down message to its peer.
 %% @private
 asp_down(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {asp_down, EndPoint, Assoc}).
+	gen_server:call(?MODULE, {'M-ASP_DOWN', request, EndPoint, Assoc}).
 
 -spec asp_active(EndPoint, Assoc) -> Result
 	when
@@ -208,7 +208,7 @@ asp_down(EndPoint, Assoc) ->
 %% @doc Requests that ASP send an ASP Active message to its peer.
 %% @private
 asp_active(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {asp_active, EndPoint, Assoc}).
+	gen_server:call(?MODULE, {'M-ASP_ACTIVE', request, EndPoint, Assoc}).
 
 -spec asp_inactive(EndPoint, Assoc) -> Result
 	when
@@ -219,7 +219,7 @@ asp_active(EndPoint, Assoc) ->
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
 %% @private
 asp_inactive(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {asp_inactive, EndPoint, Assoc}).
+	gen_server:call(?MODULE, {'M-ASP_INACTIVE', request, EndPoint, Assoc}).
 
 -spec getstat(EndPoint, Assoc) -> Result
 	when
@@ -302,9 +302,9 @@ handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP)
 		exit:Reason ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({sctp_establish, EndPoint, Address, Port, Options},
+handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
 		_From, #state{fsms = Fsms} = State) ->
-	case gen_server:call(EndPoint, {establish, Address, Port, Options}) of
+	case gen_server:call(EndPoint, {'M-SCTP_ESTABLISH', request, Address, Port, Options}) of
 		{ok, AspFsm, Assoc} ->
 			NewFsms = gb_trees:insert({EndPoint, Assoc}, AspFsm, Fsms),
 			NewState = State#state{fsms = NewFsms},
@@ -312,10 +312,10 @@ handle_call({sctp_establish, EndPoint, Address, Port, Options},
 		{error, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({sctp_release, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
+handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, _} ->
-			case catch gen_server:call(EndPoint, {release, Assoc}) of
+			case catch gen_server:call(EndPoint, {'M-SCTP_RELEASE', request,  Assoc}) of
 				ok ->
 					NewFsms	= gb_trees:delete({EndPoint, Assoc}, Fsms),
 					NewState = State#state{fsms = NewFsms},
@@ -328,15 +328,15 @@ handle_call({sctp_release, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State)
 		none ->
 			{reply, {error, invalid_assco}, State}
 	end;
-handle_call({sctp_status, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
+handle_call({'M-SCTP_STATUS', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
-			Reply = gen_fsm:sync_send_all_state_event(Fsm, sctp_status),
+			Reply = gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_STATUS', request}),
 			{reply, Reply, State};
 		none ->
 			{reply, {error, not_found}, State}
 	end;
-handle_call({asp_status, _EndPoint, _Assoc}, _From, State) ->
+handle_call({'M-ASP_STATUS', request,  _EndPoint, _Assoc}, _From, State) ->
 	{reply, {error, not_implement}, State};
 handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 	F = fun() ->
@@ -363,27 +363,27 @@ handle_call({as_delete, RoutingKey}, _From, State) ->
 		{aborted, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({register, EndPoint, Assoc, NA, Keys, Mode, AS}, From,
+handle_call({'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AS}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, AspFsm} ->
 			Ref = make_ref(),
 			gen_fsm:send_event(AspFsm,
-					{register, Ref, self(), NA, Keys, Mode, AS}),
+					{'M-RK_REG', request,  Ref, self(), NA, Keys, Mode, AS}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
 		none ->
 			{reply, {error, not_found}, State}
 	end;
-handle_call({AspOp, EndPoint, Assoc}, From,
+handle_call({AspOp, request, EndPoint, Assoc}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State)
-		when AspOp == asp_up; AspOp == asp_down;
-		AspOp == asp_active; AspOp == asp_inactive ->
+		when AspOp == 'M-ASP_UP'; AspOp == 'M-ASP_DOWN';
+		AspOp == 'M-ASP_ACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, AspFsm} ->
 			Ref = make_ref(),
-			gen_fsm:send_event(AspFsm, {AspOp, Ref, self()}),
+			gen_fsm:send_event(AspFsm, {AspOp, request, Ref, self()}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
@@ -413,7 +413,7 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 %%
 handle_cast(stop, State) ->
 	{stop, normal, State};
-handle_cast({_AspOp, Ref, _ASP, {error, Reason}},
+handle_cast({_AspOp, confirm, Ref, _ASP, {error, Reason}},
 		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
@@ -424,9 +424,9 @@ handle_cast({_AspOp, Ref, _ASP, {error, Reason}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({AspOp, Ref, {ok, RC, RK}},
+handle_cast({AspOp, confirm, Ref, {ok, RC, RK}},
 		#state{reqs = Reqs} = State)
-		when AspOp == register ->
+		when AspOp == 'M-RK_REG' ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, {ok, RC}),
@@ -436,13 +436,13 @@ handle_cast({AspOp, Ref, {ok, RC, RK}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({AspOp, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}},
+handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}},
 		#state{reqs = Reqs} = State)
-		when AspOp == asp_up; AspOp == asp_down;
-		AspOp == asp_active; AspOp == asp_inactive ->
+		when AspOp == 'M-ASP_UP'; AspOp == 'M-ASP_DOWN';
+		AspOp == 'M-ASP_ACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			{ok, NewUState} = apply(CbMod, AspOp, [Asp, EP, Assoc, UState]),
+			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
 			gen_server:reply(From, ok),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
@@ -571,11 +571,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 	end,
 	case mnesia:transaction(F) of
 		{atomic, _} ->
-			Function = case TrafficMaintIndication of
-				'M-ASP_ACTIVE' -> asp_active;
-				'M-ASP_INACTIVE' -> asp_inactive
-			end,
-			{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
+			{ok, NewUState} = apply(CbMod, cb_func(TrafficMaintIndication), [Sgp, EP, Assoc, UState]),
 			ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaintIndication, NewUState}),
 			{noreply, State};
 		{aborted, _Reason} ->
@@ -615,11 +611,7 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 	end,
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
-			Function = case StateMainIndication of
-				'M-ASP_UP' -> asp_up;
-				'M-ASP_DOWN' -> asp_down
-			end,
-			{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
+			{ok, NewUState} = apply(CbMod, cb_func(StateMainIndication), [Sgp, EP, Assoc, UState]),
 			ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
 			{noreply, State};
 		{aborted, Reason} ->
@@ -819,3 +811,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 			end
 	end.
 	
+%% @private
+cb_func('M-ASP_UP') -> asp_up;
+cb_func('M-ASP_DOWN') -> asp_down;
+cb_func('M-ASP_ACTIVE') -> asp_active;
+cb_func('M-ASP_INACTIVE') -> asp_inactive.
