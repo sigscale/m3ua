@@ -658,87 +658,76 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 	end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
-		when CbMod /= undefined ->
-	Parameters = m3ua_codec:parameters(Params),
-	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
-			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
-		{ok, [RC]} ->
-			case gb_trees:lookup(RC, RCs) of
-				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
-					{NA, Keys, TMT};
-				none ->
-					undefined
-			end;
-		{error, not_found} ->
-			undefined
-	end,
-	{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State),
-	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, active, NewStateData};
+		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+	case find_rk() of
+		{ok, RK} ->
+			Parameters = m3ua_codec:parameters(Params),
+			#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
+					m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
+			{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream,
+					RK, OPC, DPC, SLS, SIO, Data, State),
+			NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, NewStateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
-		when CbMod /= undefined ->
-	Parameters = m3ua_codec:parameters(Params),
-	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
-		{ok, [RC]} ->
-			case gb_trees:lookup(RC, RCs) of
-				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
-					{NA, Keys, TMT};
-				none ->
-					undefined
-			end;
-		{error, not_found} ->
-			undefined
-	end,
-	{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, RK, APCs, State),
-	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, inactive, NewStateData};
+		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+	case find_rk() of
+		{ok, RK} ->
+			Parameters = m3ua_codec:parameters(Params),
+			APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
+			{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, RK, APCs, State),
+			NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, NewStateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
-		when CbMod /= undefined ->
-	Parameters = m3ua_codec:parameters(Params),
-	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
-		{ok, [RC]} ->
-			case gb_trees:lookup(RC, RCs) of
-				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
-					{NA, Keys, TMT};
-				none ->
-					undefined
-			end;
-		{error, not_found} ->
-			undefined
-	end,
-	{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, RK, APCs, State),
-	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, active, NewStateData};
+		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+	case find_rk() of
+		{ok, RK} ->
+			Parameters = m3ua_codec:parameters(Params),
+			APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
+			{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, RK, APCs, State),
+			NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, NewStateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end;
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
-		assoc = Assoc, ep = EP, rcs = RCs} = StateData)
-		when CbMod /= undefined ->
-	Parameters = m3ua_codec:parameters(Params),
-	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	RK = case m3ua_codec:find_parameter(?RoutingContext,Parameters) of
-		{ok, [RC]} ->
-			case gb_trees:lookup(RC, RCs) of
-				{value, #m3ua_routing_key{na = NA, tmt = TMT, key = Keys}} ->
-					{NA, Keys, TMT};
-				none ->
-					undefined
-			end;
-		{error, not_found} ->
-			undefined
-	end,
-	{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, RK, APCs, State),
-	NewStateData = StateData#statedata{callback = {CbMod, NewState}},
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, NewStateData}.
+		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+	case find_rk() of
+		{ok, RK} ->
+			Parameters = m3ua_codec:parameters(Params),
+			APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
+			{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, RK, APCs, State),
+			NewStateData = StateData#statedata{callback = {CbMod, NewState}},
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, StateName, NewStateData};
+		{error, Reason} ->
+			{stop, Reason, StateData}
+	end.
 
+%% @hidden
+find_rk() ->
+	F = fun() ->
+		case mnesia:read(asp, self(), read) of
+			[] ->
+				not_found;
+			[#asp{rk = RK}] ->
+				RK
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, Result} ->
+			{ok, Result};
+		{aboarted, Reason} ->
+			{error, Reason}
+	end.
