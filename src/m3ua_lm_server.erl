@@ -493,7 +493,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 									Len when (Len - 1) < Min ->
 										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
-												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
+												NewAsps = [M_Asp#m3ua_asp{state = inactive} | RemAsps],
 												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS),
 												F4 = fun(#m3ua_asp{sgp = SGP}) ->
