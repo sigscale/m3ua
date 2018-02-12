@@ -571,7 +571,11 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 	end,
 	case mnesia:transaction(F) of
 		{atomic, _} ->
-			{ok, NewUState} = apply(CbMod, asp_active, [Sgp, EP, Assoc, UState]),
+			Function = case TrafficMaintIndication of
+				'M-ASP_ACTIVE' -> asp_active;
+				'M-ASP_INACTIVE' -> asp_inactive
+			end,
+			{ok, NewUState} = apply(CbMod, Function, [Sgp, EP, Assoc, UState]),
 			ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaintIndication, NewUState}),
 			{noreply, State};
 		{aborted, _Reason} ->
