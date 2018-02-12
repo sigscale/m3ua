@@ -654,7 +654,6 @@ handle_registration1([RoutingKey | T], Sgp, Socket, Assoc, RC, _AsState, Acc) ->
 handle_registration1([], _Sgp, Socket, Assoc, _RC, Acc, AsState) ->
 	Message1 = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Acc},
 	Packet1 = m3ua_codec:m3ua(Message1),
-erlang:display({?MODULE, ?LINE, Acc, AsState}),
 	case gen_sctp:send(Socket, Assoc, 0, Packet1) of
 		ok ->
 			Params = m3ua_codec:add_parameter(?Status, {assc, AsState}, []),
