@@ -531,6 +531,8 @@ handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifie
 		none ->
 			{noreply, State}
 	end;
+handle_cast({'M-NOTIFY', indication, Asp, Status, ASPIdentifier, RC}, State) ->
+	handle_notify(Status, Asp, ASPIdentifier, RC, State);
 handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State) ->
 	F = fun() ->
 		case mnesia:read(asp, Sgp, write) of
@@ -937,6 +939,38 @@ reg_result([#registration_result{status = Status} | []],
 		none ->
 			{noreply, State}
 	end.
+
+%% @hidden
+handle_notify({assc, AsState}, Asp, _ASPIdentifier, _RC, State) ->
+	F = fun() ->
+		case mnesia:read(asp, Asp, read) of
+			[] ->
+				ok;
+			Asps ->
+				F1 = fun(#asp{rk = RK}) ->
+					case mnesia:read(m3ua_as, RK, write) of
+						[] ->
+							ok;
+						[#m3ua_as{} = AS] ->
+							NewAS = AS#m3ua_as{state = AsState},
+							mnesia:write(NewAS)
+					end
+				end,
+				lists:foreach(F1, Asps)
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			{noreply, State};
+		{aborted, Reason} ->
+			error_logger:error_report(["Update AS table failed",
+					{asp, Asp}, {reason, Reason}, {module, ?MODULE}]),
+			{noreply, State}
+	end;
+handle_notify({other, AsState}, Asp, _ASPIdentifier, _RC, State) ->
+	error_logger:error_report(["AS state change error",
+			{asp, Asp}, {reason, AsState}, {module, ?MODULE}]),
+	{noreply, State}.
 	
 %% @private
 cb_func('M-ASP_UP') -> asp_up;
