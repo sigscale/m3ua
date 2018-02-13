@@ -430,14 +430,100 @@ handle_cast({'M-RK_REG', confirm, Ref, Asp,
 	Parameters = m3ua_codec:parameters(Params),
 	RegResults = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
 	reg_result(RegResults, NA, m3ua:sort(Keys), TMT, AS, Asp, Ref, State);
-handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}},
-		#state{reqs = Reqs} = State)
-		when AspOp == 'M-ASP_UP'; AspOp == 'M-ASP_DOWN';
-		AspOp == 'M-ASP_ACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
+handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
+		UState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
 			gen_server:reply(From, ok),
+			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
+			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
+		UState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
+	F = fun() ->
+		case mnesia:read(asp, Asp, write) of
+			[] ->
+				ok;
+			Asps ->
+				F1 = fun(#asp{rk = RK}) ->
+					case mnesia:read(m3ua_as, RK, write) of
+						[] ->
+							ok;
+						[#m3ua_as{asp = ASPs} = AS] ->
+							case lists:keytake(Asp, #m3ua_asp.fsm, ASPs) of
+								{value, _ASP1, RemASPs} ->
+									NewAS = AS#m3ua_as{asp = RemASPs},
+									ok = mnesia:delete(asp, Asp, write),
+									mnesia:write(NewAS);
+								false ->
+									ok = mnesia:delete(asp, Asp, write)
+							end
+					end
+				end,
+				ok = lists:foreach(F1, Asps)
+		end
+	end,
+	Result = case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{aborted, Reason} ->
+			{error, Reason}
+	end,
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, Result),
+			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
+			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}},
+		#state{reqs = Reqs} = State) when  AspOp == 'M-ASP_ACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
+	F = fun() ->
+			case mnesia:read(asp, Asp, write) of
+				[] ->
+					ok;
+				Asps ->
+					F1 = fun(#asp{rk = RK}) ->
+						case mnesia:read(m3ua_as, RK, write) of
+							[] ->
+								ok;
+							[#m3ua_as{asp = ASPs} = AS] ->
+								case lists:keytake(Asp, #m3ua_asp.fsm, ASPs) of
+									{value, ASP1, RemAsps} when AspOp == 'M-ASP_ACTIVE' ->
+										NewASP1 = ASP1#m3ua_asp{state = active},
+										NewAS = AS#m3ua_as{asp = [NewASP1 | RemAsps]},
+										mnesia:write(NewAS);
+									{value, ASP1, RemAsps} when AspOp == 'M-ASP_INACTIVE' ->
+										NewASP1 = ASP1#m3ua_asp{state = inactive},
+										NewAS = AS#m3ua_as{asp = [NewASP1 | RemAsps]},
+										mnesia:write(NewAS);
+									false ->
+										ok
+								end
+						end
+					end,
+					lists:foreach(F1, Asps)
+			end
+	end,
+	Result = case mnesia:transaction(F) of
+		{atomic, ok} ->
+			ok;
+		{aborted, Reason} ->
+			{error, Reason}
+	end,
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, Result),
+			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
