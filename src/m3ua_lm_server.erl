@@ -477,7 +477,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								ok;
 							[#m3ua_as{state = active, asp = M3uaAsps} = AS]
 									when TrafficMaintIndication == 'M-ASP_ACTIVE'->
-								case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
+								case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
 									{value, M_Asp, RemAsps} ->
 										NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
 										NewAS = AS#m3ua_as{asp = NewAsps},
@@ -491,12 +491,12 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								AspLen = length(lists:filter(F3, M3uaAsps)),
 								case AspLen of
 									Len when (Len - 1) < Min ->
-										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = inactive} | RemAsps],
 												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS),
-												F4 = fun(#m3ua_asp{sgp = SGP}) ->
+												F4 = fun(#m3ua_asp{fsm = SGP}) ->
 													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
@@ -504,7 +504,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 												ok
 										end;
 									_ ->
-										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = inactive} | RemAsps],
 												NewAS = AS#m3ua_as{asp = NewAsps},
@@ -519,7 +519,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								AspLen = length(lists:filter(F3, M3uaAsps)),
 								case AspLen of
 									0 ->
-										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{asp = NewAsps},
@@ -528,12 +528,12 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 												ok
 										end;
 									Len when (Len + 1) >= Min, ((Max == undefined) or (Max >= (Len + 1))) ->
-										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{state = active, asp = NewAsps},
 												ok = mnesia:write(NewAS),
-												F4 = fun(#m3ua_asp{sgp = SGP}) ->
+												F4 = fun(#m3ua_asp{fsm = SGP}) ->
 													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_ACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
@@ -541,12 +541,12 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 												ok
 										end;
 									_Len ->
-										case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS),
-												F4 = fun(#m3ua_asp{sgp = SGP}) ->
+												F4 = fun(#m3ua_asp{fsm = SGP}) ->
 													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
@@ -556,7 +556,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								end;
 							[#m3ua_as{asp = M3uaAsps} = AS] 
 									when TrafficMaintIndication == 'M-ASP_INACTIVE'->
-								case lists:keytake(Sgp, #m3ua_asp.sgp, M3uaAsps) of
+								case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
 									{value, M_Asp, RemAsps} ->
 										NewAsps = [M_Asp#m3ua_asp{state = inactive} | RemAsps],
 										NewAS = AS#m3ua_as{asp = NewAsps},
@@ -591,7 +591,7 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 								when StateMainIndication == 'M-ASP_DOWN' ->
 							F = fun(#m3ua_asp{state = active}) -> true; (_) -> false end,
 							Len = length(lists:filter(F, Asps)),
-							case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
+							case lists:keytake(Sgp, #m3ua_asp.fsm, Asps) of
 								{value, #m3ua_asp{state = active} = Asp, RemAsp}
 										when (Len - 1) >= Min ->
 									NewAsp = Asp#m3ua_asp{state = down},
@@ -725,9 +725,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 	case mnesia:read(m3ua_as, {NA, Keys, Mode}, write) of
 		[] when RC == undefined ->
 			NewRC = erlang:phash2(rand:uniform(16#7FFFFFFF), 255),
-			M3UAAsp1 = #m3ua_asp{sgp = Sgp, state = inactive},
+			M3UAAsp1 = #m3ua_asp{fsm = Sgp, state = inactive},
 			AS1 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp1]},
-			Asp1 = #asp{sgp = Sgp, rc = NewRC, rk = RK},
+			Asp1 = #asp{fsm = Sgp, rc = NewRC, rk = RK},
 			ok = mnesia:write(AS1),
 			ok = mnesia:write(Asp1),
 			Registered1 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC},
@@ -736,9 +736,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 		[] ->
 			case mnesia:read(asp, Sgp, write) of
 				[] ->
-					M3UAAsp2 = #m3ua_asp{sgp = Sgp, state = inactive},
+					M3UAAsp2 = #m3ua_asp{fsm = Sgp, state = inactive},
 					AS2 = #m3ua_as{state = intacitve, routing_key = RK, asp = [M3UAAsp2]},
-					Asp2 = #asp{sgp = Sgp, rc = RC, rk = RK},
+					Asp2 = #asp{fsm = Sgp, rc = RC, rk = RK},
 					mnesia:write(AS2),
 					mnesia:write(Asp2),
 					Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
@@ -749,9 +749,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 						{value, #asp{rk = ExRK} = ExASP, _} ->
 							case mnesia:read(m3ua_as, ExRK, write) of
 								[] ->
-									M3UAAsp3 = #m3ua_asp{sgp = Sgp, state = inactive},
+									M3UAAsp3 = #m3ua_asp{fsm = Sgp, state = inactive},
 									AS3 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp3]},
-									Asp3 = #asp{sgp = Sgp, rc = RC, rk = RK},
+									Asp3 = #asp{fsm = Sgp, rc = RC, rk = RK},
 									mnesia:write(AS3),
 									mnesia:write(Asp3),
 									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
@@ -768,9 +768,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 									{RegisteredMsg2, State}
 							end;
 						false ->
-							M3UAAsp4 = #m3ua_asp{sgp = Sgp, state = inactive},
+							M3UAAsp4 = #m3ua_asp{fsm = Sgp, state = inactive},
 							AS4 = #m3ua_as{routing_key = RK, asp = [M3UAAsp4]},
-							Asp4 = #asp{sgp = Sgp, rc = RC, rk = RK},
+							Asp4 = #asp{fsm = Sgp, rc = RC, rk = RK},
 							mnesia:write(AS4),
 							mnesia:write(Asp4),
 							Registered3 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
@@ -779,7 +779,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 					end
 			end;
 		[#m3ua_as{asp = Asps, min_asp = Min, max_asp = Max, state = AsState} = AS] ->
-			case lists:keytake(Sgp, #m3ua_asp.sgp, Asps) of
+			case lists:keytake(Sgp, #m3ua_asp.fsm, Asps) of
 				{value, #m3ua_asp{}, _} ->
 					AlreadyReg = #registration_result{lrk_id = LRKId,
 						status = rk_already_registered, rc = 0},
@@ -800,9 +800,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 						false ->
 							inactive
 					end,
-					M3UAAsp5 = #m3ua_asp{sgp = Sgp, state = inactive},
+					M3UAAsp5 = #m3ua_asp{fsm = Sgp, state = inactive},
 					AS5 = AS#m3ua_as{state = NewAsState, routing_key = RK, asp = [M3UAAsp5 | Asps]},
-					Asp5 = #asp{sgp = Sgp, rc = NewRC1, rk = RK},
+					Asp5 = #asp{fsm = Sgp, rc = NewRC1, rk = RK},
 					mnesia:write(AS5),
 					mnesia:write(Asp5),
 					Registered4 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC1},

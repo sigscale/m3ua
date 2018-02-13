@@ -127,7 +127,7 @@
 
 -record(m3ua_asp,
 		{id :: pos_integer(),
-		sgp :: pid(),
+		fsm :: pid(),
 		rc :: integer(),
 		state :: down | inactive | active,
 		info :: string()}).
@@ -141,7 +141,7 @@
 		asp = [] :: [#m3ua_asp{}]}).
 
 -record(asp,
-		{sgp :: pid(),
+		{fsm :: pid(),
 		rc :: integer(),
 		rk :: routing_key()}).
 
