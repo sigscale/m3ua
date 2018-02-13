@@ -424,18 +424,12 @@ handle_cast({_AspOp, confirm, Ref, _ASP, {error, Reason}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({AspOp, confirm, Ref, {ok, RC, RK}},
-		#state{reqs = Reqs} = State)
-		when AspOp == 'M-RK_REG' ->
-	case gb_trees:lookup(Ref, Reqs) of
-		{value, From} ->
-			gen_server:reply(From, {ok, RC}),
-			NewReqs = gb_trees:delete(Ref, Reqs),
-			NewState = State#state{reqs = NewReqs},
-			{noreply, NewState};
-		none ->
-			{noreply, State}
-	end;
+handle_cast({'M-RK_REG', confirm, Ref, Asp,
+		#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
+		NA, Keys, TMT, AS}, State) ->
+	Parameters = m3ua_codec:parameters(Params),
+	RegResults = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
+	reg_result(RegResults, NA, m3ua:sort(Keys), TMT, AS, Asp, Ref, State);
 handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}},
 		#state{reqs = Reqs} = State)
 		when AspOp == 'M-ASP_UP'; AspOp == 'M-ASP_DOWN';
@@ -809,6 +803,53 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 					RegisteredMsg4 = [{?RegistrationResult, Registered4}],
 					{RegisteredMsg4, NewAsState}
 			end
+	end.
+
+%% @hidden
+reg_result([#registration_result{status = registered, rc = RC} | []],
+		NA, Keys, TMT, AS, Asp, Ref, #state{reqs = Reqs} = State) ->
+	RK = {NA, Keys, TMT},
+	F = fun() ->
+			case mnesia:read(m3ua_as, RK, write) of
+				[] ->
+					M3UAAsps = [#m3ua_asp{fsm  = Asp, rc = RC, state = inactive}],
+					M3UAAS = #m3ua_as{routing_key = RK, name = AS, asp = M3UAAsps},
+					ASP = #asp{fsm = Asp, rk = RK},
+					ok = mnesia:write(M3UAAS),
+					ok = mnesia:write(asp, ASP, write);
+				[#m3ua_as{asp = ExAsps} = ExAS] ->
+					M3UAAsp = #m3ua_asp{fsm  = Asp, rc = RC, state = inactive},
+					M3UAAS = ExAS#m3ua_as{name = AS, asp = [M3UAAsp | ExAsps]},
+					ASP = #asp{fsm = Asp, rk = RK},
+					ok = mnesia:write(M3UAAS),
+					ok = mnesia:write(asp, ASP, write)
+			end
+	end,
+	Result = case mnesia:transaction(F) of
+		{atomic, ok} ->
+			{ok, RC};
+		{aborted, Reason} ->
+			{error, Reason}
+	end,
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, Result),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+reg_result([#registration_result{status = Status} | []],
+		_NA, _Keys, _TMT, _AS, _Asp, Ref, #state{reqs = Reqs} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, {error, Status}),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
 	end.
 	
 %% @private

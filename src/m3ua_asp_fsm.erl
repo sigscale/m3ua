@@ -410,8 +410,7 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 inactive({'M-ASP_ACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc, rc = RC, mode = Mode} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
-	P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
-	Params = m3ua_codec:parameters(P1),
+	Params = m3ua_codec:parameters(P0),
 	AspActive = #m3ua{class = ?ASPTMMessage,
 		type = ?ASPTMASPAC, params = Params},
 	Message = m3ua_codec:m3ua(AspActive),
@@ -472,8 +471,7 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	{next_state, down, NewStateData};
 active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc, rc = RC} = StateData) ->
-	P0 = m3ua_codec:add_parameter(?RoutingContext, [RC], []),
-	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = P0},
+	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
 	Message = m3ua_codec:m3ua(AspInActive),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
 		ok ->
@@ -517,8 +515,7 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 		_From, #statedata{socket = Socket, assoc = Assoc, rc = RC} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
-	P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
-	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P1},
+	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
@@ -676,24 +673,13 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
-%% @todo handle RC and RK
-handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
-		inactive, _Stream, #statedata{socket = Socket, req = {'M-RK_REG', request, Ref, From,
-		#m3ua_routing_key{lrk_id = LRKId, na = NA, tmt = TMT, as = AS, key = Keys}}} =
-		StateData) ->
-	Params1 = m3ua_codec:parameters(Params),
-	case m3ua_codec:fetch_parameter(?RegistrationResult, Params1) of
-		#registration_result{lrk_id = LRKId, status = registered, rc = RC} ->
-			Rsp = {NA, Keys, TMT, inactive, AS},
-			gen_server:cast(From, {'M-RK_REG', confirm, Ref, {ok, RC, Rsp}}),
-			inet:setopts(Socket, [{active, once}]),
-			NewStateData = StateData#statedata{req = undefined, rc = RC},
-			{next_state, inactive, NewStateData};
-		#registration_result{status = Status} ->
-			gen_server:cast(From, {'M-RK_REG', confirm, Ref, {error, Status}}),
-			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData}
-	end;
+handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP} = Msg, inactive,
+		_Stream, #statedata{socket = Socket, req ={'M-RK_REG', request, Ref, From,
+		#m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}}} = StateData) ->
+	gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(), Msg, NA, Keys, TMT, AS}),
+	inet:setopts(Socket, [{active, once}]),
+	NewStateData = StateData#statedata{req = undefined},
+	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, StateName,
 		_Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From}, socket = Socket,
 		callback = {CbMod, State}, ep = EP, assoc = Assoc} = StateData)
