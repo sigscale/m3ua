@@ -623,6 +623,10 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 										end;
 									_Len ->
 										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+											{value, M_Asp, RemAsps} when AS#m3ua_as.state == inactive ->
+												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
+												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
+												ok = mnesia:write(NewAS);
 											{value, M_Asp, RemAsps} ->
 												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
