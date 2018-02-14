@@ -828,7 +828,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 			case mnesia:read(asp, Sgp, write) of
 				[] ->
 					M3UAAsp2 = #m3ua_asp{fsm = Sgp, state = inactive},
-					AS2 = #m3ua_as{state = intacitve, routing_key = RK, asp = [M3UAAsp2]},
+					AS2 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp2]},
 					Asp2 = #asp{fsm = Sgp, rc = RC, rk = RK},
 					mnesia:write(AS2),
 					mnesia:write(Asp2),
