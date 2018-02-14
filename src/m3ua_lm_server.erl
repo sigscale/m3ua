@@ -671,6 +671,11 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 							ok;
 						[#m3ua_as{asp = Asps, min_asp = Min} = AS]
 								when StateMainIndication == 'M-ASP_DOWN' ->
+							F = fun(#m3ua_asp{state = active}) -> true; (_) -> false end,
+							Len = length(lists:filter(F, Asps)),
+							case lists:keytake(Sgp, #m3ua_asp.fsm, Asps) of
+								{value, #m3ua_asp{state = active} = Asp, RemAsp}
+										when (Len - 1) >= Min ->
 									NewAsp = Asp#m3ua_asp{state = inactive},
 									NewAsps = [NewAsp | RemAsp],
 									NewAS = AS#m3ua_as{asp = NewAsps},
