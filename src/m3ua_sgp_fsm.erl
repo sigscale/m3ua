@@ -727,6 +727,6 @@ find_rk() ->
 	case mnesia:transaction(F) of
 		{atomic, Result} ->
 			{ok, Result};
-		{aboarted, Reason} ->
+		{aborted, Reason} ->
 			{error, Reason}
 	end.
