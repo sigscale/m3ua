@@ -456,12 +456,11 @@ handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 							ok;
 						[#m3ua_as{asp = ASPs} = AS] ->
 							case lists:keytake(Asp, #m3ua_asp.fsm, ASPs) of
-								{value, _ASP1, RemASPs} ->
-									NewAS = AS#m3ua_as{asp = RemASPs},
-									ok = mnesia:delete(asp, Asp, write),
+								{value, ASP1, RemASPs} ->
+									NewAS = AS#m3ua_as{asp = [ASP1#m3ua_asp{state = inactive} | RemASPs]},
 									mnesia:write(NewAS);
 								false ->
-									ok = mnesia:delete(asp, Asp, write)
+									ok
 							end
 					end
 				end,
