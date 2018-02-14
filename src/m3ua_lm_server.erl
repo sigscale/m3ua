@@ -671,17 +671,18 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 							ok;
 						[#m3ua_as{asp = Asps, min_asp = Min} = AS]
 								when StateMainIndication == 'M-ASP_DOWN' ->
-							F = fun(#m3ua_asp{state = active}) -> true; (_) -> false end,
-							Len = length(lists:filter(F, Asps)),
-							case lists:keytake(Sgp, #m3ua_asp.fsm, Asps) of
-								{value, #m3ua_asp{state = active} = Asp, RemAsp}
-										when (Len - 1) >= Min ->
-									NewAsp = Asp#m3ua_asp{state = down},
-									NewAS = AS#m3ua_as{asp = [NewAsp | RemAsp]},
+									NewAsp = Asp#m3ua_asp{state = inactive},
+									NewAsps = [NewAsp | RemAsp],
+									NewAS = AS#m3ua_as{asp = NewAsps},
 									mnesia:write(NewAS);
 								{value, Asp, RemAsp} ->
-									NewAsp = Asp#m3ua_asp{state = down},
-									NewAS = AS#m3ua_as{state = inactive, asp = [NewAsp | RemAsp]},
+									NewAsp = Asp#m3ua_asp{state = inactive},
+									NewAsps = [NewAsp | RemAsp],
+									NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
+									F4 = fun(#m3ua_asp{fsm = SGP, rc = RC}) ->
+										gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
+									end,
+									lists:foreach(F4, NewAsps),
 									mnesia:write(NewAS);
 								false ->
 									ok
@@ -953,7 +954,7 @@ handle_notify({assc, AsState}, Asp, _ASPIdentifier, _RC, State) ->
 							ok;
 						[#m3ua_as{} = AS] ->
 							NewAS = AS#m3ua_as{state = AsState},
-							mnesia:write(NewAS)
+							ok = mnesia:write(NewAS)
 					end
 				end,
 				lists:foreach(F1, Asps)
