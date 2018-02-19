@@ -242,7 +242,7 @@ connect(Address, Port, Options, FsmSup,
 				{ok, NewSocket} ->
 				   case supervisor:start_child(FsmSup,
 							[[client, NewSocket, Address, Port, AssocChange, self(), CbMode],
-							[{debug, [trace]}]]) of
+							[]]) of
 						{ok, Fsm} ->
 							case gen_sctp:controlling_process(NewSocket, Fsm) of
 								ok ->
@@ -271,7 +271,7 @@ accept(Socket, Address, Port,
 	case gen_sctp:peeloff(Socket, Assoc) of
 		{ok, NewSocket} ->
 			case supervisor:start_child(Sup, [[server,
-					NewSocket, Address, Port, AssocChange, self(), CbMode], [{debug, [trace]}]]) of
+					NewSocket, Address, Port, AssocChange, self(), CbMode], []]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(NewSocket, Fsm) of
 						ok ->
