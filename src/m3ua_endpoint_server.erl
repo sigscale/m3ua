@@ -37,7 +37,7 @@
 		asp_sup :: undefined | pid(),
 		sgp_sup :: undefined | pid(),
 		socket :: gen_sctp:sctp_socket(),
-		port :: inet:port_number(),
+		port :: undefined | inet:port_number(),
 		options :: [tuple()],
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,

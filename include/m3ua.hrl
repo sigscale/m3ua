@@ -118,11 +118,11 @@
 		status :: undefined | atom(),
 		as :: undefined | term(),
 		lrk_id :: undefined | pos_integer(),
-		key :: [key()]}).
+		key :: undefined | [key()]}).
 
 -record(registration_result,
-		{lrk_id :: pos_integer(),
-		status :: atom(),
+		{lrk_id :: undefined | pos_integer(),
+		status :: undefined | atom(),
 		rc :: undefined | integer()}).
 
 -record(m3ua_asp,
