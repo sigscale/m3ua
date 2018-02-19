@@ -92,7 +92,11 @@ check:otp-18:
 pages:otp-18:
   stage: deploy
   script:
-    - mv .build/otp-18.*/m3ua/test/log public/
+    - mkdir -p .public/doc .public/tests
+    - cp -r .build/otp-18.*/m3ua/test/log/* .public/tests
+    - cp -r .build/otp-18.*/m3ua/doc/* .public/doc
+    - mv .public/tests public
+    - mv .public/doc public
   artifacts:
     when: always
     paths:
@@ -105,7 +109,11 @@ pages:otp-18:
 pages:otp-19:
   stage: deploy
   script:
-    - mv .build/otp-19.*/m3ua/test/log public/
+    - mkdir -p .public/doc .public/tests
+    - cp -r .build/otp-19.*/m3ua/test/log/* .public/tests
+    - cp -r .build/otp-19.*/m3ua/doc/* .public/doc
+    - mv .public/tests public
+    - mv .public/doc public
   artifacts:
     when: always
     paths:
@@ -118,7 +126,11 @@ pages:otp-19:
 pages:otp-20:
   stage: deploy
   script:
-    - mv .build/otp-20.*/m3ua/test/log public/
+    - mkdir -p .public/doc .public/tests
+    - cp -r .build/otp-20.*/m3ua/test/log/* .public/tests
+    - cp -r .build/otp-20.*/m3ua/doc/* .public/doc
+    - mv .public/tests public
+    - mv .public/doc public
   artifacts:
     when: always
     paths:
