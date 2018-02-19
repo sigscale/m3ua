@@ -37,8 +37,8 @@
 			terminate/2, code_change/3]).
 
 -record(state,
-		{sup :: pid(),
-		ep_sup_sup :: pid(),
+		{sup :: undefined | pid(),
+		ep_sup_sup :: undefined | pid(),
 		eps = gb_trees:empty() :: gb_trees:tree(),
 		fsms = gb_trees:empty() :: gb_trees:tree(),
 		reqs = gb_trees:empty() :: gb_trees:tree()}).

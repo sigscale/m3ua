@@ -183,8 +183,8 @@
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		ual :: non_neg_integer(),
-		stream :: integer(),
+		ual :: undefined | integer(),
+		stream :: undefined | integer(),
 		ep :: pid(),
 		callback :: {Module :: atom(), State :: term()},
 		sg_state :: term()}).

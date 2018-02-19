@@ -106,42 +106,42 @@
 		{opc :: integer(),
 		dpc :: integer(),
 		si :: integer(),
-		ni :: integer(),
-		mp :: integer(),
+		ni :: undefind | integer(),
+		mp :: undefind | integer(),
 		sls :: integer(),
 		data :: binary()}).
 
 -record(m3ua_routing_key,
-		{rc :: pos_integer(),
-		na :: pos_integer(),
-		tmt :: tmt(),
-		status :: atom(),
-		as :: term(),
-		lrk_id :: pos_integer(),
+		{rc :: undefind | pos_integer(),
+		na :: undefind | pos_integer(),
+		tmt :: undefind | tmt(),
+		status :: undefind | atom(),
+		as :: undefind | term(),
+		lrk_id :: undefind | pos_integer(),
 		key :: [key()]}).
 
 -record(registration_result,
 		{lrk_id :: pos_integer(),
 		status :: atom(),
-		rc :: integer()}).
+		rc :: undefind | integer()}).
 
 -record(m3ua_asp,
-		{id :: pos_integer(),
+		{id :: undefind | pos_integer(),
 		fsm :: pid(),
-		rc :: integer(),
+		rc :: undefind | integer(),
 		state :: down | inactive | active,
-		info :: string()}).
+		info :: undefind | string()}).
 
 -record(m3ua_as,
 		{routing_key :: routing_key(),
 		name :: term(),
 		min_asp = 1 :: pos_integer(),
-		max_asp :: pos_integer(),
+		max_asp :: undefind | pos_integer(),
 		state = down :: down | inactive | active | pending,
 		asp = [] :: [#m3ua_asp{}]}).
 
 -record(asp,
 		{fsm :: pid(),
-		rc :: integer(),
+		rc :: undefind | integer(),
 		rk :: routing_key()}).
 
