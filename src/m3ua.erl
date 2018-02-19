@@ -39,7 +39,7 @@
 						| {ip, inet:ip_address()}
 						| {ifaddr, inet:ip_address()}
 						| {port, inet:port_number()}
-						| sctp:option().
+						| gen_sctp:option().
 -export_type([options/0]).
 
 -include("m3ua.hrl").
