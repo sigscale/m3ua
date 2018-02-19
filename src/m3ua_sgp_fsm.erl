@@ -731,8 +731,20 @@ find_rk() ->
 			{error, Reason}
 	end.
 
--dialyzer({no_contracts, inet_getopts/2}).
+-dialyzer({[nowarn_function, no_contracts], inet_getopts/2}).
+-spec inet_getopts(Socket, Options) -> Result
+	when
+		Socket :: gen_sctp:sctp_socket(),
+		Options :: [gen_sctp:option()],
+		Result :: {ok, OptionValues} | {error, Posix},
+		OptionValues :: [gen_sctp:option()],
+		Posix :: inet:posix().
 %% @hidden
 inet_getopts(Socket, Options) ->
-	inet:getopts(Socket, Options).
+	case catch inet:getopts(Socket, Options) of
+		{'EXIT', Reason} -> % fake dialyzer out 
+			{error, Reason};
+		Result ->
+			Result
+	end.
 
