@@ -45,6 +45,10 @@
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+-type stat_option() ::
+	'recv_cnt' | 'recv_max' | 'recv_avg' | 'recv_oct' | 'recv_dvi' |
+	'send_cnt' | 'send_max' | 'send_avg' | 'send_oct' | 'send_pend'.
+
 %%----------------------------------------------------------------------
 %%  The m3ua public API
 %%----------------------------------------------------------------------
@@ -133,7 +137,7 @@ as_delete(RoutingKey) ->
 	when
 		EndPoint :: pid(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
+		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an endpoint.
 getstat_endpoint(EndPoint) when is_pid(EndPoint) ->
@@ -142,9 +146,9 @@ getstat_endpoint(EndPoint) when is_pid(EndPoint) ->
 -spec getstat_endpoint(EndPoint, Options) -> Result
 	when
 		EndPoint :: pid(),
-		Options :: [inet:stat_option()],
+		Options :: [stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
+		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an endpoint.
 getstat_endpoint(EndPoint, Options)
@@ -156,7 +160,7 @@ getstat_endpoint(EndPoint, Options)
 		EndPoint :: pid(),
 		Assoc :: pos_integer(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
+		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an association.
 getstat_association(EndPoint, Assoc)
@@ -167,9 +171,9 @@ getstat_association(EndPoint, Assoc)
 	when
 		EndPoint :: pid(),
 		Assoc :: pos_integer(),
-		Options :: [inet:stat_option()],
+		Options :: [stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
+		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an association.
 getstat_association(EndPoint, Assoc, Options)
