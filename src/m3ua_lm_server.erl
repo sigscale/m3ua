@@ -778,8 +778,8 @@ handle_registration(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Param
 %% @hidden
 handle_registration1([RoutingKey | T], Sgp, Socket, Assoc, RC, _AsState, Acc) ->
 	{Result, NewAsState} = handle_registration2(m3ua_codec:routing_key(RoutingKey), Sgp),
-	handle_registration1(T, Sgp, Socket, Assoc, RC, Result ++ Acc, NewAsState);
-handle_registration1([], _Sgp, Socket, Assoc, _RC, Acc, AsState) ->
+	handle_registration1(T, Sgp, Socket, Assoc, RC, NewAsState, Result ++ Acc);
+handle_registration1([], _Sgp, Socket, Assoc, _RC, AsState, Acc) ->
 	Message1 = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Acc},
 	Packet1 = m3ua_codec:m3ua(Message1),
 	case gen_sctp:send(Socket, Assoc, 0, Packet1) of
