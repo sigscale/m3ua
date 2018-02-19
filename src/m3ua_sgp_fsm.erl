@@ -473,7 +473,7 @@ handle_sync_event({getstat, Options}, _From, StateName,
 handle_sync_event(sctp_status, _From, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
-	case inet:getopts(Socket, Options) of
+	case inet_getopts(Socket, Options) of
 		{ok, SCTPStatus} ->
 			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
 			{reply, {ok, Status}, StateName, StateData};
@@ -730,3 +730,9 @@ find_rk() ->
 		{aborted, Reason} ->
 			{error, Reason}
 	end.
+
+-dialyzer({no_contracts, inet_getopts/2}).
+%% @hidden
+inet_getopts(Socket, Options) ->
+	inet:getopts(Socket, Options).
+
