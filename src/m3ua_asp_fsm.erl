@@ -408,7 +408,7 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 			{stop, Reason, StateData}
 	end;
 inactive({'M-ASP_ACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc, rc = RC, mode = Mode} = StateData) ->
+		assoc = Assoc, mode = Mode} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
 	Params = m3ua_codec:parameters(P0),
 	AspActive = #m3ua{class = ?ASPTMMessage,
@@ -470,7 +470,7 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc, rc = RC} = StateData) ->
+		assoc = Assoc} = StateData) ->
 	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
 	Message = m3ua_codec:m3ua(AspInActive),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
@@ -512,7 +512,7 @@ active({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req 
 %% @private
 %%
 active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
-		_From, #statedata{socket = Socket, assoc = Assoc, rc = RC} = StateData) ->
+		_From, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
 	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
