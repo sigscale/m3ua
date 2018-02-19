@@ -58,6 +58,13 @@ end_per_suite(Config) ->
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
 %% Initiation before each test case.
 %%
+init_per_testcase(as_state_change_traffic_maintenance, Config) ->
+	case is_alive() of
+			true ->
+				Config;
+			false ->
+				{skip, not_alive}
+	end;
 init_per_testcase(_TestCase, Config) ->
 	Config.
 
