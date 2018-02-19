@@ -119,7 +119,7 @@ connect() ->
 	[{userdata, [{doc, "Connect client SCTP endpoint to server."}]}].
 
 connect(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
 	{ok, ClientEP} = m3ua:open(),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
@@ -129,7 +129,7 @@ release() ->
 	[{userdata, [{doc, "Release SCTP association."}]}].
 
 release(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
 	{ok, ClientEP} = m3ua:open(),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
@@ -139,7 +139,7 @@ asp_up() ->
 	[{userdata, [{doc, "Bring Application Server Process (ASP) up."}]}].
 
 asp_up(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
 			{callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -150,7 +150,7 @@ asp_down() ->
 	[{userdata, [{doc, "Bring Application Server Process (ASP) down."}]}].
 
 asp_down(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
 			{callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -176,7 +176,7 @@ getstat_assoc() ->
 	[{userdata, [{doc, "Get SCTP option statistics for an association."}]}].
 
 getstat_assoc(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
 	{ok, ClientEP} = m3ua:open(),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
@@ -194,7 +194,7 @@ register() ->
 	[{userdata, [{doc, "Register a routing key."}]}].
 
 register(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
 			{callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -209,7 +209,7 @@ asp_active() ->
 	[{userdata, [{doc, "Make Application Server Process (ASP) active."}]}].
 
 asp_active(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
 			{callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -224,7 +224,7 @@ asp_inactive_to_down() ->
 	[{userdata, [{doc, "Make ASP inactive to down state"}]}].
 
 asp_inactive_to_down(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
 			{callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -236,7 +236,7 @@ asp_active_to_down() ->
 	[{userdata, [{doc, "Make ASP active to down state"}]}].
 
 asp_active_to_down(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
 			{callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -252,7 +252,7 @@ asp_active_to_inactive() ->
 	[{userdata, [{doc, "Make ASP active to inactive state"}]}].
 
 asp_active_to_inactive(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
 			{callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -267,7 +267,7 @@ asp_active_to_inactive(_Config) ->
 get_sctp_status() ->
 	[{userdata, [{doc, "Get SCTP status of an association"}]}].
 get_sctp_status(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
 	{ok, ClientEP} = m3ua:open(),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
@@ -276,7 +276,7 @@ get_sctp_status(_Config) ->
 mtp_transfer() ->
 	[{userdata, [{doc, "Send MTP Transfer Message"}]}].
 mtp_transfer(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -306,7 +306,7 @@ asp_up_indication() ->
 	[{userdata, [{doc, "Received M-ASP_UP indication"}]}].
 
 asp_up_indication(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -322,7 +322,7 @@ asp_active_indication() ->
 	[{userdata, [{doc, "Received M-ASP_ACTIVE indication"}]}].
 
 asp_active_indication(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -341,7 +341,7 @@ asp_inactive_indication() ->
 	[{userdata, [{doc, "Received M-ASP_INACTIVE indication"}]}].
 
 asp_inactive_indication(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -361,7 +361,7 @@ asp_down_indication() ->
 	[{userdata, [{doc, "Received M-ASP_DOWN indication"}]}].
 
 asp_down_indication(_Config) ->
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
@@ -392,7 +392,7 @@ as_state_change_traffic_maintenance(_Config) ->
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
 	RK = {NA, Keys, Mode},
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	Path1 = filename:dirname(code:which(m3ua)),
@@ -488,7 +488,7 @@ as_state_active(_Config) ->
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
 	RK = {NA, Keys, Mode},
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	Path1 = filename:dirname(code:which(m3ua)),
@@ -557,7 +557,7 @@ as_state_inactive(_Config) ->
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
 	RK = {NA, Keys, Mode},
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	Path1 = filename:dirname(code:which(m3ua)),
@@ -627,7 +627,7 @@ as_side_state_changes_1(_Config) ->
 	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
 	RK = {NA, Keys, Mode},
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	Path1 = filename:dirname(code:which(m3ua)),
 	Path2 = filename:dirname(code:which(demo_sg)),
 	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
@@ -704,7 +704,7 @@ as_side_state_changes_2(_Config) ->
 	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
 	RK = {NA, Keys, Mode},
-	Port = rand:uniform(66559) + 1024,
+	Port = rand:uniform(64511) + 1024,
 	Path1 = filename:dirname(code:which(m3ua)),
 	Path2 = filename:dirname(code:which(demo_sg)),
 	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
