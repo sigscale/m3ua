@@ -33,9 +33,9 @@
 -include_lib("kernel/include/inet_sctp.hrl").
 
 -record(state,
-		{sup :: pid(),
-		asp_sup :: pid(),
-		sgp_sup :: pid(),
+		{sup :: undefined | pid(),
+		asp_sup :: undefined | pid(),
+		sgp_sup :: undefined | pid(),
 		socket :: gen_sctp:sctp_socket(),
 		port :: inet:port_number(),
 		options :: [tuple()],
