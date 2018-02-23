@@ -336,7 +336,7 @@ transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
 -spec get_as() -> Result
 	when
 		Result :: {ok, [AS]} | {error, Reason},
-		AS :: [{Name, NA, Keys, TMT, MinASP, MaxASP, State}],
+		AS :: {Name, NA, Keys, TMT, MinASP, MaxASP, State},
 		Name :: string(),
 		NA :: pos_integer(),
 		Keys :: [key()],
