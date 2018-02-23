@@ -26,6 +26,7 @@
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
+-export([get_as/0]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/8]).
@@ -331,6 +332,32 @@ transfer(EP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
 		is_integer(SIO), is_binary(Data) ->
 	Params = {Assoc, Stream, OPC, DPC, SLS, SIO, Data},
 	gen_fsm:sync_send_event(EP, {'MTP-TRANSFER', request, Params}).
+
+-spec get_as() -> Result
+	when
+		Result :: {ok, [AS]} | {error, Reason},
+		AS :: [{Name, NA, Keys, TMT, MinASP, MaxASP, State}],
+		Name :: string(),
+		NA :: pos_integer(),
+		Keys :: [key()],
+		TMT :: tmt(),
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
+		State :: down | inactive | active | pending,
+		Reason :: term().
+%% @doc Get all Application Servers (AS).
+%%
+get_as() ->
+	Fold = fun(#m3ua_as{routing_key = {NA, Keys, TMT}, name = Name,
+				min_asp = MinASP, max_asp = MaxASP, state = State}, Acc) ->
+				[{Name, NA, Keys, TMT, MinASP, MaxASP, State} | Acc] 
+	end,
+	case mnesia:transaction(fun() -> mnesia:foldl(Fold, [], m3ua_as) end) of
+		{atomic, ASs} ->
+			{ok, ASs};
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API
