@@ -594,8 +594,6 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-%% @todo  Registraction - handle registration status
-%% RFC4666 - Section-3.6.2
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	gen_server:cast(m3ua_lm_server, {'M-RK_REG', self(), Socket, Assoc, Msg}),
@@ -717,10 +715,10 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 %% @hidden
 find_rk() ->
 	F = fun() ->
-		case mnesia:read(asp, self(), read) of
+		case mnesia:read(m3ua_asp, self(), read) of
 			[] ->
 				not_found;
-			[#asp{rk = RK}] ->
+			[#m3ua_asp{rk = RK}] ->
 				RK
 		end
 	end,

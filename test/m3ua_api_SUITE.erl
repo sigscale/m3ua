@@ -44,7 +44,7 @@ suite() ->
 %% Initiation before the whole suite.
 %%
 init_per_suite(Config) ->
-	{ok, [asp, m3ua_as]} = m3ua_app:install(),
+	{ok, [m3ua_asp, m3ua_as]} = m3ua_app:install(),
 	ok = application:start(m3ua),
 	Config.
 
@@ -311,7 +311,6 @@ asp_up_indication(_Config) ->
 		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
 	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
-erlang:display({?MODULE, ?LINE, self()}),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	receive
 		{sgp, asp_up, indication} ->
@@ -379,7 +378,7 @@ asp_down_indication(_Config) ->
 
 as_state_change_traffic_maintenance() ->
 	[{userdata, [{doc, "Maintain and notify AS
-			state changes with traffice maintenance messages"}]}].
+			state changes with traffic maintenance messages"}]}].
 
 as_state_change_traffic_maintenance(_Config) ->
 	MinAsps = 3,
@@ -429,7 +428,7 @@ as_state_change_traffic_maintenance(_Config) ->
 		end
 	end,
 	IsAllState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
 					true;
 				(_) ->
 					false
@@ -437,7 +436,7 @@ as_state_change_traffic_maintenance(_Config) ->
 			lists:all(F, Asps)
 	end,
 	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
 					true;
 				(_) ->
 					false
@@ -525,7 +524,7 @@ as_state_active(_Config) ->
 		end
 	end,
 	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
 					true;
 				(_) ->
 					false
@@ -594,7 +593,7 @@ as_state_inactive(_Config) ->
 		end
 	end,
 	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
 					true;
 				(_) ->
 					false
@@ -665,7 +664,7 @@ as_side_state_changes_1(_Config) ->
 		end
 	end,
 	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
 					true;
 				(_) ->
 					false
@@ -742,7 +741,7 @@ as_side_state_changes_2(_Config) ->
 		end
 	end,
 	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_asp{state = AspState}) when AspState == IsAspState ->
+			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
 					true;
 				(_) ->
 					false

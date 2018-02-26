@@ -446,18 +446,18 @@ handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 		UState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
 	F = fun() ->
-		case mnesia:read(asp, Asp, write) of
+		case mnesia:read(m3ua_asp, Asp, write) of
 			[] ->
 				ok;
 			Asps ->
-				F1 = fun(#asp{rk = RK}) ->
+				F1 = fun(#m3ua_asp{rk = RK}) ->
 					case mnesia:read(m3ua_as, RK, write) of
 						[] ->
 							ok;
 						[#m3ua_as{asp = ASPs} = AS] ->
-							case lists:keytake(Asp, #m3ua_asp.fsm, ASPs) of
+							case lists:keytake(Asp, #m3ua_as_asp.fsm, ASPs) of
 								{value, ASP1, RemASPs} ->
-									NewAS = AS#m3ua_as{asp = [ASP1#m3ua_asp{state = inactive} | RemASPs]},
+									NewAS = AS#m3ua_as{asp = [ASP1#m3ua_as_asp{state = inactive} | RemASPs]},
 									mnesia:write(NewAS);
 								false ->
 									ok
@@ -487,22 +487,22 @@ handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifier, _Info}},
 		#state{reqs = Reqs} = State) when  AspOp == 'M-ASP_ACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
 	F = fun() ->
-			case mnesia:read(asp, Asp, write) of
+			case mnesia:read(m3ua_asp, Asp, write) of
 				[] ->
 					ok;
 				Asps ->
-					F1 = fun(#asp{rk = RK}) ->
+					F1 = fun(#m3ua_asp{rk = RK}) ->
 						case mnesia:read(m3ua_as, RK, write) of
 							[] ->
 								ok;
 							[#m3ua_as{asp = ASPs} = AS] ->
-								case lists:keytake(Asp, #m3ua_asp.fsm, ASPs) of
+								case lists:keytake(Asp, #m3ua_as_asp.fsm, ASPs) of
 									{value, ASP1, RemAsps} when AspOp == 'M-ASP_ACTIVE' ->
-										NewASP1 = ASP1#m3ua_asp{state = active},
+										NewASP1 = ASP1#m3ua_as_asp{state = active},
 										NewAS = AS#m3ua_as{asp = [NewASP1 | RemAsps]},
 										mnesia:write(NewAS);
 									{value, ASP1, RemAsps} when AspOp == 'M-ASP_INACTIVE' ->
-										NewASP1 = ASP1#m3ua_asp{state = inactive},
+										NewASP1 = ASP1#m3ua_as_asp{state = inactive},
 										NewAS = AS#m3ua_as{asp = [NewASP1 | RemAsps]},
 										mnesia:write(NewAS);
 									false ->
@@ -534,7 +534,7 @@ handle_cast({'M-NOTIFY', indication, Asp, Status, ASPIdentifier, RC}, State) ->
 	handle_notify(Status, Asp, ASPIdentifier, RC, State);
 handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State) ->
 	F = fun() ->
-		case mnesia:read(asp, Sgp, write) of
+		case mnesia:read(m3ua_asp, Sgp, write) of
 			[] ->
 				ok;
 			Asps ->
@@ -543,8 +543,8 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 						Asps;
 					_ ->
 						F1 = fun(RC, Acc) ->
-							case lists:keyfind(RC, #asp.rc, Asps) of
-								 #asp{} = MatchAsp ->
+							case lists:keyfind(RC, #m3ua_asp.rc, Asps) of
+								 #m3ua_asp{} = MatchAsp ->
 									[MatchAsp | Acc];
 								false ->
 									Acc
@@ -552,15 +552,15 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 						end,
 						lists:foldl(F1, [], RCs)
 				end,
-				F2 = fun(#asp{rk = RK, rc = RC}) ->
+				F2 = fun(#m3ua_asp{rk = RK, rc = RC}) ->
 						case mnesia:read(m3ua_as, RK, write) of
 							[] ->
 								ok;
 							[#m3ua_as{state = active, asp = M3uaAsps} = AS]
 									when TrafficMaintIndication == 'M-ASP_ACTIVE'->
-								case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+								case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 									{value, M_Asp, RemAsps} ->
-										NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
+										NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
 										NewAS = AS#m3ua_as{asp = NewAsps},
 										ok = mnesia:write(NewAS);
 									false ->
@@ -568,16 +568,16 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								end;
 							[#m3ua_as{state = active, min_asp = Min, asp = M3uaAsps} = AS]
 									when TrafficMaintIndication == 'M-ASP_INACTIVE'->
-								F3 = fun(#m3ua_asp{state = active}) -> true; (_) -> false end,
+								F3 = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
 								AspLen = length(lists:filter(F3, M3uaAsps)),
 								case AspLen of
 									Len when (Len - 1) < Min ->
-										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
-												NewAsps = [M_Asp#m3ua_asp{state = inactive} | RemAsps],
+												NewAsps = [M_Asp#m3ua_as_asp{state = inactive} | RemAsps],
 												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS),
-												F4 = fun(#m3ua_asp{fsm = SGP}) ->
+												F4 = fun(#m3ua_as_asp{fsm = SGP}) ->
 													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
@@ -585,9 +585,9 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 												ok
 										end;
 									_ ->
-										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
-												NewAsps = [M_Asp#m3ua_asp{state = inactive} | RemAsps],
+												NewAsps = [M_Asp#m3ua_as_asp{state = inactive} | RemAsps],
 												NewAS = AS#m3ua_as{asp = NewAsps},
 												ok = mnesia:write(NewAS);
 											false ->
@@ -596,25 +596,25 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								end;
 							[#m3ua_as{min_asp = Min, max_asp = Max, asp = M3uaAsps} = AS]
 									when TrafficMaintIndication == 'M-ASP_ACTIVE'->
-								F3 = fun(#m3ua_asp{state = active}) -> true; (_) -> false end,
+								F3 = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
 								AspLen = length(lists:filter(F3, M3uaAsps)),
 								case AspLen of
 									0 ->
-										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
-												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
+												NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{asp = NewAsps},
 												ok = mnesia:write(NewAS);
 											false ->
 												ok
 										end;
 									Len when (Len + 1) >= Min, ((Max == undefined) or (Max >= (Len + 1))) ->
-										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
-												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
+												NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{state = active, asp = NewAsps},
 												ok = mnesia:write(NewAS),
-												F4 = fun(#m3ua_asp{fsm = SGP}) ->
+												F4 = fun(#m3ua_as_asp{fsm = SGP}) ->
 													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_ACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
@@ -622,16 +622,16 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 												ok
 										end;
 									_Len ->
-										case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+										case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} when AS#m3ua_as.state == inactive ->
-												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
+												NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS);
 											{value, M_Asp, RemAsps} ->
-												NewAsps = [M_Asp#m3ua_asp{state = active} | RemAsps],
+												NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
 												NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
 												ok = mnesia:write(NewAS),
-												F4 = fun(#m3ua_asp{fsm = SGP}) ->
+												F4 = fun(#m3ua_as_asp{fsm = SGP}) ->
 													gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
 												end,
 												lists:foreach(F4, M3uaAsps);
@@ -641,9 +641,9 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								end;
 							[#m3ua_as{asp = M3uaAsps} = AS] 
 									when TrafficMaintIndication == 'M-ASP_INACTIVE'->
-								case lists:keytake(Sgp, #m3ua_asp.fsm, M3uaAsps) of
+								case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 									{value, M_Asp, RemAsps} ->
-										NewAsps = [M_Asp#m3ua_asp{state = inactive} | RemAsps],
+										NewAsps = [M_Asp#m3ua_as_asp{state = inactive} | RemAsps],
 										NewAS = AS#m3ua_as{asp = NewAsps},
 										ok = mnesia:write(NewAS);
 									false ->
@@ -665,29 +665,29 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
 		StateMainIndication == 'M-ASP_UP'; StateMainIndication == 'M-ASP_DOWN' ->
  	F = fun() ->
-			case mnesia:read(asp, Sgp, write) of
+			case mnesia:read(m3ua_asp, Sgp, write) of
 				[] ->
 					ok;
-				[#asp{rk = RK} | _] ->
+				[#m3ua_asp{rk = RK} | _] ->
 					case mnesia:read(m3ua_as, RK, write) of
 						[] ->
 							ok;
 						[#m3ua_as{asp = Asps, min_asp = Min} = AS]
 								when StateMainIndication == 'M-ASP_DOWN' ->
-							F = fun(#m3ua_asp{state = active}) -> true; (_) -> false end,
+							F = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
 							Len = length(lists:filter(F, Asps)),
-							case lists:keytake(Sgp, #m3ua_asp.fsm, Asps) of
-								{value, #m3ua_asp{state = active} = Asp, RemAsp}
+							case lists:keytake(Sgp, #m3ua_as_asp.fsm, Asps) of
+								{value, #m3ua_as_asp{state = active} = Asp, RemAsp}
 										when (Len - 1) >= Min ->
-									NewAsp = Asp#m3ua_asp{state = inactive},
+									NewAsp = Asp#m3ua_as_asp{state = inactive},
 									NewAsps = [NewAsp | RemAsp],
 									NewAS = AS#m3ua_as{asp = NewAsps},
 									mnesia:write(NewAS);
 								{value, Asp, RemAsp} ->
-									NewAsp = Asp#m3ua_asp{state = inactive},
+									NewAsp = Asp#m3ua_as_asp{state = inactive},
 									NewAsps = [NewAsp | RemAsp],
 									NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
-									F4 = fun(#m3ua_asp{fsm = SGP, rc = RC}) ->
+									F4 = fun(#m3ua_as_asp{fsm = SGP, rc = RC}) ->
 										gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
 									end,
 									lists:foreach(F4, NewAsps),
@@ -816,33 +816,33 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 	case mnesia:read(m3ua_as, {NA, Keys, Mode}, write) of
 		[] when RC == undefined ->
 			NewRC = erlang:phash2(rand:uniform(16#7FFFFFFF), 255),
-			M3UAAsp1 = #m3ua_asp{fsm = Sgp, state = inactive},
+			M3UAAsp1 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 			AS1 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp1]},
-			Asp1 = #asp{fsm = Sgp, rc = NewRC, rk = RK},
+			Asp1 = #m3ua_asp{fsm = Sgp, rc = NewRC, rk = RK},
 			ok = mnesia:write(AS1),
 			ok = mnesia:write(Asp1),
 			Registered1 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC},
 			RegisteredMsg1 = [{?RegistrationResult, Registered1}],
 			{RegisteredMsg1, inactive};
 		[] ->
-			case mnesia:read(asp, Sgp, write) of
+			case mnesia:read(m3ua_asp, Sgp, write) of
 				[] ->
-					M3UAAsp2 = #m3ua_asp{fsm = Sgp, state = inactive},
+					M3UAAsp2 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 					AS2 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp2]},
-					Asp2 = #asp{fsm = Sgp, rc = RC, rk = RK},
+					Asp2 = #m3ua_asp{fsm = Sgp, rc = RC, rk = RK},
 					mnesia:write(AS2),
 					mnesia:write(Asp2),
 					Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 					RegisteredMsg2 = [{?RegistrationResult, Registered2}],
 					{RegisteredMsg2, inactive};
 				RegAsps ->
-					case lists:keytake(RC, #asp.rc, RegAsps) of
-						{value, #asp{rk = ExRK} = ExASP, _} ->
+					case lists:keytake(RC, #m3ua_asp.rc, RegAsps) of
+						{value, #m3ua_asp{rk = ExRK} = ExASP, _} ->
 							case mnesia:read(m3ua_as, ExRK, write) of
 								[] ->
-									M3UAAsp3 = #m3ua_asp{fsm = Sgp, state = inactive},
+									M3UAAsp3 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 									AS3 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp3]},
-									Asp3 = #asp{fsm = Sgp, rc = RC, rk = RK},
+									Asp3 = #m3ua_asp{fsm = Sgp, rc = RC, rk = RK},
 									mnesia:write(AS3),
 									mnesia:write(Asp3),
 									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
@@ -851,7 +851,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 								[#m3ua_as{state = State} = ExAS] ->
 									NewKey = m3ua:sort(SortedKeys ++ element(2, ExRK)),
 									AS3 = ExAS#m3ua_as{routing_key = setelement(2, ExRK, NewKey)},
-									Asp3 = ExASP#asp{rk = setelement(2, ExRK, NewKey)},
+									Asp3 = ExASP#m3ua_asp{rk = setelement(2, ExRK, NewKey)},
 									mnesia:write(AS3),
 									mnesia:write(Asp3),
 									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
@@ -859,9 +859,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 									{RegisteredMsg2, State}
 							end;
 						false ->
-							M3UAAsp4 = #m3ua_asp{fsm = Sgp, state = inactive},
+							M3UAAsp4 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 							AS4 = #m3ua_as{routing_key = RK, asp = [M3UAAsp4]},
-							Asp4 = #asp{fsm = Sgp, rc = RC, rk = RK},
+							Asp4 = #m3ua_asp{fsm = Sgp, rc = RC, rk = RK},
 							mnesia:write(AS4),
 							mnesia:write(Asp4),
 							Registered3 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
@@ -870,8 +870,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 					end
 			end;
 		[#m3ua_as{asp = Asps, min_asp = Min, max_asp = Max, state = AsState} = AS] ->
-			case lists:keytake(Sgp, #m3ua_asp.fsm, Asps) of
-				{value, #m3ua_asp{}, _} ->
+			case lists:keytake(Sgp, #m3ua_as_asp.fsm, Asps) of
+				{value, #m3ua_as_asp{}, _} ->
 					AlreadyReg = #registration_result{lrk_id = LRKId,
 						status = rk_already_registered, rc = 0},
 					AlreadyRegMsg = [{?RegistrationResult, AlreadyReg}],
@@ -891,9 +891,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode, rc = RC,
 						false ->
 							inactive
 					end,
-					M3UAAsp5 = #m3ua_asp{fsm = Sgp, state = inactive},
+					M3UAAsp5 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 					AS5 = AS#m3ua_as{state = NewAsState, routing_key = RK, asp = [M3UAAsp5 | Asps]},
-					Asp5 = #asp{fsm = Sgp, rc = NewRC1, rk = RK},
+					Asp5 = #m3ua_asp{fsm = Sgp, rc = NewRC1, rk = RK},
 					mnesia:write(AS5),
 					mnesia:write(Asp5),
 					Registered4 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC1},
@@ -909,17 +909,17 @@ reg_result([#registration_result{status = registered, rc = RC} | []],
 	F = fun() ->
 			case mnesia:read(m3ua_as, RK, write) of
 				[] ->
-					M3UAAsps = [#m3ua_asp{fsm  = Asp, rc = RC, state = inactive}],
+					M3UAAsps = [#m3ua_as_asp{fsm  = Asp, rc = RC, state = inactive}],
 					M3UAAS = #m3ua_as{routing_key = RK, name = AS, asp = M3UAAsps},
-					ASP = #asp{fsm = Asp, rk = RK},
+					ASP = #m3ua_asp{fsm = Asp, rk = RK},
 					ok = mnesia:write(M3UAAS),
-					ok = mnesia:write(asp, ASP, write);
+					ok = mnesia:write(m3ua_asp, ASP, write);
 				[#m3ua_as{asp = ExAsps} = ExAS] ->
-					M3UAAsp = #m3ua_asp{fsm  = Asp, rc = RC, state = inactive},
+					M3UAAsp = #m3ua_as_asp{fsm  = Asp, rc = RC, state = inactive},
 					M3UAAS = ExAS#m3ua_as{name = AS, asp = [M3UAAsp | ExAsps]},
-					ASP = #asp{fsm = Asp, rk = RK},
+					ASP = #m3ua_asp{fsm = Asp, rk = RK},
 					ok = mnesia:write(M3UAAS),
-					ok = mnesia:write(asp, ASP, write)
+					ok = mnesia:write(m3ua_asp, ASP, write)
 			end
 	end,
 	Result = case mnesia:transaction(F) of
@@ -952,11 +952,11 @@ reg_result([#registration_result{status = Status} | []],
 %% @hidden
 handle_notify({assc, AsState}, Asp, _ASPIdentifier, _RC, State) ->
 	F = fun() ->
-		case mnesia:read(asp, Asp, read) of
+		case mnesia:read(m3ua_asp, Asp, read) of
 			[] ->
 				ok;
 			Asps ->
-				F1 = fun(#asp{rk = RK}) ->
+				F1 = fun(#m3ua_asp{rk = RK}) ->
 					case mnesia:read(m3ua_as, RK, write) of
 						[] ->
 							ok;

@@ -194,18 +194,18 @@ install3(Nodes, Tables) ->
 	end.
 %% @hidden
 install4(Nodes, Tables) ->
-	case mnesia:create_table(asp, [{disc_copies, Nodes},
-			{type, bag}, {attributes, record_info(fields, asp)}]) of
+	case mnesia:create_table(m3ua_asp, [{disc_copies, Nodes},
+			{type, bag}, {attributes, record_info(fields, m3ua_asp)}]) of
 		{atomic, ok} ->
-			error_logger:info_msg("Created new asp table.~n"),
-			{ok, [asp | Tables]};
+			error_logger:info_msg("Created new m3ua_asp table.~n"),
+			{ok, [m3ua_asp | Tables]};
 		{aborted, {not_active, _, Node} = Reason} ->
 			error_logger:error_report(["Mnesia not started on node",
 					{node, Node}]),
 			{error, Reason};
-		{aborted, {already_exists, asp}} ->
-			error_logger:info_msg("Found existing asp table.~n"),
-			{ok, [asp | Tables]};
+		{aborted, {already_exists, m3ua_asp}} ->
+			error_logger:info_msg("Found existing m3ua_asp table.~n"),
+			{ok, [m3ua_asp | Tables]};
 		{aborted, Reason} ->
 			error_logger:error_report([mnesia:error_description(Reason),
 				{error, Reason}]),

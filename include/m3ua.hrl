@@ -125,7 +125,7 @@
 		status :: undefined | atom(),
 		rc :: undefined | integer()}).
 
--record(m3ua_asp,
+-record(m3ua_as_asp,
 		{id :: undefined | pos_integer(),
 		fsm :: pid(),
 		rc :: undefined | integer(),
@@ -138,9 +138,9 @@
 		min_asp = 1 :: pos_integer(),
 		max_asp :: undefined | pos_integer(),
 		state = down :: down | inactive | active | pending,
-		asp = [] :: [#m3ua_asp{}]}).
+		asp = [] :: [#m3ua_as_asp{}]}).
 
--record(asp,
+-record(m3ua_asp,
 		{fsm :: pid(),
 		rc :: undefined | integer(),
 		rk :: routing_key()}).
