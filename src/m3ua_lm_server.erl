@@ -911,7 +911,7 @@ reg_result([#registration_result{status = registered, rc = RC} | []],
 				[] ->
 					M3UAAsps = [#m3ua_as_asp{fsm  = Asp, rc = RC, state = inactive}],
 					M3UAAS = #m3ua_as{routing_key = RK, name = AS, asp = M3UAAsps},
-					ASP = #m3ua_asp{fsm = Asp, rk = RK},
+					ASP = #m3ua_asp{fsm = Asp, rc = RC, rk = RK},
 					ok = mnesia:write(M3UAAS),
 					ok = mnesia:write(m3ua_asp, ASP, write);
 				[#m3ua_as{asp = ExAsps} = ExAS] ->

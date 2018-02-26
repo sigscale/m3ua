@@ -656,9 +656,10 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
-	case find_rk() of
+	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
+	case find_rk(self(), RC) of
 		{ok, RK} ->
-			Parameters = m3ua_codec:parameters(Params),
 			#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 					m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
 			{ok, NewState} = CbMod:transfer(self(), EP, Assoc, Stream,
@@ -672,9 +673,10 @@ handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
-	case find_rk() of
+	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
+	case find_rk(self(), RC) of
 		{ok, RK} ->
-			Parameters = m3ua_codec:parameters(Params),
 			APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 			{ok, NewState} = CbMod:pause(self(), EP, Assoc, Stream, RK, APCs, State),
 			NewStateData = StateData#statedata{callback = {CbMod, NewState}},
@@ -686,9 +688,10 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
-	case find_rk() of
+	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
+	case find_rk(self(), RC) of
 		{ok, RK} ->
-			Parameters = m3ua_codec:parameters(Params),
 			APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 			{ok, NewState} = CbMod:resume(self(), EP, Assoc, Stream, RK, APCs, State),
 			NewStateData = StateData#statedata{callback = {CbMod, NewState}},
@@ -700,9 +703,10 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = {CbMod, State},
 		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
-	case find_rk() of
+	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
+	case find_rk(self(), RC) of
 		{ok, RK} ->
-			Parameters = m3ua_codec:parameters(Params),
 			APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 			{ok, NewState} = CbMod:status(self(), EP, Assoc, Stream, RK, APCs, State),
 			NewStateData = StateData#statedata{callback = {CbMod, NewState}},
@@ -713,13 +717,20 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 	end.
 
 %% @hidden
-find_rk() ->
+find_rk(Key, RC) ->
 	F = fun() ->
-		case mnesia:read(m3ua_asp, self(), read) of
+		case mnesia:read(m3ua_asp, Key, read) of
 			[] ->
 				not_found;
-			[#m3ua_asp{rk = RK}] ->
-				RK
+			[#m3ua_asp{rk = RK}] when RC == undefined ->
+				RK;
+			Sgps ->
+				case lists:keyfind(RC, #m3ua_asp.rc, Sgps) of
+					#m3ua_asp{rk = RK} ->
+						RK;
+					false ->
+						not_found
+				end
 		end
 	end,
 	case mnesia:transaction(F) of
