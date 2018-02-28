@@ -122,6 +122,24 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
+%%%  <h3 class="function"><a name="register-7">register/7</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>register(Sgp, EP, Assoc, NA, Keys, TMT, State) -&gt; Result </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Sgp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>NA = pos_integer()</tt></li>
+%%%    <li><tt>Keys = [key()]</tt></li>
+%%%    <li><tt>TMT = tmt()</tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
+%%%  </ul></p>
+%%%  </div><p>Called when successfully processed an
+%%%   incoming Registration Request message </p>
+%%%
 %%%  <h3 class="function"><a name="asp_up-4">asp_up/4</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>asp_up(Sgp, EP, Assoc, State) -&gt; Result </tt>
@@ -266,6 +284,18 @@
 		RK :: routing_key(),
 		DPCs :: [DPC],
 		DPC :: pos_integer(),
+		State :: term(),
+		Result :: {ok, NewState} | {error, Reason},
+		NewState :: term(),
+		Reason :: term().
+-callback register(Sgp, EP, Assoc, NA, Keys, TMT, State) -> Result
+	when
+		Sgp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		NA :: pos_integer(),
+		Keys :: [key()],
+		TMT :: tmt(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -474,7 +504,8 @@ handle_event({'NTFY', NotifyFor, _RC}, StateName,
 handle_event({Indication,  State}, StateName,
 		#statedata{callback = {CbMod, _}} = StateData)
 		when Indication == 'M-ASP_UP'; Indication == 'M-ASP_DOWN';
-		Indication == 'M-ASP_ACTIVE'; Indication == 'M-ASP_INACTIVE' ->
+		Indication == 'M-ASP_ACTIVE'; Indication == 'M-ASP_INACTIVE';
+		Indication == 'M-RK_REG' ->
 	NewStateData = StateData#statedata{callback = {CbMod, State}},
 	{next_state, StateName, NewStateData};
 handle_event(_Event, _StateName, StateData) ->
@@ -622,8 +653,10 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 			{stop, Reason, StateData}
 	end;
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
-		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	gen_server:cast(m3ua_lm_server, {'M-RK_REG', self(), Socket, Assoc, Msg}),
+		inactive, _Stream, #statedata{socket = Socket, ep = EP,
+		assoc = Assoc, callback = {CbMod, State}} = StateData) ->
+	gen_server:cast(m3ua_lm_server,
+			{'M-RK_REG', Socket, EP, Assoc, self(), Msg, CbMod, State}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
