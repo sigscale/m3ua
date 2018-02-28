@@ -1,5 +1,5 @@
 {application, %APP_NAME%,
-	[{description, "M3UA protocol stack"},
+	[{description, "SigScale SIGTRAN M3UA"},
 		{vsn, "%APP_VERSION%"},
 		{modules,
 				[m3ua,
