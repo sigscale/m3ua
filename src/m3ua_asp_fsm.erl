@@ -27,6 +27,20 @@
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
+%%%  <h3 class="function"><a name="init-3">init/3</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>init(Asp, EP, Assoc) -&gt; Result </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, State} | {error, Reason} </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
+%%%  </ul></p>
+%%%  </div><p>Initialize ASP callback handler.</p>
+%%%  <p>Called when ASP is started.</p>
+%%%
 %%%  <h3 class="function"><a name="transfer-11">transfer/11</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>transfer(Asp, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State)
@@ -197,6 +211,14 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
+-callback init(Asp, EP, Assoc) -> Result
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		Result :: {ok, State} | {error, Reason},
+		State :: term(),
+		Reason :: term().
 -callback transfer(Asp, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Asp :: pid(),
@@ -324,13 +346,18 @@ init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, CbMod]) ->
-	process_flag(trap_exit, true),
-	Statedata = #statedata{sctp_role = SctpRole,
-			socket = Socket, assoc = Assoc,
-			peer_addr = Address, peer_port = Port,
-			in_streams = InStreams, out_streams = OutStreams,
-			ep = EP, callback = CbMod},
-	{ok, down, Statedata}.
+	case CbMod:init(self(), EP, Assoc) of
+		{ok, CbState} ->
+			process_flag(trap_exit, true),
+			Statedata = #statedata{sctp_role = SctpRole,
+					socket = Socket, assoc = Assoc,
+					peer_addr = Address, peer_port = Port,
+					in_streams = InStreams, out_streams = OutStreams,
+					ep = EP, callback = {CbMod, CbState}},
+			{ok, down, Statedata};
+		{error, Reason} ->
+			{stop, Reason}
+	end.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
