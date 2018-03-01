@@ -51,7 +51,7 @@
 
 -spec open(Callback) -> Result
 	when
-		Callback :: false | atom() | #m3ua_fsm_cb{},
+		Callback :: atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
@@ -63,7 +63,7 @@ open(Callback) ->
 	when
 		Port :: inet:port_number(),
 		Options :: [options()],
-		Callback :: false | atom() | #m3ua_fsm_cb{},
+		Callback :: atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().

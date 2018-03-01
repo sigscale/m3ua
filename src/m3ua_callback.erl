@@ -174,12 +174,10 @@ asp_inactive(_Fsm, _EP, _Assoc, State) ->
 -spec cb(Handler, Cb, Args) -> Result
 	when
 		Handler :: atom(),
-		Cb :: false | atom() | #m3ua_fsm_cb{},
+		Cb :: atom() | #m3ua_fsm_cb{},
 		Args :: [term()],
 		Result :: term().
 %% @private
-cb(Handler, false, Args) ->
-	apply(?MODULE, Handler, Args);
 cb(Handler, Cb, Args) when is_atom(Cb) ->
 	apply(Cb, Handler, Args);
 cb(init, #m3ua_fsm_cb{init = false}, Args) ->
