@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua public API
--export([open/0, open/2, close/1]).
+-export([open/1, open/3, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
@@ -32,11 +32,10 @@
 -export([transfer/8]).
 
 %% export the m3ua private API
--export([sort/1]).
+-export([sort/1, cb/3]).
 
 -type options() :: {sctp_role, client | server}
 						| {m3ua_role, sgp | asp}
-						| {callback, {Module :: atom(), State :: term()}}
 						| {ip, inet:ip_address()}
 						| {ifaddr, inet:ip_address()}
 						| {port, inet:port_number()}
@@ -50,19 +49,21 @@
 %%  The m3ua public API
 %%----------------------------------------------------------------------
 
--spec open() -> Result
+-spec open(Callback) -> Result
 	when
+		Callback :: atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
 %% @equiv open(0, [])
-open() ->
-	open(0, []).
+open(Callback) ->
+	open(0, [], Callback).
 
--spec open(Port, Options) -> Result
+-spec open(Port, Options, Callback) -> Result
 	when
 		Port :: inet:port_number(),
 		Options :: [options()],
+		Callback :: atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
@@ -71,8 +72,9 @@ open() ->
 %% 	Default options create an endpoint for an M3UA
 %% 	Application Server Process (ASP) in client mode.
 %%
-open(Port, Options) when is_integer(Port), is_list(Options) ->
-	m3ua_lm_server:open([{port, Port} | Options]).
+open(Port, Options, Callback) when is_integer(Port), is_list(Options),
+		(is_atom(Callback) orelse is_tuple(Callback)) ->
+	m3ua_lm_server:open([{port, Port} | Options], Callback).
 
 -spec close(EndPoint:: pid()) -> ok | {error, Reason :: term()}.
 %% @doc Close a previously opened endpoint.
@@ -381,6 +383,35 @@ sort([{DPC, SIs, OPCs} | T], Acc) when is_integer(DPC) ->
 sort([], Acc) ->
 	lists:sort(Acc).
 
+-spec cb(Handler, Cb, Args) -> Result
+	when
+		Handler :: atom(),
+		Cb :: atom() | #m3ua_fsm_cb{},
+		Args :: [term()],
+		Result :: term().
+%% @private
+cb(Handler, Cb, Args) when is_atom(Cb) ->
+	apply(Cb, Handler, Args);
+cb(init, #m3ua_fsm_cb{init = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(transfer, #m3ua_fsm_cb{transfer = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(pause, #m3ua_fsm_cb{pause = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(resume, #m3ua_fsm_cb{resume = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(status, #m3ua_fsm_cb{status = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(register, #m3ua_fsm_cb{register = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(asp_up, #m3ua_fsm_cb{asp_up = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(asp_down , #m3ua_fsm_cb{asp_down = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(asp_active, #m3ua_fsm_cb{asp_active = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(asp_inactive, #m3ua_fsm_cb{asp_inactive = F, extra = E}, Args) ->
+	apply(F, Args ++ E).
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------

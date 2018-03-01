@@ -24,7 +24,7 @@
 -behaviour(gen_server).
 
 %% export the m3ua_lm_server API
--export([open/1, close/1]).
+-export([open/2, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([register/6]).
 -export([as_add/6, as_delete/1]).
@@ -50,11 +50,17 @@
 %%  The m3ua_lm_server API
 %%----------------------------------------------------------------------
 
--spec open(Args :: [term()]) -> {ok, EP :: pid()} | {error, Reason :: term()}.
+-spec open(Args, Callback) -> Result 
+	when
+		Args :: [term()],
+		Callback :: atom() | #m3ua_fsm_cb{},
+		Result :: {ok, EP} | {error, Reason},
+		EP :: pid(),
+		Reason :: term().
 %% @doc Open a new server end point (`EP').
 %% @private
-open(Args) when is_list(Args) ->
-	gen_server:call(?MODULE, {open, Args}).
+open(Args, Callback) when is_list(Args) ->
+	gen_server:call(?MODULE, {open, Args, Callback}).
 
 -spec close(EP :: pid()) -> ok | {error, Reason :: term()}.
 %% @doc Close a previously opened end point (`EP').
@@ -279,9 +285,9 @@ init([Sup] = _Args) when is_pid(Sup) ->
 handle_call(Request, From, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
 	handle_call(Request, From, NewState);
-handle_call({open, Args}, {USAP, _Tag} = _From,
+handle_call({open, Args, Callback}, {USAP, _Tag} = _From,
 		#state{ep_sup_sup = EPSupSup, eps = EndPoints} = State) ->
-	case supervisor:start_child(EPSupSup, [Args]) of
+	case supervisor:start_child(EPSupSup, [[Callback, Args]]) of
 		{ok, EndPointSup} ->
 			Children = supervisor:which_children(EndPointSup),
 			{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server,
@@ -436,7 +442,8 @@ handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, ok),
-			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
+			CbArgs = [Asp, EP, Assoc, UState],
+			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -477,7 +484,8 @@ handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, Result),
-			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
+			CbArgs = [Asp, EP, Assoc, UState],
+			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -523,7 +531,8 @@ handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifie
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, Result),
-			{ok, NewUState} = apply(CbMod, cb_func(AspOp), [Asp, EP, Assoc, UState]),
+			CbArgs = [Asp, EP, Assoc, UState],
+			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -657,7 +666,8 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 	end,
 	case mnesia:transaction(F) of
 		{atomic, _} ->
-			{ok, NewUState} = apply(CbMod, cb_func(TrafficMaintIndication), [Sgp, EP, Assoc, UState]),
+			CbArgs = [Sgp, EP, Assoc, UState],
+			{ok, NewUState} = m3ua:cb(cb_func(TrafficMaintIndication), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaintIndication, NewUState}),
 			{noreply, State};
 		{aborted, _Reason} ->
@@ -703,7 +713,8 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 	end,
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
-			{ok, NewUState} = apply(CbMod, cb_func(StateMainIndication), [Sgp, EP, Assoc, UState]),
+			CbArgs = [Sgp, EP, Assoc, UState],
+			{ok, NewUState} = m3ua:cb(cb_func(StateMainIndication), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
 			{noreply, State};
 		{aborted, Reason} ->
@@ -832,8 +843,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 			ok = mnesia:write(Asp1),
 			Registered1 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC},
 			RegisteredMsg1 = [{?RegistrationResult, Registered1}],
-			{ok, NewUState} = apply(CbMod, cb_func(AspOp),
-					[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState]),
+			CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
+			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 			{RegisteredMsg1, inactive};
 		[] ->
@@ -846,8 +857,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					mnesia:write(Asp2),
 					Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 					RegisteredMsg2 = [{?RegistrationResult, Registered2}],
-					{ok, NewUState} = apply(CbMod, cb_func(AspOp),
-							[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState]),
+					CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
+					{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 					ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 					{RegisteredMsg2, inactive};
 				RegAsps ->
@@ -862,8 +873,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 									mnesia:write(Asp3),
 									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
-									{ok, NewUState} = apply(CbMod, cb_func(AspOp),
-											[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState]),
+									CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
+									{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 									ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 									{RegisteredMsg2, inactive};
 								[#m3ua_as{state = State} = ExAS] ->
@@ -874,8 +885,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 									mnesia:write(Asp3),
 									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
-									{ok, NewUState} = apply(CbMod, cb_func(AspOp),
-											[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState]),
+									CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
+									{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 									ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 									{RegisteredMsg2, State}
 							end;
@@ -887,8 +898,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 							mnesia:write(Asp4),
 							Registered3 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 							RegisteredMsg3 = [{?RegistrationResult, Registered3}],
-							{ok, NewUState} = apply(CbMod, cb_func(AspOp),
-									[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState]),
+							CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
+							{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 							ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 							{RegisteredMsg3, inactive}
 					end
@@ -922,8 +933,8 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					mnesia:write(Asp5),
 					Registered4 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC1},
 					RegisteredMsg4 = [{?RegistrationResult, Registered4}],
-					{ok, NewUState} = apply(CbMod, cb_func(AspOp),
-							[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState]),
+					CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
+					{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
 					ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 					{RegisteredMsg4, NewAsState}
 			end
@@ -961,8 +972,8 @@ reg_result([#registration_result{status = registered, rc = RC} | []],
 			gen_server:reply(From, Result),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
-			{ok, NewUState} = apply(CbMod, register,
-					[Asp, EP, Assoc, NA, Keys, TMT, UState]),
+			CbArgs =	[Asp, EP, Assoc, NA, Keys, TMT, UState],
+			{ok, NewUState} = m3ua:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewUState}),
 			{noreply, NewState};
 		none ->

@@ -145,3 +145,15 @@
 		rc :: undefined | integer(),
 		rk :: routing_key()}).
 
+-record(m3ua_fsm_cb,
+		{init :: fun(),
+		transfer :: fun(),
+		pause :: fun(),
+		resume :: fun(),
+		status :: fun(),
+		register :: fun(),
+		asp_up :: fun(),
+		asp_down :: fun(),
+		asp_active :: fun(),
+		asp_inactive :: fun(),
+		extra = [] :: [Args :: term()]}).

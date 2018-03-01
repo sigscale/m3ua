@@ -19,7 +19,8 @@
 
 -behaviour(m3ua_sgp_fsm).
 
--export([transfer/11, pause/7, resume/7, status/7]).
+-export([init/3, transfer/11, pause/7, resume/7, status/7,
+		register/7]).
 -export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
 
 %%----------------------------------------------------------------------
@@ -29,6 +30,8 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm callback 
 %%----------------------------------------------------------------------
+init(Asp, EP, _Assoc) ->
+	{ok, []}.
 
 transfer(Sgp, _EP, Assoc, Stream, _RK, OPC, DPC, SLS, SIO, Data, State) ->
 	Args = [Sgp, Assoc, Stream, DPC, OPC, SLS, SIO, Data],
@@ -44,19 +47,22 @@ resume(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 status(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
+register(_Asp, _EP, _Assoc, _NA, _Keys, _TMT, State) ->
+	{ok, State}.
+
 asp_up(_Sgp, _EP, _Assoc, State) ->
-	State ! {sgp, asp_up, indication},
+%	State ! {sgp, asp_up, indication},
 	{ok, State}.
 
 asp_down(_Sgp, _EP, _Assoc, State) ->
-	State ! {sgp, asp_down, indication},
+%	State ! {sgp, asp_down, indication},
 	{ok, State}.
 
 asp_active(_Sgp, _EP, _Assoc, State) ->
-	State ! {sgp, asp_active, indication},
+%	State ! {sgp, asp_active, indication},
 	{ok, State}.
 
 asp_inactive(_Sgp, _EP, _Assoc, State) ->
-	State ! {sgp, asp_inactive, indication},
+%	State ! {sgp, asp_inactive, indication},
 	{ok, State}.
 

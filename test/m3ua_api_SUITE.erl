@@ -93,7 +93,7 @@ open() ->
 	[{userdata, [{doc, "Open an SCTP endpoint."}]}].
 
 open(_Config) ->
-	{ok, EP} = m3ua:open(),
+	{ok, EP} = m3ua:open(#m3ua_fsm_cb{}),
 	true = is_process_alive(EP),
 	m3ua:close(EP).
 
@@ -101,7 +101,7 @@ close() ->
 	[{userdata, [{doc, "Close an SCTP endpoint."}]}].
 
 close(_Config) ->
-	{ok, EP} = m3ua:open(),
+	{ok, EP} = m3ua:open(#m3ua_fsm_cb{}),
 	true = is_process_alive(EP),
 	ok = m3ua:close(EP),
 	false = is_process_alive(EP).
@@ -110,7 +110,7 @@ listen() ->
 	[{userdata, [{doc, "Open an SCTP server endpoint."}]}].
 
 listen(_Config) ->
-	{ok, EP} = m3ua:open(0, [{sctp_role, server}]),
+	{ok, EP} = m3ua:open(0, [{sctp_role, server}], #m3ua_fsm_cb{}),
 	true = is_process_alive(EP),
 	ok = m3ua:close(EP),
 	false = is_process_alive(EP).
@@ -120,8 +120,8 @@ connect() ->
 
 connect(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	true = is_integer(Assoc).
 
@@ -130,8 +130,8 @@ release() ->
 
 release(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:sctp_release(ClientEP, Assoc).
 
@@ -140,9 +140,9 @@ asp_up() ->
 
 asp_up(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
-			{callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}],
+			demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc).
 
@@ -151,9 +151,9 @@ asp_down() ->
 
 asp_down(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
-			{callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}],
+			demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	ok = m3ua:asp_down(ClientEP, Assoc).
@@ -162,7 +162,7 @@ getstat_ep() ->
 	[{userdata, [{doc, "Get SCTP option statistics for an endpoint."}]}].
 
 getstat_ep(_Config) ->
-	{ok, EP} = m3ua:open(),
+	{ok, EP} = m3ua:open(demo_as),
 	{ok, OptionValues} = m3ua:getstat_endpoint(EP),
 	F = fun({Option, Value}) when is_atom(Option), is_integer(Value) ->
 				true;
@@ -177,8 +177,8 @@ getstat_assoc() ->
 
 getstat_assoc(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, ServerEP} = m3ua:open(Port, [{sctp_role, server}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, ServerEP} = m3ua:open(Port, [{sctp_role, server}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	{ok, OptionValues} = m3ua:getstat_association(ClientEP, Assoc),
 	F = fun({Option, Value}) when is_atom(Option), is_integer(Value) ->
@@ -195,9 +195,9 @@ register() ->
 
 register(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
-			{callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}],
+			demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [7,8], []}],
@@ -210,9 +210,9 @@ asp_active() ->
 
 asp_active(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
-			{callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, _ServerEP} = m3ua:open(Port,
+			[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -225,9 +225,9 @@ asp_inactive_to_down() ->
 
 asp_inactive_to_down(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
-			{callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, _ServerEP} = m3ua:open(Port,
+			[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	ok = m3ua:asp_down(ClientEP, Assoc).
@@ -237,9 +237,9 @@ asp_active_to_down() ->
 
 asp_active_to_down(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
-			{callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, _ServerEP} = m3ua:open(Port,
+			[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -253,9 +253,8 @@ asp_active_to_inactive() ->
 
 asp_active_to_inactive(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp},
-			{callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -268,8 +267,9 @@ get_sctp_status() ->
 	[{userdata, [{doc, "Get SCTP status of an association"}]}].
 get_sctp_status(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}]),
-	{ok, ClientEP} = m3ua:open(),
+	{ok, _ServerEP} = m3ua:open(Port,
+			[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	{ok, #sctp_status{assoc_id = AssocId}} = m3ua:sctp_status(ClientEP, Assoc).
 
@@ -362,8 +362,8 @@ asp_down_indication() ->
 asp_down_indication(_Config) ->
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}]),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -393,7 +393,7 @@ as_state_change_traffic_maintenance(_Config) ->
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
 	Path1 = filename:dirname(code:which(m3ua)),
 	Path2 = filename:dirname(code:which(demo_as)),
 	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
@@ -402,9 +402,9 @@ as_state_change_traffic_maintenance(_Config) ->
 	{ok, AsNode} = slave:start_link(Host, Node, ErlFlags),
 	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
 	ok = rpc:call(AsNode, application, start, [m3ua]),
-	{ok, ClientEP1} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
-	{ok, ClientEP2} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
-	{ok, ClientEP3} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
+	{ok, ClientEP1} = rpc:call(AsNode, m3ua, open, [demo_as]),
+	{ok, ClientEP2} = rpc:call(AsNode, m3ua, open, [demo_as]),
+	{ok, ClientEP3} = rpc:call(AsNode, m3ua, open, [demo_as]),
 	{ok, Assoc1} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP1, {127,0,0,1}, Port, []]),
 	{ok, Assoc2} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP2, {127,0,0,1}, Port, []]),
 	{ok, Assoc3} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP3, {127,0,0,1}, Port, []]),
@@ -489,7 +489,7 @@ as_state_active(_Config) ->
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
 	Path1 = filename:dirname(code:which(m3ua)),
 	Path2 = filename:dirname(code:which(demo_as)),
 	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
@@ -498,9 +498,9 @@ as_state_active(_Config) ->
 	{ok, AsNode} = slave:start_link(Host, Node, ErlFlags),
 	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
 	ok = rpc:call(AsNode, application, start, [m3ua]),
-	{ok, ClientEP1} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
-	{ok, ClientEP2} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
-	{ok, ClientEP3} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
+	{ok, ClientEP1} = rpc:call(AsNode, m3ua, open, [demo_as]),
+	{ok, ClientEP2} = rpc:call(AsNode, m3ua, open, [demo_as]),
+	{ok, ClientEP3} = rpc:call(AsNode, m3ua, open, [demo_as]),
 	{ok, Assoc1} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP1, {127,0,0,1}, Port, []]),
 	{ok, Assoc2} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP2, {127,0,0,1}, Port, []]),
 	{ok, Assoc3} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP3, {127,0,0,1}, Port, []]),
@@ -558,7 +558,7 @@ as_state_inactive(_Config) ->
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
 	Path1 = filename:dirname(code:which(m3ua)),
 	Path2 = filename:dirname(code:which(demo_as)),
 	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
@@ -567,9 +567,9 @@ as_state_inactive(_Config) ->
 	{ok, AsNode} = slave:start_link(Host, Node, ErlFlags),
 	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
 	ok = rpc:call(AsNode, application, start, [m3ua]),
-	{ok, ClientEP1} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
-	{ok, ClientEP2} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
-	{ok, ClientEP3} = rpc:call(AsNode, m3ua, open, [0, [{callback, {demo_as, self()}}]]),
+	{ok, ClientEP1} = rpc:call(AsNode, m3ua, open, [demo_as]),
+	{ok, ClientEP2} = rpc:call(AsNode, m3ua, open, [demo_as]),
+	{ok, ClientEP3} = rpc:call(AsNode, m3ua, open, [demo_as]),
 	{ok, Assoc1} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP1, {127,0,0,1}, Port, []]),
 	{ok, Assoc2} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP2, {127,0,0,1}, Port, []]),
 	{ok, Assoc3} = rpc:call(AsNode, m3ua, sctp_establish, [ClientEP3, {127,0,0,1}, Port, []]),
@@ -636,11 +636,11 @@ as_side_state_changes_1(_Config) ->
 	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
 	ok = rpc:call(SgNode, application, start, [m3ua]),
 	{ok, _ServerEP} = rpc:call(SgNode, m3ua, open, [Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]]),
+		[{sctp_role, server}, {m3ua_role, sgp}], demo_sg]),
 	{ok, _AS} = rpc:call(SgNode, m3ua, as_add, [undefined, NA, Keys, Mode, MinAsps, MaxAsps]),
-	{ok, ClientEP1} = m3ua:open(0, [{callback, {demo_as, self()}}]),
-	{ok, ClientEP2} = m3ua:open(0, [{callback, {demo_as, self()}}]),
-	{ok, ClientEP3} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, ClientEP1} = m3ua:open(demo_as),
+	{ok, ClientEP2} = m3ua:open(demo_as),
+	{ok, ClientEP3} = m3ua:open(demo_as),
 	{ok, Assoc1} = m3ua:sctp_establish(ClientEP1, {127,0,0,1}, Port, []),
 	{ok, Assoc2} = m3ua:sctp_establish(ClientEP2, {127,0,0,1}, Port, []),
 	{ok, Assoc3} = m3ua:sctp_establish(ClientEP3, {127,0,0,1}, Port, []),
@@ -713,11 +713,11 @@ as_side_state_changes_2(_Config) ->
 	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
 	ok = rpc:call(SgNode, application, start, [m3ua]),
 	{ok, _ServerEP} = rpc:call(SgNode, m3ua, open, [Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]]),
+		[{sctp_role, server}, {m3ua_role, sgp}], demo_sg]),
 	{ok, _AS} = rpc:call(SgNode, m3ua, as_add, [undefined, NA, Keys, Mode, MinAsps, MaxAsps]),
-	{ok, ClientEP1} = m3ua:open(0, [{callback, {demo_as, self()}}]),
-	{ok, ClientEP2} = m3ua:open(0, [{callback, {demo_as, self()}}]),
-	{ok, ClientEP3} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+	{ok, ClientEP1} = m3ua:open(demo_as),
+	{ok, ClientEP2} = m3ua:open(demo_as),
+	{ok, ClientEP3} = m3ua:open(demo_as),
 	{ok, Assoc1} = m3ua:sctp_establish(ClientEP1, {127,0,0,1}, Port, []),
 	{ok, Assoc2} = m3ua:sctp_establish(ClientEP2, {127,0,0,1}, Port, []),
 	{ok, Assoc3} = m3ua:sctp_establish(ClientEP3, {127,0,0,1}, Port, []),
