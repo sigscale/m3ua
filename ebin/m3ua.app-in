@@ -5,8 +5,6 @@
 				[m3ua,
 				m3ua_app,
 				m3ua_sup,
-				m3ua_sap_sup,
-				m3ua_sap_server,
 				m3ua_endpoint_sup_sup,
 				m3ua_endpoint_sup,
 				m3ua_endpoint_server,
