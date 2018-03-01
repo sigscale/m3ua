@@ -122,6 +122,24 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
+%%%  <h3 class="function"><a name="register-7">register/7</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>register(Asp, EP, Assoc, NA, Keys, TMT, State) -&gt; Result </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>NA = pos_integer()</tt></li>
+%%%    <li><tt>Keys = [key()]</tt></li>
+%%%    <li><tt>TMT = tmt()</tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
+%%%  </ul></p>
+%%%  </div><p>Called when Registration Response message with a
+%%%   registration status of successful from its peer</p>
+%%%
 %%%  <h3 class="function"><a name="asp_up-4">asp_up/4</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>asp_up(Asp, EP, Assoc, State) -&gt; Result </tt>
@@ -270,6 +288,18 @@
 		DPCs :: [DPC],
 		RK :: routing_key(),
 		DPC :: pos_integer(),
+		State :: term(),
+		Result :: {ok, NewState} | {error, Reason},
+		NewState :: term(),
+		Reason :: term().
+-callback register(Asp, EP, Assoc, NA, Keys, TMT, State) -> Result
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		NA :: pos_integer(),
+		Keys :: [key()],
+		TMT :: tmt(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -706,9 +736,12 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP} = Msg, inactive,
-		_Stream, #statedata{socket = Socket, req ={'M-RK_REG', request, Ref, From,
-		#m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}}} = StateData) ->
-	gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(), Msg, NA, Keys, TMT, AS}),
+		_Stream, #statedata{socket = Socket, req ={'M-RK_REG', request, Ref,
+		From, #m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}},
+		callback = {CbMod, UState}, ep = EP, assoc = Assoc} = StateData) ->
+	gen_server:cast(From,
+			{'M-RK_REG', confirm, Ref, self(),
+			Msg, NA, Keys, TMT, AS, EP, Assoc, CbMod, UState}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
