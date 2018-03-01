@@ -378,7 +378,7 @@ init([SctpRole, Socket, Address, Port,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, Cb]) ->
 	Args = [self(), EP, Assoc],
-	case m3ua:cb(init, Cb, Args) of
+	case m3ua_callback:cb(init, Cb, Args) of
 		{ok, CbState} ->
 			process_flag(trap_exit, true),
 			Statedata = #statedata{sctp_role = SctpRole,
@@ -787,7 +787,7 @@ handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
 	Args = [self(), EP, Assoc, Stream, undefined, OPC, DPC, SLS, SIO, Data, State],
-	{ok, NewState} = m3ua:cb(transfer, CbMod, Args),
+	{ok, NewState} = m3ua_callback:cb(transfer, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
@@ -796,7 +796,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	Args = [self(), EP, Assoc, Stream, undefined, APCs, State],
-	{ok, NewState} = m3ua:cb(pause, CbMod, Args),
+	{ok, NewState} = m3ua_callback:cb(pause, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, NewStateData};
@@ -806,7 +806,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	Args = [self(), EP, Assoc, Stream, undefined, APCs, State],
-	{ok, NewState} = m3ua:cb(resume, CbMod, Args),
+	{ok, NewState} = m3ua_callback:cb(resume, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
@@ -816,7 +816,7 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 	Parameters = m3ua_codec:parameters(Params),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	Args = [self(), EP, Assoc, Stream, undefined, APCs, State],
-	{ok, NewState} = m3ua:cb(status, CbMod, Args),
+	{ok, NewState} = m3ua_callback:cb(status, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.

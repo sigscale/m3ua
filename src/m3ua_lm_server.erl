@@ -443,7 +443,7 @@ handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 		{value, From} ->
 			gen_server:reply(From, ok),
 			CbArgs = [Asp, EP, Assoc, UState],
-			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+			{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -485,7 +485,7 @@ handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 		{value, From} ->
 			gen_server:reply(From, Result),
 			CbArgs = [Asp, EP, Assoc, UState],
-			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+			{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -532,7 +532,7 @@ handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifie
 		{value, From} ->
 			gen_server:reply(From, Result),
 			CbArgs = [Asp, EP, Assoc, UState],
-			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+			{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewUState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -667,7 +667,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 	case mnesia:transaction(F) of
 		{atomic, _} ->
 			CbArgs = [Sgp, EP, Assoc, UState],
-			{ok, NewUState} = m3ua:cb(cb_func(TrafficMaintIndication), CbMod, CbArgs),
+			{ok, NewUState} = m3ua_callback:cb(cb_func(TrafficMaintIndication), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaintIndication, NewUState}),
 			{noreply, State};
 		{aborted, _Reason} ->
@@ -714,7 +714,7 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
 			CbArgs = [Sgp, EP, Assoc, UState],
-			{ok, NewUState} = m3ua:cb(cb_func(StateMainIndication), CbMod, CbArgs),
+			{ok, NewUState} = m3ua_callback:cb(cb_func(StateMainIndication), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
 			{noreply, State};
 		{aborted, Reason} ->
@@ -844,7 +844,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 			Registered1 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC},
 			RegisteredMsg1 = [{?RegistrationResult, Registered1}],
 			CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-			{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+			{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 			{RegisteredMsg1, inactive};
 		[] ->
@@ -858,7 +858,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 					RegisteredMsg2 = [{?RegistrationResult, Registered2}],
 					CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-					{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+					{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 					ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 					{RegisteredMsg2, inactive};
 				RegAsps ->
@@ -874,7 +874,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
 									CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-									{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+									{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 									ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 									{RegisteredMsg2, inactive};
 								[#m3ua_as{state = State} = ExAS] ->
@@ -886,7 +886,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
 									CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-									{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+									{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 									ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 									{RegisteredMsg2, State}
 							end;
@@ -899,7 +899,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 							Registered3 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
 							RegisteredMsg3 = [{?RegistrationResult, Registered3}],
 							CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-							{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+							{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 							ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 							{RegisteredMsg3, inactive}
 					end
@@ -934,7 +934,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					Registered4 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC1},
 					RegisteredMsg4 = [{?RegistrationResult, Registered4}],
 					CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-					{ok, NewUState} = m3ua:cb(cb_func(AspOp), CbMod, CbArgs),
+					{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
 					ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
 					{RegisteredMsg4, NewAsState}
 			end
@@ -973,7 +973,7 @@ reg_result([#registration_result{status = registered, rc = RC} | []],
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			CbArgs =	[Asp, EP, Assoc, NA, Keys, TMT, UState],
-			{ok, NewUState} = m3ua:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
+			{ok, NewUState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewUState}),
 			{noreply, NewState};
 		none ->

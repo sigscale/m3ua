@@ -253,7 +253,9 @@ asp_active_to_inactive() ->
 
 asp_active_to_inactive(_Config) ->
 	Port = rand:uniform(66559) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
+	{ok, _ServerEP} = m3ua:open(Port,
+			[{sctp_role, server}, {m3ua_role, sgp}],
+			demo_sg),
 	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
@@ -276,10 +278,26 @@ get_sctp_status(_Config) ->
 mtp_transfer() ->
 	[{userdata, [{doc, "Send MTP Transfer Message"}]}].
 mtp_transfer(_Config) ->
+	Active = fun(ASP, _, _, _, Pid) ->
+		Pid ! {asp, active, ASP},
+		{ok, []}
+	end,
+	SgpTransfer = fun(SGP, _, ASSOC, STREAM, _, OPC1, DPC1, SLS1, SIO1, Data1, _) ->
+			Args = [SGP, ASSOC, STREAM, DPC1, OPC1, SLS1, SIO1, Data1],
+			proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
+		{ok, []}
+	end,
+	AspTransfer = fun(_, _, _, STREAM1, _, OPC1, DPC1, SLS1, SIO1, Data1, _, Pid) ->
+		Pid ! {asp, transfer, {STREAM1, OPC1, DPC1, SLS1, SIO1, Data1}},
+		{ok, []}
+	end,
+
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}],
+		#m3ua_fsm_cb{transfer = SgpTransfer}),
+	{ok, ClientEP} = m3ua:open(#m3ua_fsm_cb{asp_active = Active,
+			transfer = AspTransfer, extra = [self()]}),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -306,10 +324,15 @@ asp_up_indication() ->
 	[{userdata, [{doc, "Received M-ASP_UP indication"}]}].
 
 asp_up_indication(_Config) ->
+	F = fun(_, _, _, _, Pid) ->
+		Pid ! {sgp, asp_up, indication},
+		{ok, []}
+	end,
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}],
+		#m3ua_fsm_cb{asp_up = F, extra = [self()]}),
+	{ok, ClientEP} = m3ua:open(false),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	receive
@@ -321,10 +344,15 @@ asp_active_indication() ->
 	[{userdata, [{doc, "Received M-ASP_ACTIVE indication"}]}].
 
 asp_active_indication(_Config) ->
+	F = fun(_, _, _, _, Pid) ->
+		Pid ! {sgp, asp_active, indication},
+		{ok, []}
+	end,
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}],
+		#m3ua_fsm_cb{asp_active = F, extra = [self()]}),
+	{ok, ClientEP} = m3ua:open(false),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -340,10 +368,15 @@ asp_inactive_indication() ->
 	[{userdata, [{doc, "Received M-ASP_INACTIVE indication"}]}].
 
 asp_inactive_indication(_Config) ->
+	F = fun(_, _, _, _, Pid) ->
+		Pid ! {sgp, asp_inactive, indication},
+		{ok, []}
+	end,
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}, {callback, {demo_sg, self()}}]),
-	{ok, ClientEP} = m3ua:open(0, [{callback, {demo_as, self()}}]),
+		[{sctp_role, server}, {m3ua_role, sgp}],
+		#m3ua_fsm_cb{asp_inactive = F, extra = [self()]}),
+	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
@@ -360,9 +393,14 @@ asp_down_indication() ->
 	[{userdata, [{doc, "Received M-ASP_DOWN indication"}]}].
 
 asp_down_indication(_Config) ->
+	F = fun(_, _, _, _, Pid) ->
+		Pid ! {sgp, asp_down, indication},
+		{ok, []}
+	end,
 	Port = rand:uniform(66559) + 1024,
 	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}]),
+		[{sctp_role, server}, {m3ua_role, sgp}],
+		#m3ua_fsm_cb{asp_down = F, extra = [self()]}),
 	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),

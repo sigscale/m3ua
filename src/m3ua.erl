@@ -32,7 +32,7 @@
 -export([transfer/8]).
 
 %% export the m3ua private API
--export([sort/1, cb/3]).
+-export([sort/1]).
 
 -type options() :: {sctp_role, client | server}
 						| {m3ua_role, sgp | asp}
@@ -51,11 +51,11 @@
 
 -spec open(Callback) -> Result
 	when
-		Callback :: atom() | #m3ua_fsm_cb{},
+		Callback :: false | atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
-%% @equiv open(0, [])
+%% @equiv open(0, [], Callback)
 open(Callback) ->
 	open(0, [], Callback).
 
@@ -63,7 +63,7 @@ open(Callback) ->
 	when
 		Port :: inet:port_number(),
 		Options :: [options()],
-		Callback :: atom() | #m3ua_fsm_cb{},
+		Callback :: false | atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
@@ -73,7 +73,7 @@ open(Callback) ->
 %% 	Application Server Process (ASP) in client mode.
 %%
 open(Port, Options, Callback) when is_integer(Port), is_list(Options),
-		(is_atom(Callback) orelse is_tuple(Callback)) ->
+		((Callback == false) orelse is_atom(Callback) orelse is_tuple(Callback)) ->
 	m3ua_lm_server:open([{port, Port} | Options], Callback).
 
 -spec close(EndPoint:: pid()) -> ok | {error, Reason :: term()}.
@@ -383,35 +383,6 @@ sort([{DPC, SIs, OPCs} | T], Acc) when is_integer(DPC) ->
 sort([], Acc) ->
 	lists:sort(Acc).
 
--spec cb(Handler, Cb, Args) -> Result
-	when
-		Handler :: atom(),
-		Cb :: atom() | #m3ua_fsm_cb{},
-		Args :: [term()],
-		Result :: term().
-%% @private
-cb(Handler, Cb, Args) when is_atom(Cb) ->
-	apply(Cb, Handler, Args);
-cb(init, #m3ua_fsm_cb{init = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(transfer, #m3ua_fsm_cb{transfer = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(pause, #m3ua_fsm_cb{pause = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(resume, #m3ua_fsm_cb{resume = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(status, #m3ua_fsm_cb{status = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(register, #m3ua_fsm_cb{register = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(asp_up, #m3ua_fsm_cb{asp_up = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(asp_down , #m3ua_fsm_cb{asp_down = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(asp_active, #m3ua_fsm_cb{asp_active = F, extra = E}, Args) ->
-	apply(F, Args ++ E);
-cb(asp_inactive, #m3ua_fsm_cb{asp_inactive = F, extra = E}, Args) ->
-	apply(F, Args ++ E).
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
