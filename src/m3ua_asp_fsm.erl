@@ -718,7 +718,7 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
 	Status = m3ua_codec:fetch_parameter(?Status, Parameters),
 	ASPId = proplists:get_value(?ASPIdentifier, Parameters),
 	RC = proplists:get_value(?RoutingContext, Parameters),
-	gen_server:cast(m3ua_lm_server, {'M-NOTIFY', indication, self(), Status, ASPId, RC}),
+	gen_server:cast(m3ua, {'M-NOTIFY', indication, self(), Status, ASPId, RC}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK}, down,

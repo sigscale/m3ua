@@ -60,13 +60,13 @@
 %% @doc Open a new server end point (`EP').
 %% @private
 open(Args, Callback) when is_list(Args) ->
-	gen_server:call(?MODULE, {open, Args, Callback}).
+	gen_server:call(m3ua, {open, Args, Callback}).
 
 -spec close(EP :: pid()) -> ok | {error, Reason :: term()}.
 %% @doc Close a previously opened end point (`EP').
 %% @private
 close(EP) ->
-	gen_server:call(?MODULE, {close, EP}).
+	gen_server:call(m3ua, {close, EP}).
 
 -spec sctp_establish(EndPoint, Address, Port, Options) -> Result
 	when
@@ -80,7 +80,7 @@ close(EP) ->
 %% @doc Establish an SCTP association.
 %% @private
 sctp_establish(EndPoint, Address, Port, Options) ->
-	gen_server:call(?MODULE, {'M-SCTP_ESTABLISH',
+	gen_server:call(m3ua, {'M-SCTP_ESTABLISH',
 			request, EndPoint, Address, Port, Options}).
 
 -spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
@@ -103,7 +103,7 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 		when ((NA == undefined) orelse is_integer(NA)),
 		is_list(Keys), is_atom(Mode),
 		is_integer(MinASP), is_integer(MaxASP) ->
-	gen_server:call(?MODULE, {as_add,
+	gen_server:call(m3ua, {as_add,
 			Name, NA, Keys, Mode, MinASP, MaxASP}).
 
 -spec as_delete(RoutingKey) -> Result
@@ -120,7 +120,7 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 		Reason :: term().
 %% @doc Delete an Application Server (AS).
 as_delete(RoutingKey) ->
-	gen_server:call(?MODULE, {as_delete, RoutingKey}).
+	gen_server:call(m3ua, {as_delete, RoutingKey}).
 
 -spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
 	when
@@ -144,7 +144,7 @@ as_delete(RoutingKey) ->
 		Reason :: term().
 %% @doc Register a routing key for an application server.
 register(EndPoint, Assoc, NA, Keys, Mode, AS) ->
-	gen_server:call(?MODULE,
+	gen_server:call(m3ua,
 			{'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AS}).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
@@ -156,7 +156,7 @@ register(EndPoint, Assoc, NA, Keys, Mode, AS) ->
 %% @doc Release an established SCTP association.
 %% @private
 sctp_release(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {'M-SCTP_RELEASE', request, EndPoint, Assoc}).
+	gen_server:call(m3ua, {'M-SCTP_RELEASE', request, EndPoint, Assoc}).
 
 -spec sctp_status(EndPoint, Assoc) -> Result
 	when
@@ -167,7 +167,7 @@ sctp_release(EndPoint, Assoc) ->
 %% @doc Report the status of an SCTP association.
 %% @private
 sctp_status(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {'M-SCTP_STATUS', request, EndPoint, Assoc}).
+	gen_server:call(m3ua, {'M-SCTP_STATUS', request, EndPoint, Assoc}).
 
 -spec asp_status(EndPoint, Assoc) -> Result
 	when
@@ -179,7 +179,7 @@ sctp_status(EndPoint, Assoc) ->
 %% @doc Report the status of local or remote ASP.
 %% @private
 asp_status(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {'M-ASP_STATUS', request, EndPoint, Assoc}).
+	gen_server:call(m3ua, {'M-ASP_STATUS', request, EndPoint, Assoc}).
 
 -spec asp_up(EndPoint, Assoc) -> Result
 	when
@@ -191,7 +191,7 @@ asp_status(EndPoint, Assoc) ->
 %%  and send an ASP Up message to its peer.
 %% @private
 asp_up(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {'M-ASP_UP', request, EndPoint, Assoc}).
+	gen_server:call(m3ua, {'M-ASP_UP', request, EndPoint, Assoc}).
 
 -spec asp_down(EndPoint, Assoc) -> Result
 	when
@@ -203,7 +203,7 @@ asp_up(EndPoint, Assoc) ->
 %%  and send an ASP Down message to its peer.
 %% @private
 asp_down(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {'M-ASP_DOWN', request, EndPoint, Assoc}).
+	gen_server:call(m3ua, {'M-ASP_DOWN', request, EndPoint, Assoc}).
 
 -spec asp_active(EndPoint, Assoc) -> Result
 	when
@@ -214,7 +214,7 @@ asp_down(EndPoint, Assoc) ->
 %% @doc Requests that ASP send an ASP Active message to its peer.
 %% @private
 asp_active(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {'M-ASP_ACTIVE', request, EndPoint, Assoc}).
+	gen_server:call(m3ua, {'M-ASP_ACTIVE', request, EndPoint, Assoc}).
 
 -spec asp_inactive(EndPoint, Assoc) -> Result
 	when
@@ -225,7 +225,7 @@ asp_active(EndPoint, Assoc) ->
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
 %% @private
 asp_inactive(EndPoint, Assoc) ->
-	gen_server:call(?MODULE, {'M-ASP_INACTIVE', request, EndPoint, Assoc}).
+	gen_server:call(m3ua, {'M-ASP_INACTIVE', request, EndPoint, Assoc}).
 
 -spec getstat(EndPoint, Assoc) -> Result
 	when
@@ -237,7 +237,7 @@ asp_inactive(EndPoint, Assoc) ->
 %% @doc Get socket statistics for an association.
 getstat(EndPoint, Assoc)
 		when is_pid(EndPoint), is_integer(Assoc) ->
-	gen_server:call(?MODULE, {getstat, EndPoint, Assoc, undefined}).
+	gen_server:call(m3ua, {getstat, EndPoint, Assoc, undefined}).
 
 -spec getstat(EndPoint, Assoc, Options) -> Result
 	when
@@ -250,7 +250,7 @@ getstat(EndPoint, Assoc)
 %% @doc Get socket statistics for an association.
 getstat(EndPoint, Assoc, Options)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Options)  ->
-	gen_server:call(?MODULE, {getstat, EndPoint, Assoc, Options}).
+	gen_server:call(m3ua, {getstat, EndPoint, Assoc, Options}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server gen_server callbacks

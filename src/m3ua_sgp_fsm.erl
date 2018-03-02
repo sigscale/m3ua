@@ -618,7 +618,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua_lm_server, {'M-ASP_UP', CbMod, self(), EP, Assoc, State}),
+			gen_server:cast(m3ua, {'M-ASP_UP', CbMod, self(), EP, Assoc, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};
 		{error, eagain} ->
@@ -656,7 +656,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 		inactive, _Stream, #statedata{socket = Socket, ep = EP,
 		assoc = Assoc, callback = CbMod, cb_state = State} = StateData) ->
-	gen_server:cast(m3ua_lm_server,
+	gen_server:cast(m3ua,
 			{'M-RK_REG', Socket, EP, Assoc, self(), Msg, CbMod, State}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
@@ -669,7 +669,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 	Packet = m3ua_codec:m3ua(Message),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua_lm_server,
+			gen_server:cast(m3ua,
 					{'M-ASP_ACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, active, StateData};
@@ -687,7 +687,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 	Packet = m3ua_codec:m3ua(AspActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua_lm_server, {'M-ASP_DOWN', CbMod, self(), EP, Assoc, State}),
+			gen_server:cast(m3ua, {'M-ASP_DOWN', CbMod, self(), EP, Assoc, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, down, StateData};
 		{error, eagain} ->
@@ -705,7 +705,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 	Packet = m3ua_codec:m3ua(Message),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua_lm_server,
+			gen_server:cast(m3ua,
 					{'M-ASP_INACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};

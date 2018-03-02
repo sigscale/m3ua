@@ -15,7 +15,7 @@
 				m3ua_lm_server,
 				m3ua_codec,
 				m3ua_callback]},
-		{registered, [m3ua_lm_server]},
+		{registered, [m3ua]},
 		{applications, [kernel, stdlib]},
 		{env, []},
 		{mod, {m3ua_app, []}}]}.
