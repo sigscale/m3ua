@@ -26,7 +26,7 @@
 %% export the m3ua_lm_server API
 -export([open/2, close/1]).
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
--export([register/6]).
+-export([register/5]).
 -export([as_add/6, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
@@ -122,7 +122,7 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 as_delete(RoutingKey) ->
 	gen_server:call(m3ua, {as_delete, RoutingKey}).
 
--spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
+-spec register(EndPoint, Assoc, NA, Keys, Mode) -> Result
 	when
 		EndPoint :: pid(),
 		Assoc :: pos_integer(),
@@ -133,19 +133,13 @@ as_delete(RoutingKey) ->
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
 		Mode :: overide | loadshare | broadcast,
-		AS :: pid() | {local, Name} | {global, GlobalName}
-				| {via, Module, ViaName},
-		Name :: atom(),
-		GlobalName :: term(),
-		Module :: atom(),
-		ViaName :: term(),
 		Result :: {ok, RoutingContext} | {error, Reason},
 		RoutingContext :: pos_integer(),
 		Reason :: term().
 %% @doc Register a routing key for an application server.
-register(EndPoint, Assoc, NA, Keys, Mode, AS) ->
+register(EndPoint, Assoc, NA, Keys, Mode) ->
 	gen_server:call(m3ua,
-			{'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AS}).
+			{'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode}).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
@@ -369,13 +363,13 @@ handle_call({as_delete, RoutingKey}, _From, State) ->
 		{aborted, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AS}, From,
+handle_call({'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, AspFsm} ->
 			Ref = make_ref(),
 			gen_fsm:send_event(AspFsm,
-					{'M-RK_REG', request,  Ref, self(), NA, Keys, Mode, AS}),
+					{'M-RK_REG', request,  Ref, self(), NA, Keys, Mode}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};

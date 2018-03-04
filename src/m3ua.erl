@@ -25,7 +25,7 @@
 -export([sctp_establish/4, sctp_release/2, sctp_status/2]).
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
--export([as_add/6, as_delete/1, register/5, register/6]).
+-export([as_add/6, as_delete/1, register/5]).
 -export([get_as/0]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
@@ -194,39 +194,12 @@ getstat_association(EndPoint, Assoc, Options)
 		RoutingContext :: pos_integer(),
 		Reason :: term().
 %% @doc Register a routing key for an application server.
-register(EndPoint, Assoc, NA, Keys, Mode) ->
-	register(EndPoint, Assoc, NA, Keys, Mode, self()).
-
--spec register(EndPoint, Assoc, NA, Keys, Mode, AS) -> Result
-	when
-		EndPoint :: pid(),
-		Assoc :: pos_integer(),
-		NA :: pos_integer(),
-		Keys :: [Key],
-		Key :: {DPC, [SI], [OPC]},
-		DPC :: pos_integer(),
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
-		AS :: pid() | {local, Name} | {global, GlobalName}
-				| {via, Module, ViaName},
-		Name :: atom(),
-		GlobalName :: term(),
-		Module :: atom(),
-		ViaName :: term(),
-		Result :: {ok, RoutingContext} | {error, Reason},
-		RoutingContext :: pos_integer(),
-		Reason :: term().
-%% @doc Register a routing key for an application server.
-register(EndPoint, Assoc, NA, Keys, Mode, AS)
+register(EndPoint, Assoc, NA, Keys, Mode)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Keys),
 		((NA == undefined) or is_integer(NA)),
 		((Mode == overide) orelse (Mode == loadshare)
-		orelse (Mode == broadcast)), (is_pid(AS)
-		orelse ((element(1, AS) == local)
-		and is_atom(element(2, AS))) orelse (element(1, AS) == global)
-		orelse ((element(1, AS) == via) and is_atom(element(2, AS)))) ->
-	m3ua_lm_server:register(EndPoint, Assoc, NA, Keys, Mode, AS).
+		orelse (Mode == broadcast)) ->
+	m3ua_lm_server:register(EndPoint, Assoc, NA, Keys, Mode).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
