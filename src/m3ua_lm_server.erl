@@ -604,15 +604,6 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 								F3 = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
 								AspLen = length(lists:filter(F3, M3uaAsps)),
 								case AspLen of
-									0 ->
-										case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
-											{value, M_Asp, RemAsps} ->
-												NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
-												NewAS = AS#m3ua_as{asp = NewAsps},
-												ok = mnesia:write(NewAS);
-											false ->
-												ok
-										end;
 									Len when (Len + 1) >= Min, ((Max == undefined) or (Max >= (Len + 1))) ->
 										case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 											{value, M_Asp, RemAsps} ->
@@ -666,6 +657,7 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 			ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaintIndication, NewUState}),
 			{noreply, State};
 		{aborted, _Reason} ->
+erlang:display({?MODULE, ?LINE, _Reason}),
 			{noreply, State}
 	end;
 handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
