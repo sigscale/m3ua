@@ -231,23 +231,16 @@ get_sup(#state{sup = Sup, asp_sup = undefined, sgp_sup = undefined} = State) ->
 connect(Address, Port, Options, FsmSup,
 		#state{socket = Socket, fsms = Fsms, callback = Cb} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
-		{ok, #sctp_assoc_change{assoc_id = Assoc}  = AssocChange} ->
-			case gen_sctp:peeloff(Socket, Assoc) of
-				{ok, NewSocket} ->
-				   case supervisor:start_child(FsmSup,
-							[[client, NewSocket, Address, Port, AssocChange, self(), Cb],
-							[]]) of
-						{ok, Fsm} ->
-							case gen_sctp:controlling_process(NewSocket, Fsm) of
-								ok ->
-									inet:setopts(NewSocket, [{active, once}]),
-									inet:setopts(Socket, [{active, once}]),
-									NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
-									NewState = State#state{fsms = NewFsms},
-									{reply, {ok, Fsm, Assoc}, NewState};
-								{error, Reason} ->
-									{stop, Reason, State}
-							end;
+		{ok, #sctp_assoc_change{assoc_id = Assoc} = AssocChange} ->
+		   case supervisor:start_child(FsmSup, [[client, Socket,
+					Address, Port, AssocChange, self(), Cb], []]) of
+				{ok, Fsm} ->
+					case gen_sctp:controlling_process(Socket, Fsm) of
+						ok ->
+							inet:setopts(Socket, [{active, once}]),
+							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
+							NewState = State#state{fsms = NewFsms},
+							{reply, {ok, Fsm, Assoc}, NewState};
 						{error, Reason} ->
 							{stop, Reason, State}
 					end;
