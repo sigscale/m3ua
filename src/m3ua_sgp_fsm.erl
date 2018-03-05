@@ -774,23 +774,6 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.
 
-%% @hidden
-find_rk() ->
-	F = fun() ->
-		case mnesia:read(asp, self(), read) of
-			[] ->
-				not_found;
-			[#asp{rk = RK}] ->
-				RK
-		end
-	end,
-	case mnesia:transaction(F) of
-		{atomic, Result} ->
-			{ok, Result};
-		{aborted, Reason} ->
-			{error, Reason}
-	end.
-
 -dialyzer({[nowarn_function, no_contracts], inet_getopts/2}).
 -spec inet_getopts(Socket, Options) -> Result
 	when
