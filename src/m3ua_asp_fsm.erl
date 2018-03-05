@@ -217,7 +217,7 @@
 		assoc :: gen_sctp:assoc_id(),
 		registration :: dynamic | static,
 		use_rc :: boolean(),
-		rks :: [#{rc => pos_integer(), rk => routing_key()}],
+		rks = [] :: [#{rc => pos_integer(), rk => routing_key()}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
 		mode :: undefined | override | loadshare | broadcast,
