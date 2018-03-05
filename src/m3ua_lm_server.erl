@@ -46,6 +46,10 @@
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+-type stat_option() ::
+	'recv_cnt' | 'recv_max' | 'recv_avg' | 'recv_oct' | 'recv_dvi' |
+	'send_cnt' | 'send_max' | 'send_avg' | 'send_oct' | 'send_pend'.
+
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server API
 %%----------------------------------------------------------------------
@@ -227,7 +231,7 @@ asp_inactive(EndPoint, Assoc) ->
 		EndPoint :: pid(),
 		Assoc :: pos_integer(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
+		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an association.
 getstat(EndPoint, Assoc)
@@ -238,9 +242,9 @@ getstat(EndPoint, Assoc)
 	when
 		EndPoint :: pid(),
 		Assoc :: pos_integer(),
-		Options :: [inet:stat_option()],
+		Options :: [stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{inet:stat_option(), Count}],
+		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an association.
 getstat(EndPoint, Assoc, Options)

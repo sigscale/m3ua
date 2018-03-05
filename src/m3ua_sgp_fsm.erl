@@ -533,7 +533,7 @@ handle_sync_event({getstat, Options}, _From, StateName,
 handle_sync_event(sctp_status, _From, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
-	case inet:getopts(Socket, Options) of
+	case inet_getopts(Socket, Options) of
 		{ok, SCTPStatus} ->
 			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
 			{reply, {ok, Status}, StateName, StateData};
@@ -773,4 +773,38 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 	NewStateData = StateData#statedata{cb_state = NewState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.
+
+%% @hidden
+find_rk() ->
+	F = fun() ->
+		case mnesia:read(asp, self(), read) of
+			[] ->
+				not_found;
+			[#asp{rk = RK}] ->
+				RK
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, Result} ->
+			{ok, Result};
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+
+-dialyzer({[nowarn_function, no_contracts], inet_getopts/2}).
+-spec inet_getopts(Socket, Options) -> Result
+	when
+		Socket :: gen_sctp:sctp_socket(),
+		Options :: [gen_sctp:option()],
+		Result :: {ok, OptionValues} | {error, Posix},
+		OptionValues :: [gen_sctp:option()],
+		Posix :: inet:posix().
+%% @hidden
+inet_getopts(Socket, Options) ->
+	case catch inet:getopts(Socket, Options) of
+		{'EXIT', Reason} -> % fake dialyzer out 
+			{error, Reason};
+		Result ->
+			Result
+	end.
 

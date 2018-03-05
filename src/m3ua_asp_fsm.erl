@@ -656,7 +656,7 @@ handle_sync_event({getstat, Options}, _From, StateName,
 handle_sync_event({'M-SCTP_STATUS', request}, _From, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
-	case inet:getopts(Socket, Options) of
+	case inet_getopts(Socket, Options) of
 		{ok, SCTPStatus} ->
 			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
 			{reply, {ok, Status}, StateName, StateData};
@@ -855,4 +855,20 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 generate_lrk_id() ->
 	random:uniform(256).
 
+-dialyzer({[nowarn_function, no_contracts, no_return], inet_getopts/2}).
+-spec inet_getopts(Socket, Options) -> Result
+	when
+		Socket :: gen_sctp:sctp_socket(),
+		Options :: [gen_sctp:option()],
+		Result :: {ok, OptionValues} | {error, Posix},
+		OptionValues :: [gen_sctp:option()],
+		Posix :: inet:posix().
+%% @hidden
+inet_getopts(Socket, Options) ->
+	case catch inet:getopts(Socket, Options) of
+		{'EXIT', Reason} -> % fake dialyzer out 
+			{error, Reason};
+		Result ->
+			Result
+	end.
 
