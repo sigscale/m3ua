@@ -218,6 +218,8 @@
 		ual :: undefined | integer(),
 		stream :: undefined | integer(),
 		ep :: pid(),
+		registration :: dynamic | static,
+		use_rc :: boolean(),
 		callback :: atom() | #m3ua_fsm_cb{}, 
 		cb_state :: term(),
 		sg_state :: term()}).
@@ -372,7 +374,7 @@ transfer(SGP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
 init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
-		EP, Cb]) ->
+		EP, Cb, Reg, UseRC]) ->
 	Args = [self(), EP, Assoc],
 	case m3ua_callback:cb(init, Cb, Args) of
 		{ok, CbState} ->
@@ -381,7 +383,8 @@ init([SctpRole, Socket, Address, Port,
 					socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
-					callback = Cb, cb_state = CbState, ep = EP},
+					callback = Cb, cb_state = CbState, ep = EP,
+					registration = Reg, use_rc = UseRC},
 			{ok, down, Statedata};
 		{error, Reason} ->
 			{stop, Reason}
