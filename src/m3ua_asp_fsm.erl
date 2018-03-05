@@ -459,7 +459,8 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
 			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
-	{next_state, inactive, StateData};
+	NewStateData = StateData#statedata{mode = Mode},
+	{next_state, inactive, NewStateData};
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData)  ->
