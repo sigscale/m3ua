@@ -4,7 +4,7 @@
 ##
 ## Boilerplate:  standard boilerplate code
 ##
-AC_INIT([m3ua], [1.0], [issues@sigscale.org])
+AC_INIT([m3ua], [1.0.1], [issues@sigscale.org])
 AC_COPYRIGHT([Copyright (c) 2015-2018 SigScale Global Inc.])
 AC_PREREQ(2.63)
 AC_LANG([Erlang])
@@ -40,15 +40,24 @@ appdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION
 beamdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/ebin
 eincludedir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/include
 docdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/doc
+docdir=$ERLANG_INSTALL_LIB_DIR/$PACKAGE_NAME-$PACKAGE_VERSION/doc
+reldir=$ERLANG_INSTALL_LIB_DIR/../releases
 AC_SUBST(appdir)
 AC_SUBST(beamdir)
 AC_SUBST(eincludedir)
+AC_SUBST(reldir)
 
 
 ##
 ## Libraries:  check for libraries
 ##
+AC_ERLANG_SUBST_ERTS_VER
 AC_ERLANG_CHECK_LIB([kernel], [], [AC_MSG_ERROR([kernel was not found!])])
+AC_ERLANG_CHECK_LIB([stdlib], [], [AC_MSG_ERROR([stdlib was not found!])])
+AC_ERLANG_CHECK_LIB([sasl], [], [AC_MSG_ERROR([sasl was not found!])])
+AC_ERLANG_CHECK_LIB([mnesia], [], [AC_MSG_ERROR([mnesia was not found!])])
+AC_ERLANG_CHECK_LIB([sccp], [], [AC_MSG_ERROR([sccp was not found!])])
+AC_ERLANG_CHECK_LIB([gtt], [], [AC_MSG_ERROR([gtt was not found!])])
 
 
 ##
@@ -70,5 +79,6 @@ AC_ERLANG_CHECK_LIB([kernel], [], [AC_MSG_ERROR([kernel was not found!])])
 ##
 ## Output:  create output files
 ## 
-AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile test/Makefile])
+AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile
+		test/Makefile m3ua.rel sys.config])
 
