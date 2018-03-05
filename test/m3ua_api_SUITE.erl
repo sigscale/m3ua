@@ -282,8 +282,8 @@ mtp_transfer(_Config) ->
 		Pid ! {asp, active, ASP},
 		{ok, []}
 	end,
-	SgpTransfer = fun(SGP, _, ASSOC, STREAM, _, OPC1, DPC1, SLS1, SIO1, Data1, _) ->
-			Args = [SGP, ASSOC, STREAM, DPC1, OPC1, SLS1, SIO1, Data1],
+	SgpTransfer = fun(SGP, _, _ASSOC, STREAM, _, OPC1, DPC1, SLS1, SIO1, Data1, _) ->
+			Args = [SGP, STREAM, DPC1, OPC1, SLS1, SIO1, Data1],
 			proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
 		{ok, []}
 	end,

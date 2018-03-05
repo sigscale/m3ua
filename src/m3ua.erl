@@ -29,7 +29,7 @@
 -export([get_as/0]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
--export([transfer/8]).
+-export([transfer/7]).
 
 %% export the m3ua private API
 -export([sort/1]).
@@ -310,10 +310,9 @@ asp_active(EndPoint, Assoc) ->
 asp_inactive(EndPoint, Assoc) ->
 	m3ua_lm_server:asp_inactive(EndPoint, Assoc).
 
--spec transfer(Fsm, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> Result
+-spec transfer(Fsm, Stream, OPC, DPC, SLS, SIO, Data) -> Result
 	when
 		Fsm :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		OPC :: pos_integer(),
 		DPC :: pos_integer(),
@@ -325,12 +324,11 @@ asp_inactive(EndPoint, Assoc) ->
 %% @doc MTP-TRANSFER request.
 %%
 %% Called by an MTP user to transfer data using the MTP service.
-transfer(Fsm, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
-		when is_pid(Fsm), is_integer(Assoc),
-		is_integer(Stream), Stream =/= 0,
+transfer(Fsm, Stream, OPC, DPC, SLS, SIO, Data)
+		when is_pid(Fsm), is_integer(Stream), Stream =/= 0,
 		is_integer(OPC), is_integer(DPC), is_integer(SLS),
 		is_integer(SIO), is_binary(Data) ->
-	Params = {Assoc, Stream, OPC, DPC, SLS, SIO, Data},
+	Params = {Stream, OPC, DPC, SLS, SIO, Data},
 	gen_fsm:sync_send_event(Fsm, {'MTP-TRANSFER', request, Params}).
 
 -spec get_as() -> Result

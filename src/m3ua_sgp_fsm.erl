@@ -195,7 +195,7 @@
 -behaviour(gen_fsm).
 
 %% export the m3ua_sgp_fsm public API
--export([transfer/8]).
+-export([transfer/7]).
 
 %% export the callbacks needed for gen_fsm behaviour
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3,
@@ -336,10 +336,9 @@
 %%  The m3ua_sgp_fsm public API
 %%----------------------------------------------------------------------
 
--spec transfer(SGP, Assoc, Stream, OPC, DPC, SLS, SIO, Data) -> Result
+-spec transfer(SGP, Stream, OPC, DPC, SLS, SIO, Data) -> Result
 	when
 		SGP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		OPC :: pos_integer(),
 		DPC :: pos_integer(),
@@ -351,12 +350,11 @@
 %% @doc MTP-TRANSFER request.
 %%
 %% Called by an MTP user to transfer data using the MTP service.
-transfer(SGP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
-		when is_pid(SGP), is_integer(Assoc),
-		is_integer(Stream), Stream =/= 0,
+transfer(SGP, Stream, OPC, DPC, SLS, SIO, Data)
+		when is_pid(SGP), is_integer(Stream), Stream =/= 0,
 		is_integer(OPC), is_integer(DPC), is_integer(SLS),
 		is_integer(SIO), is_binary(Data) ->
-	Params = {Assoc, Stream, OPC, DPC, SLS, SIO, Data},
+	Params = {Stream, OPC, DPC, SLS, SIO, Data},
 	gen_fsm:sync_send_event(SGP, {'MTP-TRANSFER', request, Params}).
 
 %%----------------------------------------------------------------------
@@ -456,7 +454,7 @@ active(_Event, #statedata{} = StateData) ->
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
 %% @private
 %%
-active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
+active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 		_From, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
