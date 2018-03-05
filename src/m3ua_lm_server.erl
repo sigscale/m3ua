@@ -429,6 +429,7 @@ handle_cast({'M-RK_REG', confirm, Ref, Asp, undefined,
 		NA, Keys, TMT, AS, EP, Assoc, CbMod, UState}, State) ->
 	% @todo need a better mechanism to generate routing contexts
 	RC = erlang:unique_integer([positive]),
+	gen_fsm:send_all_state_event(Asp, {'M_RK_REG', {RC, {NA, m3ua:sort(Keys), TMT}}}),
 	reg_result([#registration_result{status = registered, rc = RC} | []],
 			NA, Keys, TMT, AS, Asp, EP, Assoc, CbMod, UState, Ref, State);
 handle_cast({'M-RK_REG', confirm, Ref, Asp,
@@ -956,6 +957,8 @@ reg_result([#registration_result{status = registered, rc = RC} | []],
 	end,
 	Result = case mnesia:transaction(F) of
 		{atomic, ok} ->
+			ok = gen_fsm:send_all_state_event(Asp,
+					{'M-RK_REG', {RC, {NA, Keys, TMT}}}),
 			{ok, RC};
 		{aborted, Reason} ->
 			{error, Reason}

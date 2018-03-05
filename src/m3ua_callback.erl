@@ -44,13 +44,13 @@
 init(_Fsm, _EP, _Assoc) ->
 	{ok, []}.
 
--spec transfer(Fsm, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State) -> Result
+-spec transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
-		RK :: routing_key(),
+		RC :: undefined | pos_integer(),
 		OPC :: pos_integer(),
 		DPC :: pos_integer(),
 		SLS :: non_neg_integer(),
@@ -64,14 +64,14 @@ transfer(_Fsm, _EP, _Assoc, _Stream,
 		_RK, _OPC, _DPC, _SLS, _SIO, _Data, State) ->
 	{ok, State}.
 
--spec pause(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-spec pause(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: undefined | pos_integer(),
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -80,14 +80,14 @@ transfer(_Fsm, _EP, _Assoc, _Stream,
 pause(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
--spec resume(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-spec resume(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: undefined | pos_integer(),
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -96,14 +96,14 @@ pause(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 resume(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
--spec status(Fsm, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-spec status(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: undefined | pos_integer(),
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
