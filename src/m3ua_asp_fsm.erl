@@ -43,14 +43,14 @@
 %%%
 %%%  <h3 class="function"><a name="transfer-11">transfer/11</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Asp, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State)
+%%%  <p><tt>transfer(Asp, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State)
 %%% 		-&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RK = routing_key()</tt></li>
+%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>OPC = pos_integer() </tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>SLS = non_neg_integer() </tt></li>
@@ -66,13 +66,13 @@
 %%%
 %%%  <h3 class="function"><a name="pause-7">pause/7</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(Asp, EP, Assoc, Stream, RK, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>pause(Asp, EP, Assoc, Stream, RC, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RK = routing_key()</tt></li>
+%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
@@ -85,13 +85,13 @@
 %%%
 %%%  <h3 class="function"><a name="resume-7">resume/7</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(Asp, EP, Assoc, Stream, RK, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>resume(Asp, EP, Assoc, Stream, RC, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RK = routing_key()</tt></li>
+%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
@@ -105,13 +105,13 @@
 %%%
 %%%  <h3 class="function"><a name="status-7">status/7</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(Asp, EP, Assoc, Stream, RK, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>status(Asp, EP, Assoc, Stream, RC, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RK = routing_key()</tt></li>
+%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
 %%%    <li><tt>DPC = pos_integer() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
@@ -217,6 +217,7 @@
 		assoc :: gen_sctp:assoc_id(),
 		registration :: dynamic | static,
 		use_rc :: boolean(),
+		rks :: [#{rc => pos_integer(), rk => routing_key()}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
 		mode :: undefined | override | loadshare | broadcast,
@@ -239,13 +240,13 @@
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().
--callback transfer(Asp, EP, Assoc, Stream, RK, OPC, DPC, SLS, SIO, Data, State) -> Result
+-callback transfer(Asp, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		OPC :: pos_integer(),
 		DPC :: pos_integer(),
 		SLS :: non_neg_integer(),
@@ -255,40 +256,40 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback pause(Asp, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-callback pause(Asp, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback resume(Asp, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-callback resume(Asp, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback status(Asp, EP, Assoc, Stream, RK, DPCs, State) -> Result
+-callback status(Asp, EP, Assoc, Stream, RC, DPCs, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RK :: routing_key(),
+		RC :: pos_integer() | undefined,
 		DPC :: pos_integer(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -608,6 +609,11 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
+handle_event({'M-RK_REG', {RC, RK}}, StateName,
+		#statedata{rks = RKs} = StateData) ->
+	NewRKs = [#{rc => RC, rk => RK} | RKs],
+	NewStateData = StateData#statedata{rks = NewRKs},
+	{next_state, StateName, NewStateData};
 handle_event({_AspOp, State}, StateName, StateData) ->
 	NewStateData = StateData#statedata{cb_state = State},
 	{next_state, StateName, NewStateData};
@@ -794,9 +800,10 @@ handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 		active, Stream, #statedata{callback = CbMod, cb_state = State, assoc = Assoc, ep = EP} =
 		StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	Args = [self(), EP, Assoc, Stream, undefined, OPC, DPC, SLS, SIO, Data, State],
+	Args = [self(), EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State],
 	{ok, NewState} = m3ua_callback:cb(transfer, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	{next_state, active, NewStateData};
@@ -804,8 +811,9 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{callback = CbMod, cb_state = State,
 		assoc = Assoc, ep = EP, socket = Socket} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, undefined, APCs, State],
+	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
 	{ok, NewState} = m3ua_callback:cb(pause, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	inet:setopts(Socket, [{active, once}]),
@@ -814,8 +822,9 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{callback = CbMod, cb_state = State,
 		assoc = Assoc, ep = EP, socket = Socket} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, undefined, APCs, State],
+	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
 	{ok, NewState} = m3ua_callback:cb(resume, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	inet:setopts(Socket, [{active, once}]),
@@ -824,8 +833,9 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{callback = CbMod, cb_state = State,
 		assoc = Assoc, ep = EP, socket = Socket} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
+	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, undefined, APCs, State],
+	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
 	{ok, NewState} = m3ua_callback:cb(status, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
 	inet:setopts(Socket, [{active, once}]),
