@@ -467,9 +467,9 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 			{reply, ok, active, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{reply, {error, eagain}, active, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{reply, {error, Reason}, active, StateData}
 	end.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
@@ -502,9 +502,9 @@ handle_event({'NTFY', NotifyFor, _RC}, StateName,
 			{next_state, StateName, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{next_state, StateName, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{next_state, StateName, StateData}
 	end;
 handle_event({Indication,  State}, StateName, StateData)
 		when Indication == 'M-ASP_UP'; Indication == 'M-ASP_DOWN';
@@ -626,9 +626,11 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
 			{next_state, inactive, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData};
+		{error, _Reason} ->
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 		_Stream, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
@@ -646,15 +648,19 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 					{next_state, inactive, StateData};
 				{error, eagain} ->
 					% @todo flow control
-					{stop, eagain, StateData};
+					inet:setopts(Socket, [{active, once}]),
+					{next_state, inactive, StateData};
 				{error, Reason} ->
-					{stop, Reason, StateData}
+					inet:setopts(Socket, [{active, once}]),
+					{next_state, inactive, StateData}
 			end;
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData}
 	end;
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 		inactive, _Stream, #statedata{socket = Socket, ep = EP,
@@ -678,9 +684,11 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			{next_state, active, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, inactive, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod,
@@ -695,9 +703,11 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 			{next_state, down, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, StateName, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, StateName, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		active, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
@@ -714,9 +724,11 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 			{next_state, inactive, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			inet:setopts(Socket, [{active, once}]),
+			{next_state, active, StateData}
 	end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket, callback = CbMod, cb_state = State,

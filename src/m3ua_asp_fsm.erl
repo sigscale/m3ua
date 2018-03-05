@@ -419,9 +419,11 @@ down({'M-ASP_UP', request, Ref, From}, #statedata{req = undefined, socket = Sock
 			{next_state, down, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			gen_server:cast(From, {'M-ASP_UP', confirm, Ref, self(), {error, eagain}}),
+			{next_state, down, StateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			gen_server:cast(From, {'M-ASP_UP', confirm, Ref, self(), {error, Reason}}),
+			{next_state, down, StateData, ?Tack}
 	end;
 down({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
@@ -476,7 +478,8 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 			NewStateData = StateData#statedata{req = Req, mode = Mode},
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(), {error, Reason}}),
+			{next_state, inactive, StateData, ?Tack}
 	end;
 inactive({'M-ASP_ACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc, mode = Mode} = StateData) ->
@@ -492,9 +495,11 @@ inactive({'M-ASP_ACTIVE', request, Ref, From}, #statedata{req = undefined, socke
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			gen_server:cast(From, {'M-ASP_ACTIVE', confirm, Ref, self(), {error, eagain}}),
+			{next_state, inactive, StateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			gen_server:cast(From, {'M-ASP_ACTIVE', confirm, Ref, self(), {error, Reason}}),
+			{next_state, inactive, StateData, ?Tack}
 	end;
 inactive({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
@@ -507,9 +512,11 @@ inactive({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket 
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			gen_server:cast(From, {'M-ASP_DOWN', confirm, Ref, self(), {error, eagain}}),
+			{next_state, inactive, StateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			gen_server:cast(From, {'M-ASP_DOWN', confirm, Ref, self(), {error, Reason}}),
+			{next_state, inactive, StateData, ?Tack}
 	end;
 inactive({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
@@ -551,9 +558,11 @@ active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socke
 			{next_state, active, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			gen_server:cast(From, {'M-ASP_INACTIVE', confirm, Ref, self(), {error, eagain}}),
+			{next_state, active, StateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			gen_server:cast(From, {'M-ASP_INACTIVE', confirm, Ref, self(), {error, Reason}}),
+			{next_state, active, StateData, ?Tack}
 	end;
 active({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData) ->
@@ -566,9 +575,11 @@ active({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = 
 			{next_state, active, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			gen_server:cast(From, {'M-ASP_DOWN', confirm, Ref, self(), {error, eagain}}),
+			{next_state, active, StateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			gen_server:cast(From, {'M-ASP_DOWN', confirm, Ref, self(), {error, Reason}}),
+			{next_state, active, StateData, ?Tack}
 	end;
 active({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
@@ -590,12 +601,12 @@ active({'MTP-TRANSFER', request, {Assoc, Stream, OPC, DPC, SLS, SIO, Data}},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
-			{reply, ok, active, StateData};
+			{reply, ok, active, StateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{reply, {error, eagain}, StateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{reply, {error, Reason}, StateData, ?Tack}
 	end.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
