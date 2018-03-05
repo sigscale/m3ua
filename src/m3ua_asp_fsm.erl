@@ -215,9 +215,10 @@
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
+		registration :: dynamic | static,
+		use_rc :: boolean(),
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
-		rc :: undefined | pos_integer(),
 		mode :: undefined | override | loadshare | broadcast,
 		ep :: pid(),
 		callback :: atom() | #m3ua_fsm_cb{},
@@ -376,7 +377,7 @@ transfer(ASP, Assoc, Stream, OPC, DPC, SLS, SIO, Data)
 init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
-		EP, Cb]) ->
+		EP, Cb, Reg, UseRC]) ->
 	Args = [self(), EP, Assoc],
 	case m3ua_callback:cb(init, Cb, Args) of
 		{ok, CbState} ->
@@ -385,7 +386,8 @@ init([SctpRole, Socket, Address, Port,
 					socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
-					ep = EP, callback = Cb, cb_state = CbState},
+					ep = EP, callback = Cb, cb_state = CbState,
+					registration = Reg, use_rc = UseRC},
 			{ok, down, Statedata};
 		{error, Reason} ->
 			{stop, Reason}
@@ -450,10 +452,18 @@ inactive(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
-		#statedata{req = undefined, socket = Socket, assoc = Assoc,
-		rc = RC} = StateData)  ->
+		#statedata{registration = static, ep = EP,
+		assoc = Assoc, callback = CbMod,
+		cb_state = UState} = StateData) ->
+	gen_server:cast(From,
+			{'M-RK_REG', confirm, Ref, self(),
+			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
+	{next_state, inactive, StateData};
+inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
+		#statedata{req = undefined, socket = Socket,
+		assoc = Assoc} = StateData)  ->
 	RK = #m3ua_routing_key{na = NA, tmt = Mode, key = Keys,
-			lrk_id = generate_lrk_id(), rc = RC, as = AS},
+			lrk_id = generate_lrk_id(), as = AS},
 	RoutingKey = m3ua_codec:routing_key(RK),
 	Params = m3ua_codec:parameters([{?RoutingKey, RoutingKey}]),
 	RegReq = #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},

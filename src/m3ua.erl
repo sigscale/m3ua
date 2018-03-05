@@ -35,11 +35,13 @@
 -export([sort/1]).
 
 -type options() :: {sctp_role, client | server}
-						| {m3ua_role, sgp | asp}
-						| {ip, inet:ip_address()}
-						| {ifaddr, inet:ip_address()}
-						| {port, inet:port_number()}
-						| sctp:option().
+		| {m3ua_role, sgp | asp}
+		| {registration, dynamic | static}
+		| {use_rc, boolean()}
+		| {ip, inet:ip_address()}
+		| {ifaddr, inet:ip_address()}
+		| {port, inet:port_number()}
+		| sctp:option().
 -export_type([options/0]).
 
 -include("m3ua.hrl").

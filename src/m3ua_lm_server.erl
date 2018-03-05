@@ -425,6 +425,12 @@ handle_cast({_AspOp, confirm, Ref, _ASP, {error, Reason}},
 		none ->
 			{noreply, State}
 	end;
+handle_cast({'M-RK_REG', confirm, Ref, Asp, undefined,
+		NA, Keys, TMT, AS, EP, Assoc, CbMod, UState}, State) ->
+	% @todo need a better mechanism to generate routing contexts
+	RC = erlang:unique_integer([positive]),
+	reg_result([#registration_result{status = registered, rc = RC} | []],
+			NA, Keys, TMT, AS, Asp, EP, Assoc, CbMod, UState, Ref, State);
 handle_cast({'M-RK_REG', confirm, Ref, Asp,
 		#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 		NA, Keys, TMT, AS, EP, Assoc, CbMod, UState}, State) ->

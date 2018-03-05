@@ -41,6 +41,8 @@
 		options :: [tuple()],
 		sctp_role :: client | server,
 		m3ua_role :: sgp | asp,
+		registration :: dynamic | static,
+		use_rc :: boolean(),
 		fsms = gb_trees:empty() :: gb_trees:tree(),
 		callback :: {Module :: atom(), State :: term()}}).
 
@@ -78,14 +80,27 @@ init([Sup, [Callback, Opts]] = _Args) ->
 		false ->
 			{asp, Opts1}
 	end,
+	{Registration, Opts3} = case lists:keytake(registration, 1, Opts2) of
+		{value, {registration, R3}, O3} ->
+			{R3, O3};
+		false ->
+			{dynamic, Opts2}
+	end,
+	{UseRC, Opts4} = case lists:keytake(use_rc, 1, Opts3) of
+		{value, {use_rc, R4}, O4} ->
+			{R4, O4};
+		false ->
+			{true, Opts3}
+	end,
 	Options = [{active, once},
 			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}}
-			| Opts2],
+			| Opts4],
 	case gen_sctp:open(Options) of
 		{ok, Socket} ->
-			State = #state{sup = Sup, socket = Socket,
-					sctp_role = SctpRole, m3ua_role = M3uaRole,
-					options = Options, callback = Callback},
+			State = #state{sup = Sup, socket = Socket, sctp_role = SctpRole,
+					m3ua_role = M3uaRole, registration = Registration,
+					use_rc = UseRC, options = Options,
+					callback = Callback},
 			init1(State);
 		{error, Reason} ->
 			{stop, Reason}
@@ -229,11 +244,12 @@ get_sup(#state{sup = Sup, asp_sup = undefined, sgp_sup = undefined} = State) ->
 
 %% @hidden
 connect(Address, Port, Options, FsmSup,
-		#state{socket = Socket, fsms = Fsms, callback = Cb} = State) ->
+		#state{socket = Socket, fsms = Fsms, callback = Cb,
+		registration = Reg, use_rc = UseRC} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
 		{ok, #sctp_assoc_change{assoc_id = Assoc} = AssocChange} ->
 		   case supervisor:start_child(FsmSup, [[client, Socket,
-					Address, Port, AssocChange, self(), Cb], []]) of
+					Address, Port, AssocChange, self(), Cb, Reg, UseRC], []]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(Socket, Fsm) of
 						ok ->
@@ -254,11 +270,12 @@ connect(Address, Port, Options, FsmSup,
 %% @hidden
 accept(Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc} = AssocChange,
-		Sup, #state{fsms = Fsms, callback = Cb} = State) ->
+		Sup, #state{fsms = Fsms, callback = Cb,
+		registration = Reg, use_rc = UseRC} = State) ->
 	case gen_sctp:peeloff(Socket, Assoc) of
 		{ok, NewSocket} ->
-			case supervisor:start_child(Sup, [[server,
-					NewSocket, Address, Port, AssocChange, self(), Cb], []]) of
+			case supervisor:start_child(Sup, [[server, NewSocket,
+					Address, Port, AssocChange, self(), Cb, Reg, UseRC], []]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(NewSocket, Fsm) of
 						ok ->
