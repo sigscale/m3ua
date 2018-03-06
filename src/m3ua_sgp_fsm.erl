@@ -618,7 +618,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua, {'M-ASP_UP', CbMod, self(), EP, Assoc, State}),
+			gen_server:cast(m3ua, {'M-ASP_UP',
+					indication, CbMod, self(), EP, Assoc, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};
 		{error, eagain} ->
@@ -676,7 +677,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			gen_server:cast(m3ua,
-					{'M-ASP_ACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
+					{'M-ASP_ACTIVE', indication, self(), EP, Assoc, RCs, CbMod, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, active, StateData};
 		{error, eagain} ->
@@ -695,7 +696,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 	Packet = m3ua_codec:m3ua(AspActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua, {'M-ASP_DOWN', CbMod, self(), EP, Assoc, State}),
+			gen_server:cast(m3ua, {'M-ASP_DOWN',
+					indication, CbMod, self(), EP, Assoc, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, down, StateData};
 		{error, eagain} ->
@@ -716,7 +718,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			gen_server:cast(m3ua,
-					{'M-ASP_INACTIVE', CbMod, self(), EP, Assoc, State, RCs}),
+					{'M-ASP_INACTIVE', indication, self(), EP, Assoc, RCs, CbMod, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};
 		{error, eagain} ->
