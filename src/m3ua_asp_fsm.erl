@@ -598,12 +598,12 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
-			{reply, ok, active, StateData, ?Tack};
+			{reply, ok, active, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{reply, {error, eagain}, StateData, ?Tack};
+			{reply, {error, eagain}, active, StateData};
 		{error, Reason} ->
-			{reply, {error, Reason}, StateData, ?Tack}
+			{reply, {error, Reason}, active, StateData}
 	end.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
