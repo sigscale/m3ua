@@ -396,8 +396,7 @@ init([SctpRole, Socket, Address, Port,
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-down(timeout, #statedata{callback = Cb, ep = EP,
-		assoc = Assoc, cb_state = State} = StateData) ->
+down(timeout, #statedata{ep = EP, assoc = Assoc} = StateData) ->
 	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', self(), EP, Assoc}),
 	{next_state, down, StateData}.
 
@@ -553,8 +552,9 @@ handle_sync_event(sctp_status, _From, StateName,
 %% @private
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[#sctp_sndrcvinfo{stream = Stream}], Data}},
-		StateName, #statedata{socket = Socket} = StateData) when is_binary(Data) ->
+		{[#sctp_sndrcvinfo{assoc_id = Assoc, stream = Stream}], Data}},
+		StateName, #statedata{socket = Socket,
+		assoc = Assoc} = StateData) when is_binary(Data) ->
 	handle_sgp(Data, StateName, Stream, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}}, StateName,
@@ -575,13 +575,6 @@ handle_info({sctp, Socket, _, _,
 	NewStateData = StateData#statedata{peer_addr = PeerAddr,
 			peer_port = PeerPort},
 	{next_state, StateName, NewStateData};
-% @todo Dispatch data to user!
-breakme
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[#sctp_sndrcvinfo{assoc_id = Assoc}], _Data}}, StateName,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
 		_StateName, #statedata{socket = Socket, assoc = AssocId} =
