@@ -323,7 +323,7 @@ mtp_transfer(_Config) ->
 	SIO = rand:uniform(10),
 	SLS = rand:uniform(10),
 	Data = crypto:strong_rand_bytes(100),
-	ok = m3ua_asp_fsm:transfer(Asp, Assoc, Stream, OPC, DPC, SLS, SIO, Data),
+	ok = m3ua_asp_fsm:transfer(Asp, Stream, OPC, DPC, SLS, SIO, Data),
 	receive
 		{asp, transfer, {Stream, DPC, OPC, SLS, SIO, Data}} ->
 			ok
