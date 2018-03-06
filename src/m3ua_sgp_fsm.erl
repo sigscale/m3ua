@@ -382,7 +382,7 @@ init([SctpRole, Socket, Address, Port,
 					in_streams = InStreams, out_streams = OutStreams,
 					callback = Cb, cb_state = CbState, ep = EP,
 					registration = Reg, use_rc = UseRC},
-			{ok, down, Statedata};
+			{ok, down, Statedata, 0};
 		{error, Reason} ->
 			{stop, Reason}
 	end.
@@ -396,7 +396,9 @@ init([SctpRole, Socket, Address, Port,
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-down(_Event, #statedata{} = StateData) ->
+down(timeout, #statedata{callback = Cb, ep = EP,
+		assoc = Assoc, cb_state = State} = StateData) ->
+	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', self(), EP, Assoc}),
 	{next_state, down, StateData}.
 
 -spec down(Event :: timeout | term(),
@@ -574,6 +576,7 @@ handle_info({sctp, Socket, _, _,
 			peer_port = PeerPort},
 	{next_state, StateName, NewStateData};
 % @todo Dispatch data to user!
+breakme
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[#sctp_sndrcvinfo{assoc_id = Assoc}], _Data}}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
