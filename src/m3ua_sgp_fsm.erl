@@ -396,8 +396,7 @@ init([SctpRole, Socket, Address, Port,
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-down(timeout, #statedata{callback = Cb,
-		ep = EP, assoc = Assoc} = StateData) ->
+down(timeout, #statedata{ep = EP, assoc = Assoc} = StateData) ->
 	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', self(), EP, Assoc}),
 	{next_state, down, StateData}.
 
