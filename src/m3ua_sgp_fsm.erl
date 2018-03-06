@@ -579,6 +579,15 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
 		_StateName, #statedata{socket = Socket, assoc = AssocId} =
 		StateData) ->
+	{stop, shutdown, StateData};
+handle_info({sctp_error, Socket, PeerAddr, PeerPort,
+		{[], #sctp_send_failed{flags = Flags, error = Error,
+		info = Info, assoc_id = Assoc, data = Data}}},
+		_StateName, StateData) ->
+	error_logger:error_report(["SCTP error",
+		{error, gen_sctp:error_string(Error)}, {flags = Flags},
+		{assoc, Assoc}, {info, Info}, {data, Data}, {socket, Socket},
+		{peer, {PeerAddr, PeerPort}}]),
 	{stop, shutdown, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
