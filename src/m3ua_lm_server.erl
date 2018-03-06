@@ -551,18 +551,18 @@ handle_cast({'M-NOTIFY', indication, Asp, Status, ASPIdentifier, RC}, State) ->
 handle_cast({TrafficMaint, indication, Sgp, EP, Assoc, RCs, CbMod, SgpState},
 		State) when TrafficMaint == 'M-ASP_ACTIVE'; TrafficMaint == 'M-ASP_INACTIVE' ->
 	traffic_maint(TrafficMaint, Sgp, EP, Assoc, RCs, CbMod, SgpState, State);
-handle_cast({StateMainIndication, indication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
-		StateMainIndication == 'M-ASP_UP'; StateMainIndication == 'M-ASP_DOWN' ->
+handle_cast({StateMaint, indication, CbMod, Sgp, EP, Assoc, SgpState}, #state{} = State) when
+		StateMaint == 'M-ASP_UP'; StateMaint == 'M-ASP_DOWN' ->
  	F = fun() ->
 			case mnesia:read(m3ua_asp, Sgp, write) of
 				[] ->
-					ok;
+					[];
 				[#m3ua_asp{rk = RK} | _] ->
 					case mnesia:read(m3ua_as, RK, write) of
 						[] ->
-							ok;
+							[];
 						[#m3ua_as{asp = Asps, min_asp = Min} = AS]
-								when StateMainIndication == 'M-ASP_DOWN' ->
+								when StateMaint == 'M-ASP_DOWN' ->
 							F = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
 							Len = length(lists:filter(F, Asps)),
 							case lists:keytake(Sgp, #m3ua_as_asp.fsm, Asps) of
@@ -571,33 +571,40 @@ handle_cast({StateMainIndication, indication, CbMod, Sgp, EP, Assoc, UState}, #s
 									NewAsp = Asp#m3ua_as_asp{state = inactive},
 									NewAsps = [NewAsp | RemAsp],
 									NewAS = AS#m3ua_as{asp = NewAsps},
-									mnesia:write(NewAS);
+									mnesia:write(NewAS),
+									[];
 								{value, Asp, RemAsp} ->
 									NewAsp = Asp#m3ua_as_asp{state = inactive},
 									NewAsps = [NewAsp | RemAsp],
 									NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
-									F4 = fun(#m3ua_as_asp{fsm = SGP, rc = RC}) ->
-										gen_fsm:send_all_state_event(SGP, {'NTFY', 'AS_INACTIVE', RC})
+									mnesia:write(NewAS),
+									F2 = fun(#m3ua_as_asp{fsm = SGP, rc = RC}, Acc) ->
+											[{SGP, RC, inactive} | Acc]
 									end,
-									lists:foreach(F4, NewAsps),
-									mnesia:write(NewAS);
+									lists:foldl(F2, [], NewAsps);
 								false ->
-									ok
+									[]
 							end;
-						[#m3ua_as{}] when StateMainIndication == 'M-ASP_UP' ->
-							ok
+						[#m3ua_as{}] when StateMaint == 'M-ASP_UP' ->
+							[]
 					end
 			end
 	end,
 	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			CbArgs = [Sgp, EP, Assoc, UState],
-			{ok, NewUState} = m3ua_callback:cb(cb_func(StateMainIndication), CbMod, CbArgs),
-			ok = gen_fsm:send_all_state_event(Sgp, {StateMainIndication, NewUState}),
+		{atomic, NotifyFsms} ->
+			CbArgs = [Sgp, EP, Assoc, SgpState],
+			{ok, NewSgpState} = m3ua_callback:cb(cb_func(StateMaint), CbMod, CbArgs),
+			ok = gen_fsm:send_all_state_event(Sgp, {StateMaint, NewSgpState}),
+			F3 = fun({Fsm, RC, active}) ->
+						ok = gen_fsm:send_all_state_event(Fsm, {'NTFY', 'AS_ACTIVE', RC});
+					({Fsm, RC, inactive}) ->
+						ok = gen_fsm:send_all_state_event(Fsm, {'NTFY', 'AS_INACTIVE', RC})
+			end,
+			ok = lists:foreach(F3, NotifyFsms),
 			{noreply, State};
 		{aborted, Reason} ->
 			error_logger:error_report(["State maintenance indication failed",
-						StateMainIndication, {reason, Reason}, {module, ?MODULE}]),
+						StateMaint, {reason, Reason}, {module, ?MODULE}]),
 			{noreply, State}
 	end;
 handle_cast({'M-RK_REG', #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
