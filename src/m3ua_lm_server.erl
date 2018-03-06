@@ -668,7 +668,6 @@ handle_cast({TrafficMaintIndication, CbMod, Sgp, EP, Assoc, UState, RCs}, State)
 			ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaintIndication, NewUState}),
 			{noreply, State};
 		{aborted, _Reason} ->
-erlang:display({?MODULE, ?LINE, _Reason}),
 			{noreply, State}
 	end;
 handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = State) when
@@ -720,8 +719,11 @@ handle_cast({StateMainIndication, CbMod, Sgp, EP, Assoc, UState}, #state{} = Sta
 						StateMainIndication, {reason, Reason}, {module, ?MODULE}]),
 			{noreply, State}
 	end;
-handle_cast({'M-RK_REG', Socket, EP, Assoc, Sgp, Msg, CbMod, UState}, State) ->
-	handle_registration(Msg, EP, Assoc, Sgp, Socket, 'M-RK_REG', CbMod, UState, State).
+handle_cast({'M-RK_REG', #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
+		Socket, EP, Assoc, Sgp, CbMod, SgpState}, State) ->
+	Parameters = m3ua_codec:parameters(Params),
+	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
+	reg_request(RKs, Sgp, EP, Assoc, Socket, CbMod, SgpState, State).
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->
 	{noreply, NewState :: #state{}}
@@ -765,86 +767,112 @@ get_sups(#state{sup = TopSup, ep_sup_sup = undefined} = State) ->
 	{_, EPSupSup, _, _} = lists:keyfind(m3ua_endpoint_sup_sup, 1, Siblings),
 	State#state{ep_sup_sup = EPSupSup}.
 
-handle_registration(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
-		EP, Assoc, Sgp, Socket, AspOp, CbMod, UState, State) ->
-	Parameters = m3ua_codec:parameters(Params),
-	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
-	RC = rand:uniform(255),
-	F = fun() ->
-			handle_registration1(RKs, EP, Assoc, Sgp,
-					Socket, RC, AspOp, CbMod, UState, inactive, [])
-	end,
-	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			{noreply, State};
-		{aborted, Reason} ->
-			error_logger:error_report(["asp registration failed",
-						{reason, Reason}, {module, ?MODULE}]),
+%% @private
+reg_request(RoutingKeys, SGP, EP, Assoc, Socket, CbMod, SGPState, State) ->
+	reg_request(RoutingKeys, SGP, EP, Assoc, Socket, CbMod, SGPState, State, inactive, []).
+%% @hidden
+reg_request([RK | T], SGP, EP, Assoc, Socket, CbMod, SGPState, State, AsState, RegResults) ->
+	try m3ua_codec:routing_key(RK)
+	of
+		#m3ua_routing_key{na = NA, key = Keys, tmt = Mode} = RoutingKey ->
+			F = fun() ->
+				case catch reg_request1(SGP, RoutingKey) of
+					{reg, AsState1, RegResult1} ->
+						{reg, AsState1, RegResult1};
+					{not_reg, AsState1, RegResult1} ->
+						{not_reg, AsState1, RegResult1};
+					{error, Reason} ->
+						{error, Reason}
+				end
+			end,
+			case mnesia:transaction(F) of
+				{atomic, {reg, NewAsState, RegRes}} ->
+					CbArgs =	[SGP, EP, Assoc, NA, m3ua:sort(Keys), Mode, SGPState],
+					case m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs) of
+						{ok, NewSGPState} ->
+							ok = gen_fsm:send_all_state_event(SGP, {'M-RK_REG', NewSGPState}),
+							reg_request(T, SGP, EP, Assoc, Socket, CbMod,
+									SGPState, State, NewAsState, RegRes ++ RegResults);
+						{error, _Reason} ->
+							reg_request(T, SGP, EP, Assoc, Socket,
+									CbMod, SGPState, State, AsState, RegResults)
+					end;
+				{atomic, {not_reg, NewAsState, RegRes}} ->
+					reg_request(T, SGP, EP, Assoc, Socket, CbMod,
+							SGPState, State, NewAsState, RegRes ++ RegResults);
+				{atomic, {error, _Reason}} ->
+					reg_request(T, SGP, EP, Assoc, Socket,
+							CbMod, SGPState, State, AsState, RegResults);
+				{aborted, _Reason} ->
+					reg_request(T, SGP, EP, Assoc, Socket,
+							CbMod, SGPState, State, AsState, RegResults)
+			end
+	catch
+		_:_ ->
+			reg_request(T, SGP, EP, Assoc, Socket, CbMod, SGPState, State, AsState, RegResults)
+	end;
+reg_request([], _SGP, _EP, Assoc, Socket, _CbMod, _SGPState, State, AsState, RegResults) ->
+	try
+		RegResMsg = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = RegResults},
+		RegResPacket = m3ua_codec:m3ua(RegResMsg),
+		case gen_sctp:send(Socket, Assoc, 0, RegResPacket) of
+			ok ->
+				P0 = m3ua_codec:add_parameter(?Status, {assc, AsState}, []),
+				NtfyMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = P0},
+				NtfyPacket = m3ua_codec:m3ua(NtfyMsg),
+				case gen_sctp:send(Socket, Assoc, 0, NtfyPacket) of
+					ok ->
+						inet:setopts(Socket, [{active, once}]),
+						{noreply, State};
+					{error, eagain} ->
+						% @todo flow control
+						{noreply, State};
+					{error, _Reason} ->
+						{noreply, State}
+				end;
+			{error, eagain} ->
+				% @todo flow control
+				{noreply, State};
+			{error, _Reason} ->
+				{noreply, State}
+		end
+	catch
+		_:_ ->
 			{noreply, State}
 	end.
 %% @hidden
-handle_registration1([RoutingKey | T], EP, Assoc, Sgp,
-		Socket, RC, AspOp, CbMod, UState, _AsState, Acc) ->
-	RKs = m3ua_codec:routing_key(RoutingKey),
-	{Result, NewAsState} =
-		handle_registration2(RKs, EP, Assoc, Sgp, AspOp, CbMod, UState),
-	handle_registration1(T, EP, Assoc, Sgp, Socket,
-			RC, AspOp, CbMod, UState, NewAsState, Result ++ Acc);
-handle_registration1([], _EP, Assoc, _Sgp, Socket,
-		_RC, _AspOp, _CbMod, _UState, AsState, Acc) ->
-	Message1 = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Acc},
-	Packet1 = m3ua_codec:m3ua(Message1),
-	case gen_sctp:send(Socket, Assoc, 0, Packet1) of
-		ok ->
-			Params = m3ua_codec:add_parameter(?Status, {assc, AsState}, []),
-			Message2 = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
-			Packet2 = m3ua_codec:m3ua(Message2),
-			case gen_sctp:send(Socket, Assoc, 0, Packet2) of
-				ok ->
-					inet:setopts(Socket, [{active, once}]),
-					ok;
-				{error, eagain} ->
-					% @todo flow control
-					throw(eagain);
-				{error, Reason} ->
-					throw(Reason)
-			end;
-		{error, eagain} ->
-			% @todo flow control
-			throw(eagain);
-		{error, Reason} ->
-			throw(Reason)
-	end.
-%% @hidden
-handle_registration2(#m3ua_routing_key{lrk_id = undefined, key = Keys},
-		_EP, _Assoc, _Sgp, _AspOp, _CbMod, _UState) ->
-	AsState = case mnesia:read(m3ua_as, m3ua:sort(Keys)) of
-		[] ->
-			inactive;
-		[#m3ua_as{state = State}] ->
-			State
-	end,
-	RegResult = #registration_result{status = unsupported_rk_parameter_field_, rc = 0},
-	Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
-	{Message, AsState};
-handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
-		rc = RC, lrk_id = LRKId}, EP, Assoc, Sgp, AspOp, CbMod, UState) ->
-	SortedKeys = m3ua:sort(Keys),
-	RK = {NA, SortedKeys, Mode},
-	case mnesia:read(m3ua_as, {NA, Keys, Mode}, write) of
+reg_request1(_Sgp, #m3ua_routing_key{lrk_id = undefined, key = Keys,
+		tmt = Mode, na = NA}) ->
+	try
+		RK = {NA, m3ua:sort(Keys), Mode},
+		AsState = case mnesia:read(m3ua_as, RK) of
+			[] ->
+				inactive;
+			[#m3ua_as{state = State}] ->
+				State
+		end,
+		RegResult = #registration_result{status = unsupported_rk_parameter_field_, rc = 0},
+		Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
+		{not_reg, AsState, Message}
+	catch
+		_:Reason ->
+			{error, Reason}
+	end;
+reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
+		rc = RC, lrk_id = LRKId}) ->
+	SKeys = m3ua:sort(Keys),
+	RK = {NA, SKeys, Mode},
+	case mnesia:read(m3ua_as, RK,write) of
 		[] when RC == undefined ->
-			NewRC = erlang:phash2(rand:uniform(16#7FFFFFFF), 255),
+			RC1 = erlang:phash2(rand:uniform(16#7FFFFFFF), 255),
 			M3UAAsp1 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 			AS1 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp1]},
-			Asp1 = #m3ua_asp{fsm = Sgp, rc = NewRC, rk = RK},
+			Asp1 = #m3ua_asp{fsm = Sgp, rc = RC1, rk = RK},
 			ok = mnesia:write(AS1),
-			ok = mnesia:write(Asp1),
-			Registered1 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC},
-			RegisteredMsg1 = [{?RegistrationResult, Registered1}],
-			CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-			{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
-			ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
-			{RegisteredMsg1, inactive};
+			ok = mnesia:write(m3ua_asp, Asp1, write),
+			RegRes = [{?RegistrationResult,
+					#registration_result{lrk_id = LRKId, status = registered, rc = RC1}}],
+			{reg, inactive, RegRes};
 		[] ->
 			case mnesia:read(m3ua_asp, Sgp, write) of
 				[] ->
@@ -853,12 +881,9 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					Asp2 = #m3ua_asp{fsm = Sgp, rc = RC, rk = RK},
 					mnesia:write(AS2),
 					mnesia:write(Asp2),
-					Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
-					RegisteredMsg2 = [{?RegistrationResult, Registered2}],
-					CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-					{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
-					ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
-					{RegisteredMsg2, inactive};
+					RegRes = [{?RegistrationResult,
+							#registration_result{lrk_id = LRKId, status = registered, rc = RC}}],
+					{reg, inactive, RegRes};
 				RegAsps ->
 					case lists:keytake(RC, #m3ua_asp.rc, RegAsps) of
 						{value, #m3ua_asp{rk = ExRK} = ExASP, _} ->
@@ -867,39 +892,30 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 									M3UAAsp3 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 									AS3 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp3]},
 									Asp3 = #m3ua_asp{fsm = Sgp, rc = RC, rk = RK},
-									mnesia:write(AS3),
-									mnesia:write(Asp3),
-									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
-									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
-									CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-									{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
-									ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
-									{RegisteredMsg2, inactive};
+									ok = mnesia:write(AS3),
+									ok = mnesia:write(Asp3),
+									RegRes = [{?RegistrationResult,
+											#registration_result{lrk_id = LRKId, status = registered, rc = RC}}],
+									{reg, inactive, RegRes};
 								[#m3ua_as{state = State} = ExAS] ->
-									NewKey = m3ua:sort(SortedKeys ++ element(2, ExRK)),
+									NewKey = m3ua:sort(SKeys ++ element(2, ExRK)),
 									AS3 = ExAS#m3ua_as{routing_key = setelement(2, ExRK, NewKey)},
 									Asp3 = ExASP#m3ua_asp{rk = setelement(2, ExRK, NewKey)},
-									mnesia:write(AS3),
-									mnesia:write(Asp3),
-									Registered2 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
-									RegisteredMsg2 = [{?RegistrationResult, Registered2}],
-									CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-									{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
-									ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
-									{RegisteredMsg2, State}
+									ok = mnesia:write(AS3),
+									ok = mnesia:write(Asp3),
+									RegRes = [{?RegistrationResult,
+											#registration_result{lrk_id = LRKId, status = registered, rc = RC}}],
+									{reg, State, RegRes}
 							end;
 						false ->
 							M3UAAsp4 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 							AS4 = #m3ua_as{routing_key = RK, asp = [M3UAAsp4]},
 							Asp4 = #m3ua_asp{fsm = Sgp, rc = RC, rk = RK},
-							mnesia:write(AS4),
-							mnesia:write(Asp4),
-							Registered3 = #registration_result{lrk_id = LRKId, status = registered, rc = RC},
-							RegisteredMsg3 = [{?RegistrationResult, Registered3}],
-							CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-							{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
-							ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
-							{RegisteredMsg3, inactive}
+							ok = mnesia:write(AS4),
+							ok = mnesia:write(Asp4),
+							RegRes = [{?RegistrationResult,
+									#registration_result{lrk_id = LRKId, status = registered, rc = RC}}],
+							{reg, inactive, RegRes}
 					end
 			end;
 		[#m3ua_as{asp = Asps, min_asp = Min, max_asp = Max, state = AsState} = AS] ->
@@ -908,7 +924,7 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					AlreadyReg = #registration_result{lrk_id = LRKId,
 						status = rk_already_registered, rc = 0},
 					AlreadyRegMsg = [{?RegistrationResult, AlreadyReg}],
-					{AlreadyRegMsg, AsState};
+					{not_reg, AsState, AlreadyRegMsg};
 				false ->
 					NewRC1 = case RC of
 						undefined ->
@@ -927,14 +943,11 @@ handle_registration2(#m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					M3UAAsp5 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 					AS5 = AS#m3ua_as{state = NewAsState, routing_key = RK, asp = [M3UAAsp5 | Asps]},
 					Asp5 = #m3ua_asp{fsm = Sgp, rc = NewRC1, rk = RK},
-					mnesia:write(AS5),
-					mnesia:write(Asp5),
-					Registered4 = #registration_result{lrk_id = LRKId, status = registered, rc = NewRC1},
-					RegisteredMsg4 = [{?RegistrationResult, Registered4}],
-					CbArgs =	[Sgp, EP, Assoc, NA, SortedKeys, Mode, UState],
-					{ok, NewUState} = m3ua_callback:cb(cb_func(AspOp), CbMod, CbArgs),
-					ok = gen_fsm:send_all_state_event(Sgp, {AspOp, NewUState}),
-					{RegisteredMsg4, NewAsState}
+					ok = mnesia:write(AS5),
+					ok = mnesia:write(Asp5),
+					RegRes = [{?RegistrationResult,
+							#registration_result{lrk_id = LRKId, status = registered, rc = NewRC1}}],
+					{reg, NewAsState, RegRes}
 			end
 	end.
 
