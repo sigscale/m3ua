@@ -618,6 +618,9 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
+handle_event({'NTFY', _NotifyFor, _RC}, StateName, StateData) ->
+	% @todo do need to send notify ?
+	{next_state, StateName, StateData};
 handle_event({'M-RK_REG', {RC, RK}}, StateName,
 		#statedata{rks = RKs} = StateData) ->
 	NewRKs = [#{rc => RC, rk => RK} | RKs],
