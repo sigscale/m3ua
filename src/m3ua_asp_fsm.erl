@@ -223,8 +223,7 @@
 		mode :: undefined | override | loadshare | broadcast,
 		ep :: pid(),
 		callback :: atom() | #m3ua_fsm_cb{},
-		cb_state :: term(),
-		as_state :: term()}).
+		cb_state :: term()}).
 
 -define(Tack, 2000).
 

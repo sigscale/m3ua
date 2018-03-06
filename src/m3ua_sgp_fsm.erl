@@ -221,8 +221,7 @@
 		registration :: dynamic | static,
 		use_rc :: boolean(),
 		callback :: atom() | #m3ua_fsm_cb{},
-		cb_state :: term(),
-		sg_state :: term()}).
+		cb_state :: term()}).
 
 %%----------------------------------------------------------------------
 %%  Interface functions
