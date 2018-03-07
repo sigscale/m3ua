@@ -622,13 +622,33 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
-terminate(normal = _Reason, _StateName, _StateData) ->
+terminate(normal = _Reason, _StateName,
+		#statedata{socket = undefined} = _StateData) ->
 	ok;
-terminate(shutdown, _StateName, _StateData) ->
+terminate(normal = _Reason, _StateName,
+		#statedata{socket = Socket} = _StateData) ->
+	gen_sctp:close(Socket),
 	ok;
-terminate({shutdown, _}, _StateName, _StateData) ->
+terminate(shutdown, _StateName,
+		#statedata{socket = undefined} = _StateData) ->
 	ok;
-terminate(Reason, StateName, StateData) ->
+terminate(shutdown, _StateName,
+		#statedata{socket = Socket} = _StateData) ->
+	gen_sctp:close(Socket),
+	ok;
+terminate({shutdown, _}, _StateName,
+		#statedata{socket = undefined} = _StateData) ->
+	ok;
+terminate({shutdown, _}, _StateName,
+		#statedata{socket = Socket} = _StateData) ->
+	gen_sctp:close(Socket),
+	ok;
+terminate(Reason, StateName, #statedata{socket = undefined} = StateData) ->
+	error_logger:error_report(["Abnormal process termination",
+			{module, ?MODULE}, {pid, self()}, {reason, Reason},
+			{statename, StateName}, {statedata, StateData}]);
+terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
+	gen_sctp:close(Socket),
 	error_logger:error_report(["Abnormal process termination",
 			{module, ?MODULE}, {pid, self()}, {reason, Reason},
 			{statename, StateName}, {statedata, StateData}]).
