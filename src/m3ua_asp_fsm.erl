@@ -27,7 +27,7 @@
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
-%%%  <h3 class="function"><a name="init-3">init/3</a></h3>
+%%%  <h3 class="function"><a name="init-4">init/4</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>init(Module, Asp, EP, Assoc) -&gt; Result </tt>
 %%%  <ul class="definitions">
@@ -231,8 +231,9 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback init(Asp, EP, Assoc) -> Result
+-callback init(Module, Asp, EP, Assoc) -> Result
 	when
+		Module :: atom(),
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),

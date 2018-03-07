@@ -19,7 +19,9 @@
 
 -behaviour(m3ua_sgp_fsm).
 
--export([init/3, transfer/11, pause/7, resume/7, status/7,
+-include("m3ua.hrl").
+
+-export([init/4, transfer/11, pause/7, resume/7, status/7,
 		register/7]).
 -export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
 
@@ -30,7 +32,7 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm callback 
 %%----------------------------------------------------------------------
-init(Asp, EP, _Assoc) ->
+init(_Module, _Asp, _EP, _Assoc) ->
 	{ok, []}.
 
 transfer(Sgp, _EP, Assoc, Stream, _RK, OPC, DPC, SLS, SIO, Data, State) ->
