@@ -215,6 +215,7 @@
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
+		rks = [] :: [#{rc => pos_integer(), rk => routing_key()}],
 		ual :: undefined | integer(),
 		stream :: undefined | integer(),
 		ep :: pid(),
@@ -521,6 +522,11 @@ handle_event({'NTFY', NotifyFor, _RC}, StateName,
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
+handle_event({'M-RK_REG', {RC, RK}}, StateName,
+		#statedata{rks = RKs} = StateData) ->
+	NewRKs = [#{rc => RC, rk => RK} | RKs],
+	NewStateData = StateData#statedata{rks = NewRKs},
+	{next_state, StateName, NewStateData};
 handle_event({Indication,  State}, StateName, StateData)
 		when Indication == 'M-ASP_UP'; Indication == 'M-ASP_DOWN';
 		Indication == 'M-ASP_ACTIVE'; Indication == 'M-ASP_INACTIVE';
