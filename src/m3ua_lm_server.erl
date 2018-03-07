@@ -653,13 +653,19 @@ handle_info({'EXIT', Pid, _Reason},
 					Fdel2 = fun(_F, {Key, {P, _},  _Iter}) when P ==  Pid ->
 								Key;
 							(F, {_Key, _Val, Iter}) ->
-								F(F, gb_trees:next(Iter))
+								F(F, gb_trees:next(Iter));
+							(_F, none) ->
+								none
 					end,
 					Iter2 = gb_trees:iterator(Reqs),
-					Key2 = Fdel2(Fdel2, gb_trees:next(Iter2)),
-					NewReqs = gb_trees:delete(Key2, Reqs),
-					NewState = State#state{eps = NewReqs},
-					{noreply, NewState};
+					case Fdel2(Fdel2, gb_trees:next(Iter2)) of
+						none ->
+							{noreply, State};
+						Key2 ->
+							NewReqs = gb_trees:delete(Key2, Reqs),
+							NewState = State#state{eps = NewReqs},
+							{noreply, NewState}
+					end;
 				Key ->
 					NewFsms = gb_trees:delete(Key, Fsms),
 					NewState = State#state{eps = NewFsms},
