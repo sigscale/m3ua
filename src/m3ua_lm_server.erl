@@ -298,13 +298,12 @@ handle_call({open, Args, Callback}, {USAP, _Tag} = _From,
 			{reply, {error, Reason}, State}
 	end;
 handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP) ->
-	try m3ua_endpoint_server:stop(EP) of
+	case catch gen_server:call(EP, {'M-SCTP_RELEASE', request}) of
 		ok ->
-			NewEndPoints = gb_trees:delete(EP, EndPoints),
-			NewState = State#state{eps = NewEndPoints},
-			{reply, ok, NewState}
-	catch
-		exit:Reason ->
+			{reply, ok, State}
+		{error, Reason}
+			{reply, {error, Reason}, State};
+		{'EXIT', Reason} ->
 			{reply, {error, Reason}, State}
 	end;
 handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
