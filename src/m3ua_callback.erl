@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua_callback public API
--export([init/3, transfer/11, pause/7, resume/7, status/7,
+-export([init/4, transfer/11, pause/7, resume/7, status/7,
 		register/7, asp_up/4, asp_down/4, asp_active/4,
 		asp_inactive/4]).
 
