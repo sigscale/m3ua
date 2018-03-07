@@ -560,7 +560,11 @@ handle_sync_event('M-SCTP_STATUS', _From, StateName,
 			{reply, {ok, Status}, StateName, StateData};
 		{error, Reason} ->
 			{reply, {error, Reason}, StateName, StateData}
-	end.
+	end;
+handle_sync_event({'M-SCTP_RELEASE', request}, _From,
+		_StateName, #statedata{socket = Socket} = StateData) ->
+	NewStateData = StateData#statedata{socket = undefined},
+	{stop, shutdown, gen_sctp:close(Socket), NewStateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->

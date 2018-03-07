@@ -323,7 +323,7 @@ handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
 handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
-			case catch gen_fsm:send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
+			case catch gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
 				ok ->
 					{reply, ok, State};
 				{error, Reason} ->
