@@ -226,7 +226,7 @@ terminate({shutdown, _}, _State) ->
 	ok;
 terminate(Reason, _State) ->
 	error_logger:error_report(["Abnormal process termination",
-			[{module, ?MODULE}, {pid, self()},
+			{module, ?MODULE}, {pid, self()},
 			{reason, Reason}, {state, State}]).
 
 -spec code_change(OldVsn :: term() | {down, term()}, State :: #state{},
