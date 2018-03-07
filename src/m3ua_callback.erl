@@ -33,15 +33,16 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_callback public API
 %%----------------------------------------------------------------------
--spec init(Fsm, EP, Assoc) -> Result
+-spec init(Module, Fsm, EP, Assoc) -> Result
 	when
+		Module :: atom(),
 		Fsm :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().
-init(_Fsm, _EP, _Assoc) ->
+init(_Module, _Fsm, _EP, _Assoc) ->
 	{ok, []}.
 
 -spec transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result

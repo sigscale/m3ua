@@ -29,8 +29,9 @@
 %%%
 %%%  <h3 class="function"><a name="init-3">init/3</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>init(Sgp, EP, Assoc) -&gt; Result </tt>
+%%%  <p><tt>init(Log, Sgp, EP, Assoc) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>Module = atom()</tt></li>
 %%%    <li><tt>Sgp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
@@ -373,7 +374,7 @@ init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, Cb, Reg, UseRC]) ->
-	Args = [self(), EP, Assoc],
+	Args = [?MODULE, self(), EP, Assoc],
 	case m3ua_callback:cb(init, Cb, Args) of
 		{ok, CbState} ->
 			process_flag(trap_exit, true),
