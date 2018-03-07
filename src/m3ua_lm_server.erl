@@ -309,14 +309,17 @@ handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP)
 	end;
 handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
 		_From, #state{fsms = Fsms} = State) ->
-	case gen_server:call(EndPoint, {'M-SCTP_ESTABLISH', request, Address, Port, Options}) of
+	case catch gen_server:call(EndPoint, {'M-SCTP_ESTABLISH', request, Address, Port, Options}) of
 		{ok, AspFsm, Assoc} ->
 			NewFsms = gb_trees:insert({EndPoint, Assoc}, AspFsm, Fsms),
 			link(AspFsm),
 			NewState = State#state{fsms = NewFsms},
 			{reply, {ok, Assoc}, NewState};
 		{error, Reason} ->
+			{reply, {error, Reason}, State};
+		{'EXIT', Reason} ->
 			{reply, {error, Reason}, State}
+	end;
 	end;
 handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
