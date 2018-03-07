@@ -371,9 +371,9 @@ handle_call({as_delete, RoutingKey}, _From, State) ->
 handle_call({'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AsName}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
-		{value, AspFsm} ->
+		{value, Fsm} ->
 			Ref = make_ref(),
-			gen_fsm:send_event(AspFsm,
+			gen_fsm:send_event(Fsm,
 					{'M-RK_REG', request,  Ref, self(), NA, Keys, Mode, AsName}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -434,7 +434,7 @@ handle_cast({'M-RK_REG', confirm, Ref, Asp, undefined,
 	% @todo need a better mechanism to generate routing contexts
 	RC = erlang:unique_integer([positive]),
 	gen_fsm:send_all_state_event(Asp, {'M_RK_REG', {RC, {NA, m3ua:sort(Keys), TMT}}}),
-	reg_result([#registration_result{status = registered, rc = RC} | []],
+	reg_result([#registration_result{status = registered, rc = RC}],
 			NA, Keys, TMT, AS, Asp, EP, Assoc, CbMod, UState, Ref, State);
 handle_cast({'M-RK_REG', confirm, Ref, Asp,
 		#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
@@ -851,7 +851,7 @@ reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 	end.
 
 %% @hidden
-reg_result([#registration_result{status = registered, rc = RC} | []],
+reg_result([#registration_result{status = registered, rc = RC}],
 		NA, Keys, TMT, AS, Asp, EP, Assoc, CbMod, UState,  Ref,
 		#state{reqs = Reqs} = State) ->
 	RK = {NA, Keys, TMT},
@@ -891,7 +891,7 @@ reg_result([#registration_result{status = registered, rc = RC} | []],
 		none ->
 			{noreply, State}
 	end;
-reg_result([#registration_result{status = Status} | []],
+reg_result([#registration_result{status = Status}],
 		_NA, _Keys, _TMT, _AS, _Asp, _Ep, _Assoc, _CbMod, _UState,
 		Ref, #state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of

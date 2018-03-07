@@ -398,6 +398,13 @@ init([SctpRole, Socket, Address, Port,
 %%
 down(timeout, #statedata{ep = EP, assoc = Assoc} = StateData) ->
 	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', self(), EP, Assoc}),
+	{next_state, down, StateData};
+down({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
+		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
+		cb_state = UState} = StateData) ->
+	gen_server:cast(From,
+			{'M-RK_REG', confirm, Ref, self(),
+			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
 	{next_state, down, StateData}.
 
 -spec down(Event :: timeout | term(),
@@ -420,7 +427,12 @@ down({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
-inactive(_Event, #statedata{} = StateData) ->
+inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
+		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
+		cb_state = UState} = StateData) ->
+	gen_server:cast(From,
+			{'M-RK_REG', confirm, Ref, self(),
+			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
 	{next_state, inactive, StateData}.
 
 -spec inactive(Event :: timeout | term(),
@@ -443,7 +455,12 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
 %% @private
 %%
-active(timeout, #statedata{} = StateData) ->
+active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
+		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
+		cb_state = UState} = StateData) ->
+	gen_server:cast(From,
+			{'M-RK_REG', confirm, Ref, self(),
+			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
 	{next_state, active, StateData}.
 
 -spec active(Event :: timeout | term(),
