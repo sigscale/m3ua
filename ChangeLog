@@ -1,0 +1,7 @@
+2018-03-08  Vance Shipley <vances@sigscale.org>
+
+	* add module name to init callback
+	* change order of supervisor start
+	* handle sctp release for association
+	* do sctp release association from lm server
+
