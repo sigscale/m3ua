@@ -298,11 +298,11 @@ handle_call({open, Args, Callback}, {USAP, _Tag} = _From,
 		{error, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP) ->
+handle_call({close, EP}, _From, State) when is_pid(EP) ->
 	case catch gen_server:call(EP, {'M-SCTP_RELEASE', request}) of
 		ok ->
-			{reply, ok, State}
-		{error, Reason}
+			{reply, ok, State};
+		{error, Reason} ->
 			{reply, {error, Reason}, State};
 		{'EXIT', Reason} ->
 			{reply, {error, Reason}, State}
@@ -320,15 +320,12 @@ handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
 		{'EXIT', Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-	end;
 handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
-		{value, _} ->
-			case catch gen_server:call(EndPoint, {'M-SCTP_RELEASE', request,  Assoc}) of
+		{value, Fsm} ->
+			case catch gen_fsm:send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
 				ok ->
-					NewFsms	= gb_trees:delete({EndPoint, Assoc}, Fsms),
-					NewState = State#state{fsms = NewFsms},
-					{reply, ok, NewState};
+					{reply, ok, State};
 				{error, Reason} ->
 					{reply, {error, Reason}, State};
 				{'EXIT', Reason} ->

@@ -137,22 +137,8 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 handle_call({'M-SCTP_ESTABLISH', request, Address, Port, Options}, _From,
 		#state{sctp_role = client, asp_sup = Sup} = State) ->
 	connect(Address, Port, Options, Sup, State);
-handle_call({'M-SCTP_RELEASE', request, Assoc}, _From, #state{fsms = Fsms} = State) ->
-	case gb_trees:lookup(Assoc, Fsms) of
-		{value, Fsm} ->
-			case catch gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
-				ok ->
-					{reply, ok, State};
-				{error, Reason} ->
-					{reply, {error, Reason}, State};
-				{'EXIT', Reason} ->
-					{reply, {error, Reason}, State}
-			end;
-		none ->
-			{reply, {error, invalid_assoc}, State}
-	end;
 handle_call({'M-SCTP_RELEASE', request}, _From,
-		#state{socket = Socket, fsms = Fsms} = State) ->
+		#state{socket = Socket} = State) ->
 	{stop, {shutdown, {self(), release}}, gen_sctp:close(Socket), State};
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
