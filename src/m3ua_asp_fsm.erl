@@ -220,7 +220,6 @@
 		rks = [] :: [#{rc => pos_integer(), rk => routing_key()}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
-		mode :: undefined | override | loadshare | broadcast,
 		ep :: pid(),
 		callback :: atom() | #m3ua_fsm_cb{},
 		cb_state :: term()}).
@@ -456,8 +455,7 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
 			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
-	NewStateData = StateData#statedata{mode = Mode},
-	{next_state, inactive, NewStateData};
+	{next_state, inactive, StateData};
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc} = StateData)  ->
@@ -470,17 +468,15 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
 		ok ->
 			Req = {'M-RK_REG', request, Ref, From, RK},
-			NewStateData = StateData#statedata{req = Req, mode = Mode},
+			NewStateData = StateData#statedata{req = Req},
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
 			{stop, Reason, StateData}
 	end;
-inactive({'M-ASP_ACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc, mode = Mode} = StateData) ->
-	P0 = m3ua_codec:add_parameter(?TrafficModeType, Mode, []),
-	Params = m3ua_codec:parameters(P0),
-	AspActive = #m3ua{class = ?ASPTMMessage,
-		type = ?ASPTMASPAC, params = Params},
+inactive({'M-ASP_ACTIVE', request, Ref, From},
+		#statedata{req = undefined, socket = Socket,
+		assoc = Assoc} = StateData) ->
+	AspActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC},
 	Message = m3ua_codec:m3ua(AspActive),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
 		ok ->
