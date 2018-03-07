@@ -617,9 +617,7 @@ handle_event({'M-RK_REG', {RC, RK}}, StateName,
 	{next_state, StateName, NewStateData};
 handle_event({_AspOp, State}, StateName, StateData) ->
 	NewStateData = StateData#statedata{cb_state = State},
-	{next_state, StateName, NewStateData};
-handle_event(_Event, _StateName, StateData) ->
-	{stop, not_implemented, StateData}.
+	{next_state, StateName, NewStateData}.
 
 -spec handle_sync_event(Event :: term(), From :: {pid(), Tag :: term()},
 		StateName :: atom(), StateData :: #statedata{}) ->

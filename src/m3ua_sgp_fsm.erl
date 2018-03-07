@@ -443,7 +443,7 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
 %% @private
 %%
-active(_Event, #statedata{} = StateData) ->
+active(timeout, #statedata{} = StateData) ->
 	{next_state, active, StateData}.
 
 -spec active(Event :: timeout | term(),
@@ -509,9 +509,7 @@ handle_event({Indication,  State}, StateName, StateData)
 		Indication == 'M-ASP_ACTIVE'; Indication == 'M-ASP_INACTIVE';
 		Indication == 'M-RK_REG' ->
 	NewStateData = StateData#statedata{cb_state = State},
-	{next_state, StateName, NewStateData};
-handle_event(_Event, _StateName, StateData) ->
-	{stop, not_implemented, StateData}.
+	{next_state, StateName, NewStateData}.
 
 -spec handle_sync_event(Event :: term(), From :: {pid(), Tag :: term()},
 		StateName :: atom(), StateData :: #statedata{}) ->
