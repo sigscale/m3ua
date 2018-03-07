@@ -530,7 +530,7 @@ handle_sync_event({getstat, undefined}, _From, StateName,
 handle_sync_event({getstat, Options}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
 	{reply, inet:getstat(Socket, Options), StateName, StateData};
-handle_sync_event(sctp_status, _From, StateName,
+handle_sync_event('M-SCTP_STATUS', _From, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
 	case inet_getopts(Socket, Options) of
