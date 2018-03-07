@@ -196,7 +196,25 @@ handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
 	inet:setopts(Socket, [{active, once}]),
-	{noreply, State}.
+	{noreply, State};
+handle_info({'EXIT', _Pid, {shutdown,{{_EP, Assoc}, _Reason}}},
+		#state{fsms = Fsms} = State) ->
+	NewFsms = gb_trees:delete(Assoc, Fsms),
+	NewState = State#state{fsms = NewFsms},
+	{noreply, NewState};
+handle_info({'EXIT', Pid, _Reason}, #state{fsms = Fsms} = State) ->
+	Fdel = fun(_F, {Assoc, P, _Iter}) when P ==  Pid ->
+				Assoc;
+			(F, {_Key, _Val, Iter}) ->
+				F(F, gb_trees:next(Iter));
+			(_F, none) ->
+				none
+	end,
+	Iter = gb_trees:iterator(Fsms),
+	Key = Fdel(Fdel, gb_trees:next(Iter)),
+	NewFsms = gb_trees:delete(Key, Fsms),
+	NewState = State#state{fsms = NewFsms},
+	{noreply, NewState}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->
