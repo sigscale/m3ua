@@ -474,7 +474,7 @@ active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 %% @private
 %%
 active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
-		_From, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
 	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
@@ -484,9 +484,9 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 			{reply, ok, active, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
@@ -502,7 +502,7 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 %% @private
 %%
 handle_event({'NTFY', NotifyFor, _RC}, StateName,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		#statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
 	Params = case NotifyFor of
 		'AS_ACTIVE' ->
 			[{?Status, {assc, active}}];
@@ -519,9 +519,9 @@ handle_event({'NTFY', NotifyFor, _RC}, StateName,
 			{next_state, StateName, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_event({'M-RK_REG', {RC, RK}}, StateName,
 		#statedata{rks = RKs} = StateData) ->
@@ -561,7 +561,11 @@ handle_sync_event('M-SCTP_STATUS', _From, StateName,
 			{reply, {ok, Status}, StateName, StateData};
 		{error, Reason} ->
 			{reply, {error, Reason}, StateName, StateData}
-	end.
+	end;
+handle_sync_event({'M-SCTP_RELEASE', request}, _From,
+		_StateName, #statedata{socket = Socket} = StateData) ->
+	NewStateData = StateData#statedata{socket = undefined},
+	{stop, shutdown, gen_sctp:close(Socket), NewStateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
@@ -599,18 +603,18 @@ handle_info({sctp, Socket, _, _,
 	{next_state, StateName, NewStateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
-		_StateName, #statedata{socket = Socket, assoc = AssocId} =
-		StateData) ->
-	{stop, shutdown, StateData};
+		_StateName, #statedata{socket = Socket, assoc = AssocId,
+		ep = EP} = StateData) ->
+	{stop, {shutdown, {{EP, AssocId}, shutdown}}, StateData};
 handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		{[], #sctp_send_failed{flags = Flags, error = Error,
 		info = Info, assoc_id = Assoc, data = Data}}},
-		_StateName, StateData) ->
+		_StateName, #statedata{assoc = Assoc, ep = EP} = StateData) ->
 	error_logger:error_report(["SCTP error",
 		{error, gen_sctp:error_string(Error)}, {flags = Flags},
 		{assoc, Assoc}, {info, Info}, {data, Data}, {socket, Socket},
 		{peer, {PeerAddr, PeerPort}}]),
-	{stop, shutdown, StateData}.
+	{stop, {shutdown, {{EP, Assoc}, Error}}, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) ->
@@ -619,13 +623,33 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
-terminate(normal = _Reason, _StateName, _StateData) ->
+terminate(normal = _Reason, _StateName,
+		#statedata{socket = undefined} = _StateData) ->
 	ok;
-terminate(shutdown, _StateName, _StateData) ->
+terminate(normal = _Reason, _StateName,
+		#statedata{socket = Socket} = _StateData) ->
+	gen_sctp:close(Socket),
 	ok;
-terminate({shutdown, _}, _StateName, _StateData) ->
+terminate(shutdown, _StateName,
+		#statedata{socket = undefined} = _StateData) ->
 	ok;
-terminate(Reason, StateName, StateData) ->
+terminate(shutdown, _StateName,
+		#statedata{socket = Socket} = _StateData) ->
+	gen_sctp:close(Socket),
+	ok;
+terminate({shutdown, _}, _StateName,
+		#statedata{socket = undefined} = _StateData) ->
+	ok;
+terminate({shutdown, _}, _StateName,
+		#statedata{socket = Socket} = _StateData) ->
+	gen_sctp:close(Socket),
+	ok;
+terminate(Reason, StateName, #statedata{socket = undefined} = StateData) ->
+	error_logger:error_report(["Abnormal process termination",
+			{module, ?MODULE}, {pid, self()}, {reason, Reason},
+			{statename, StateName}, {statedata, StateData}]);
+terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
+	gen_sctp:close(Socket),
 	error_logger:error_report(["Abnormal process termination",
 			{module, ?MODULE}, {pid, self()}, {reason, Reason},
 			{statename, StateName}, {statedata, StateData}]).
@@ -659,12 +683,12 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
 			{next_state, inactive, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
-		_Stream, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		_Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -679,15 +703,15 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
 					{next_state, inactive, StateData};
 				{error, eagain} ->
 					% @todo flow control
-					{stop, eagain, StateData};
+					{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 				{error, Reason} ->
-					{stop, Reason, StateData}
+					{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 			end;
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 		inactive, _Stream, #statedata{socket = Socket, ep = EP,
@@ -711,9 +735,9 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			{next_state, active, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod,
@@ -729,9 +753,9 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 			{next_state, down, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		active, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
@@ -748,9 +772,9 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 			{next_state, inactive, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket, callback = CbMod, cb_state = State,

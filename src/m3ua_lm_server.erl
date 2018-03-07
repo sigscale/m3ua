@@ -291,39 +291,41 @@ handle_call({open, Args, Callback}, {USAP, _Tag} = _From,
 			Children = supervisor:which_children(EndPointSup),
 			{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server,
 					1, Children),
+			link(EP),
 			NewEndPoints = gb_trees:insert(EP, USAP, EndPoints),
 			NewState = State#state{eps = NewEndPoints},
 			{reply, {ok, EP}, NewState};
 		{error, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({close, EP}, _From, #state{eps = EndPoints} = State) when is_pid(EP) ->
+handle_call({close, EP}, _From, State) when is_pid(EP) ->
 	case catch gen_server:call(EP, {'M-SCTP_RELEASE', request}) of
 		ok ->
-			{reply, ok, State}
-		{error, Reason}
+			{reply, ok, State};
+		{error, Reason} ->
 			{reply, {error, Reason}, State};
 		{'EXIT', Reason} ->
 			{reply, {error, Reason}, State}
 	end;
 handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
 		_From, #state{fsms = Fsms} = State) ->
-	case gen_server:call(EndPoint, {'M-SCTP_ESTABLISH', request, Address, Port, Options}) of
+	case catch gen_server:call(EndPoint, {'M-SCTP_ESTABLISH', request, Address, Port, Options}) of
 		{ok, AspFsm, Assoc} ->
 			NewFsms = gb_trees:insert({EndPoint, Assoc}, AspFsm, Fsms),
+			link(AspFsm),
 			NewState = State#state{fsms = NewFsms},
 			{reply, {ok, Assoc}, NewState};
 		{error, Reason} ->
+			{reply, {error, Reason}, State};
+		{'EXIT', Reason} ->
 			{reply, {error, Reason}, State}
 	end;
 handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
-		{value, _} ->
-			case catch gen_server:call(EndPoint, {'M-SCTP_RELEASE', request,  Assoc}) of
+		{value, Fsm} ->
+			case catch gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
 				ok ->
-					NewFsms	= gb_trees:delete({EndPoint, Assoc}, Fsms),
-					NewState = State#state{fsms = NewFsms},
-					{reply, ok, NewState};
+					{reply, ok, State};
 				{error, Reason} ->
 					{reply, {error, Reason}, State};
 				{'EXIT', Reason} ->
@@ -432,7 +434,7 @@ handle_cast({'M-RK_REG', confirm, Ref, Asp, undefined,
 		NA, Keys, TMT, AS, EP, Assoc, CbMod, UState}, State) ->
 	% @todo need a better mechanism to generate routing contexts
 	RC = erlang:unique_integer([positive]),
-	gen_fsm:send_all_state_event(Asp, {'M_RK_REG', {RC, {NA, m3ua:sort(Keys), TMT}}}),
+	gen_fsm:send_all_state_event(Asp, {'M-RK_REG', {RC, {NA, m3ua:sort(Keys), TMT}}}),
 	reg_result([#registration_result{status = registered, rc = RC}],
 			NA, Keys, TMT, AS, Asp, EP, Assoc, CbMod, UState, Ref, State);
 handle_cast({'M-RK_REG', confirm, Ref, Asp,
@@ -458,6 +460,7 @@ handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 	end;
 handle_cast({'M-SCTP_ESTABLISH', SgpFsm, EP, Assoc}, #state{fsms = Fsms} = State) ->
 	NewFsms = gb_trees:insert({EP, Assoc}, SgpFsm, Fsms),
+	link(SgpFsm),
 	{noreply, State#state{fsms = NewFsms}};
 handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 		UState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
@@ -623,6 +626,55 @@ handle_cast({'M-RK_REG', #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = 
 %% @see //stdlib/gen_server:handle_info/2
 %% @private
 %%
+handle_info({'EXIT', EP, {shutdown, {EP, _Reason}}},
+		#state{eps = EPs} = State) ->
+	NewEPs = gb_trees:delete(EP, EPs),
+	NewState = State#state{eps = NewEPs},
+	{noreply, NewState};
+handle_info({'EXIT', _Pid, {shutdown, {{EP, Assoc}, _Reason}}},
+		#state{fsms = Fsms} = State) ->
+	NewFsms = gb_trees:delete({EP, Assoc}, Fsms),
+	NewState = State#state{fsms = NewFsms},
+	{noreply, NewState};
+handle_info({'EXIT', Pid, _Reason},
+		#state{eps = EPs, fsms = Fsms, reqs = Reqs} = State) ->
+	case catch gb_trees:delete(Pid, EPs) of
+		{'EXIT', _} ->
+			Fdel1 = fun(_F, {Key, Fsm, _Iter}) when Fsm ==  Pid ->
+						Key;
+					(F, {_Key, _Val, Iter}) ->
+						F(F, gb_trees:next(Iter));
+					(_F, none) ->
+						none
+			end,
+			Iter1 = gb_trees:iterator(Fsms),
+			case Fdel1(Fdel1, gb_trees:next(Iter1)) of
+				none ->
+					Fdel2 = fun(_F, {Key, {P, _},  _Iter}) when P ==  Pid ->
+								Key;
+							(F, {_Key, _Val, Iter}) ->
+								F(F, gb_trees:next(Iter));
+							(_F, none) ->
+								none
+					end,
+					Iter2 = gb_trees:iterator(Reqs),
+					case Fdel2(Fdel2, gb_trees:next(Iter2)) of
+						none ->
+							{noreply, State};
+						Key2 ->
+							NewReqs = gb_trees:delete(Key2, Reqs),
+							NewState = State#state{eps = NewReqs},
+							{noreply, NewState}
+					end;
+				Key ->
+					NewFsms = gb_trees:delete(Key, Fsms),
+					NewState = State#state{eps = NewFsms},
+					{noreply, NewState}
+			end;
+		NewEPs ->
+			NewState = #state{eps = NewEPs},
+			{noreply, NewState}
+	end;
 handle_info(timeout, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
 	{noreply, NewState}.

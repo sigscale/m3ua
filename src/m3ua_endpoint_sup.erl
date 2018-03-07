@@ -36,9 +36,9 @@
 %% @private
 %%
 init(Args) when is_list(Args) ->
-	ChildSpecs = [supervisor(m3ua_sgp_sup, []),
-			supervisor(m3ua_asp_sup, []),
-			server(m3ua_endpoint_server, [self(), Args])],
+	ChildSpecs = [server(m3ua_endpoint_server, [self(), Args]),
+			supervisor(m3ua_sgp_sup, []),
+			supervisor(m3ua_asp_sup, [])],
 	{ok, {{one_for_all, 0, 1}, ChildSpecs}}.
 
 %%----------------------------------------------------------------------

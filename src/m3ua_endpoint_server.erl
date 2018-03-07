@@ -137,24 +137,8 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 handle_call({'M-SCTP_ESTABLISH', request, Address, Port, Options}, _From,
 		#state{sctp_role = client, asp_sup = Sup} = State) ->
 	connect(Address, Port, Options, Sup, State);
-handle_call({'M-SCTP_RELEASE', request, Assoc}, _From, #state{fsms = Fsms} = State) ->
-	case gb_trees:lookup(Assoc, Fsms) of
-		{value, Fsm} ->
-			case catch gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
-				ok ->
-					NewFsms = gb_trees:delete(Assoc, Fsms),
-					NewState = State#state{fsms = NewFsms},
-					{reply, ok, NewState};
-				{error, Reason} ->
-					{reply, {error, Reason}, State};
-				{'EXIT', Reason} ->
-					{reply, {error, Reason}, State}
-			end;
-		none ->
-			{reply, {error, invalid_assoc}, State}
-	end;
 handle_call({'M-SCTP_RELEASE', request}, _From,
-		#state{socket = Socket, fsms = Fsms} = State) ->
+		#state{socket = Socket} = State) ->
 	{stop, {shutdown, {self(), release}}, gen_sctp:close(Socket), State};
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
@@ -198,7 +182,25 @@ handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
 	inet:setopts(Socket, [{active, once}]),
-	{noreply, State}.
+	{noreply, State};
+handle_info({'EXIT', _Pid, {shutdown,{{_EP, Assoc}, _Reason}}},
+		#state{fsms = Fsms} = State) ->
+	NewFsms = gb_trees:delete(Assoc, Fsms),
+	NewState = State#state{fsms = NewFsms},
+	{noreply, NewState};
+handle_info({'EXIT', Pid, _Reason}, #state{fsms = Fsms} = State) ->
+	Fdel = fun(_F, {Assoc, P, _Iter}) when P ==  Pid ->
+				Assoc;
+			(F, {_Key, _Val, Iter}) ->
+				F(F, gb_trees:next(Iter));
+			(_F, none) ->
+				none
+	end,
+	Iter = gb_trees:iterator(Fsms),
+	Key = Fdel(Fdel, gb_trees:next(Iter)),
+	NewFsms = gb_trees:delete(Key, Fsms),
+	NewState = State#state{fsms = NewFsms},
+	{noreply, NewState}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->
@@ -252,6 +254,7 @@ connect(Address, Port, Options, FsmSup,
 						ok ->
 							inet:setopts(Socket, [{active, once}]),
 							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
+							link(Fsm),
 							NewState = State#state{fsms = NewFsms},
 							{reply, {ok, Fsm, Assoc}, NewState};
 						{error, Reason} ->
@@ -279,6 +282,7 @@ accept(Socket, Address, Port,
 							inet:setopts(NewSocket, [{active, once}]),
 							inet:setopts(Socket, [{active, once}]),
 							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
+							link(Fsm),
 							NewState = State#state{fsms = NewFsms},
 							{noreply, NewState};
 						{error, Reason} ->
