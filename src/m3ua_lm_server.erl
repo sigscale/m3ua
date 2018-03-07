@@ -635,8 +635,16 @@ handle_info(timeout, #state{ep_sup_sup = undefined} = State) ->
 %% @see //stdlib/gen_server:terminate/3
 %% @private
 %%
-terminate(_Reason, _State) ->
-	ok.
+terminate(normal = _Reason, _State) ->
+	ok;
+terminate(shutdown, _State) ->
+	ok;
+terminate({shutdown, _}, _State) ->
+	ok;
+terminate(Reason, _State) ->
+	error_logger:error_report(["Abnormal process termination",
+			{module, ?MODULE]), {pid, self()},
+			{reason, Reason}, {state, State}]).
 
 -spec code_change(OldVsn :: term() | {down, term()}, State :: #state{},
 		Extra :: term()) ->
