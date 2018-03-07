@@ -404,7 +404,7 @@ down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 down({'M-ASP_UP', request, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData) ->
+		assoc = Assoc, ep = EP} = StateData) ->
 	AspUp = #m3ua{class = ?ASPSMMessage,
 			type = ?ASPSMASPUP, params = <<>>},
 	Packet = m3ua_codec:m3ua(AspUp),
@@ -415,9 +415,9 @@ down({'M-ASP_UP', request, Ref, From}, #statedata{req = undefined, socket = Sock
 			{next_state, down, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 down({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
@@ -458,7 +458,7 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 	{next_state, inactive, StateData};
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData)  ->
+		assoc = Assoc, ep = EP} = StateData)  ->
 	RK = #m3ua_routing_key{na = NA, tmt = Mode, key = Keys,
 			lrk_id = generate_lrk_id(), as = AS},
 	RoutingKey = m3ua_codec:routing_key(RK),
@@ -471,11 +471,11 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 			NewStateData = StateData#statedata{req = Req},
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 inactive({'M-ASP_ACTIVE', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData) ->
+		assoc = Assoc, ep = EP} = StateData) ->
 	AspActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC},
 	Message = m3ua_codec:m3ua(AspActive),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
@@ -485,12 +485,12 @@ inactive({'M-ASP_ACTIVE', request, Ref, From},
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 inactive({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData) ->
+		assoc = Assoc, ep = EP} = StateData) ->
 	AspDown = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
 	Message = m3ua_codec:m3ua(AspDown),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
@@ -500,9 +500,9 @@ inactive({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket 
 			{next_state, inactive, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 inactive({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
@@ -534,7 +534,7 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData) ->
+		assoc = Assoc, ep = EP} = StateData) ->
 	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
 	Message = m3ua_codec:m3ua(AspInActive),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
@@ -544,12 +544,12 @@ active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socke
 			{next_state, active, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 active({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = Socket,
-		assoc = Assoc} = StateData) ->
+		assoc = Assoc, ep = EP} = StateData) ->
 	AspDown = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
 	Message = m3ua_codec:m3ua(AspDown),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
@@ -559,9 +559,9 @@ active({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = 
 			{next_state, active, NewStateData, ?Tack};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 active({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
@@ -576,7 +576,7 @@ active({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req 
 %% @private
 %%
 active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
-		_From, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
 	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
@@ -586,9 +586,9 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 			{reply, ok, active, StateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, eagain, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
-			{stop, Reason, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
@@ -685,18 +685,18 @@ handle_info({sctp, Socket, _, _,
 	{next_state, StateName, NewStateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
-		_StateName, #statedata{socket = Socket, assoc = AssocId} =
-		StateData) ->
-	{stop, shutdown, StateData};
+		_StateName, #statedata{socket = Socket, assoc = AssocId,
+		ep = EP} = StateData) ->
+	{stop, {shutdown, {{EP, AssocId}, shutdown}}, StateData};
 handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		{[], #sctp_send_failed{flags = Flags, error = Error,
 		info = Info, assoc_id = Assoc, data = Data}}},
-		_StateName, StateData) ->
+		_StateName, #statedata{ep = EP} = StateData) ->
 	error_logger:error_report(["SCTP error",
 		{error, gen_sctp:error_string(Error)}, {flags = Flags},
 		{assoc, Assoc}, {info, Info}, {data, Data}, {socket, Socket},
 		{peer, {PeerAddr, PeerPort}}]),
-	{stop, shutdown, StateData}.
+	{stop, {shutdown, {{EP, Assoc}, Error}}, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) ->

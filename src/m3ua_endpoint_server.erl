@@ -154,9 +154,7 @@ handle_call({'M-SCTP_RELEASE', request, Assoc}, _From, #state{fsms = Fsms} = Sta
 		{value, Fsm} ->
 			case catch gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
 				ok ->
-					NewFsms = gb_trees:delete(Assoc, Fsms),
-					NewState = State#state{fsms = NewFsms},
-					{reply, ok, NewState};
+					{reply, ok, State};
 				{error, Reason} ->
 					{reply, {error, Reason}, State};
 				{'EXIT', Reason} ->
@@ -263,6 +261,7 @@ connect(Address, Port, Options, FsmSup,
 						ok ->
 							inet:setopts(Socket, [{active, once}]),
 							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
+							link(Fsm),
 							NewState = State#state{fsms = NewFsms},
 							{reply, {ok, Fsm, Assoc}, NewState};
 						{error, Reason} ->
@@ -290,6 +289,7 @@ accept(Socket, Address, Port,
 							inet:setopts(NewSocket, [{active, once}]),
 							inet:setopts(Socket, [{active, once}]),
 							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
+							link(Fsm),
 							NewState = State#state{fsms = NewFsms},
 							{noreply, NewState};
 						{error, Reason} ->
