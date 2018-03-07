@@ -23,9 +23,6 @@
 
 -behaviour(gen_server).
 
-%% export the m3ua_endpoint_server API
--export([stop/1]).
-
 %% export the callbacks needed for gen_server behaviour
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 			terminate/2, code_change/3]).
@@ -45,15 +42,6 @@
 		use_rc :: boolean(),
 		fsms = gb_trees:empty() :: gb_trees:tree(),
 		callback :: {Module :: atom(), State :: term()}}).
-
-%%----------------------------------------------------------------------
-%%  The m3ua_endpoint_server API
-%%----------------------------------------------------------------------
-
--spec stop(EP :: pid()) -> ok.
-%% @doc Close the socket and terminate the endpoint (`EP') server process.
-stop(EP) when is_pid(EP) ->
-	gen_server:call(EP, stop).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_endpoint_server gen_server callbacks
@@ -163,12 +151,13 @@ handle_call({'M-SCTP_RELEASE', request, Assoc}, _From, #state{fsms = Fsms} = Sta
 		none ->
 			{reply, {error, invalid_assoc}, State}
 	end;
+handle_call({'M-SCTP_RELEASE', request}, _From,
+		#state{socket = Socket, fsms = Fsms} = State) ->
+	{stop, {shutdown, {self(), release}}, gen_sctp:close(Socket), State};
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
 handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->
-	{reply, inet:getstat(Socket, Options), State};
-handle_call(stop, _From, State) ->
-	{stop, normal, ok, State}.
+	{reply, inet:getstat(Socket, Options), State}.
 
 -spec handle_cast(Request :: term(), State :: #state{}) ->
 	{noreply, NewState :: #state{}}
@@ -180,8 +169,8 @@ handle_call(stop, _From, State) ->
 %% @see //stdlib/gen_server:handle_cast/2
 %% @private
 %%
-handle_cast(stop, State) ->
-	{stop, normal, State}.
+handle_cast(timeout, State) ->
+	{stop, not_implemented, State}.
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->
 	{noreply, NewState :: #state{}}

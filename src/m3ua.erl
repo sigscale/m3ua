@@ -34,7 +34,7 @@
 %% export the m3ua private API
 -export([sort/1]).
 
--type options() :: {sctp_role, client | server}
+-type option() :: {sctp_role, client | server}
 		| {m3ua_role, sgp | asp}
 		| {registration, dynamic | static}
 		| {use_rc, boolean()}
@@ -42,7 +42,7 @@
 		| {ifaddr, inet:ip_address()}
 		| {port, inet:port_number()}
 		| gen_sctp:option().
--export_type([options/0]).
+-export_type([option/0]).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
@@ -68,7 +68,7 @@ open(Callback) ->
 -spec open(Port, Options, Callback) -> Result
 	when
 		Port :: inet:port_number(),
-		Options :: [options()],
+		Options :: [option()],
 		Callback :: atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
