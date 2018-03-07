@@ -711,16 +711,16 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
-terminate(normal = _Reason, _State) ->
+terminate(normal = _Reason, _StateData) ->
 	ok;
-terminate(shutdown, _State) ->
+terminate(shutdown, _StateData) ->
 	ok;
-terminate({shutdown, _}, _State) ->
+terminate({shutdown, _}, _StateData) ->
 	ok;
-terminate(Reason, _State) ->
+terminate(Reason, StateData) ->
 	error_logger:error_report(["Abnormal process termination",
 			{module, ?MODULE}, {pid, self()},
-			{reason, Reason}, {state, State}]).
+			{reason, Reason}, {state, StateData}]).
 
 -spec code_change(OldVsn :: term() | {down, term()}, StateName :: atom(),
 		StateData :: term(), Extra :: term()) ->
