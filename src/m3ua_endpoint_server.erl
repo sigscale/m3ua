@@ -134,12 +134,6 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 		asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
-handle_call({'M-SCTP_ESTABLISH', request, Address, Port, Options}, _From,
-		#state{sctp_role = client, asp_sup = Sup} = State) ->
-	connect(Address, Port, Options, Sup, State);
-handle_call({'M-SCTP_RELEASE', request}, _From,
-		#state{socket = Socket} = State) ->
-	{stop, {shutdown, {self(), release}}, gen_sctp:close(Socket), State};
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
 handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->
@@ -155,6 +149,13 @@ handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->
 %% @see //stdlib/gen_server:handle_cast/2
 %% @private
 %%
+handle_cast({'M-SCTP_ESTABLISH', request, Ref, From, Address, Port, Options},
+		#state{sctp_role = client, asp_sup = Sup} = State) ->
+	connect(Address, Port, Options, Ref, From, Sup, State);
+handle_cast({'M-SCTP_RELEASE', request, Ref, From}, #state{socket = Socket} = State) ->
+	gen_server:cast(From,
+			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
+	{stop, {shutdown, {self(), release}}, State};
 handle_cast(timeout, State) ->
 	{stop, not_implemented, State}.
 
@@ -242,7 +243,7 @@ get_sup(#state{sup = Sup, asp_sup = undefined, sgp_sup = undefined} = State) ->
 	State#state{asp_sup = AspSup, sgp_sup = SgpSup}.
 
 %% @hidden
-connect(Address, Port, Options, FsmSup,
+connect(Address, Port, Options, Ref, From, FsmSup,
 		#state{socket = Socket, fsms = Fsms, callback = Cb,
 		registration = Reg, use_rc = UseRC} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
@@ -255,8 +256,9 @@ connect(Address, Port, Options, FsmSup,
 							inet:setopts(Socket, [{active, once}]),
 							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
 							link(Fsm),
+							gen_server:cast(From, {'CONNECT', Ref, {ok, self(), Fsm, Assoc}}),
 							NewState = State#state{fsms = NewFsms},
-							{reply, {ok, Fsm, Assoc}, NewState};
+							{noreply, NewState};
 						{error, Reason} ->
 							{stop, Reason, State}
 					end;
@@ -264,7 +266,8 @@ connect(Address, Port, Options, FsmSup,
 					{stop, Reason, State}
 			end;
 		{error, Reason} ->
-			{reply, {error, Reason}, State}
+			gen_server:cast(From, {'CONNECT', Ref, {error, Reason}}),
+			{noreply, State}
 	end.
 
 %% @hidden

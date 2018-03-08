@@ -298,47 +298,61 @@ handle_call({open, Args, Callback}, {USAP, _Tag} = _From,
 		{error, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({close, EP}, _From, State) when is_pid(EP) ->
-	case catch gen_server:call(EP, {'M-SCTP_RELEASE', request}) of
-		ok ->
-			{reply, ok, State};
-		{error, Reason} ->
-			{reply, {error, Reason}, State};
-		{'EXIT', Reason} ->
+handle_call({close, EP}, From, #state{reqs = Reqs} = State) when is_pid(EP) ->
+	try
+		Ref = make_ref(),
+		gen_server:cast(EP, {'M-SCTP_RELEASE', request, Ref, self()}),
+		NewReqs = gb_trees:insert(Ref, From, Reqs),
+		NewState = State#state{reqs = NewReqs},
+		{noreply, NewState}
+	catch
+		_:Reason ->
 			{reply, {error, Reason}, State}
 	end;
 handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
-		_From, #state{fsms = Fsms} = State) ->
-	case catch gen_server:call(EndPoint, {'M-SCTP_ESTABLISH', request, Address, Port, Options}) of
-		{ok, AspFsm, Assoc} ->
-			NewFsms = gb_trees:insert({EndPoint, Assoc}, AspFsm, Fsms),
-			link(AspFsm),
-			NewState = State#state{fsms = NewFsms},
-			{reply, {ok, Assoc}, NewState};
-		{error, Reason} ->
-			{reply, {error, Reason}, State};
-		{'EXIT', Reason} ->
+		From, #state{reqs = Reqs} = State) ->
+	try
+		Ref = make_ref(),
+		gen_server:cast(EndPoint,
+			{'M-SCTP_ESTABLISH', request, Ref, self(), Address, Port, Options}),
+		NewReqs = gb_trees:insert(Ref, From, Reqs),
+		NewState = State#state{reqs = NewReqs},
+		{noreply, NewState}
+	catch
+		_:Reason ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
+handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc},
+		From, #state{reqs = Reqs, fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
-			case catch gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_RELEASE', request}) of
-				ok ->
-					{reply, ok, State};
-				{error, Reason} ->
-					{reply, {error, Reason}, State};
-				{'EXIT', Reason} ->
+			try
+				Ref = make_ref(),
+				gen_fsm:send_all_state_event(Fsm, {'M-SCTP_RELEASE', request, Ref, self()}),
+				NewReqs = gb_trees:insert(Ref, From, Reqs),
+				NewState = State#state{reqs = NewReqs},
+				{noreply, NewState}
+			catch
+				_:Reason ->
 					{reply, {error, Reason}, State}
 			end;
 		none ->
 			{reply, {error, invalid_assco}, State}
 	end;
-handle_call({'M-SCTP_STATUS', request, EndPoint, Assoc}, _From, #state{fsms = Fsms} = State) ->
+handle_call({'M-SCTP_STATUS', request, EndPoint, Assoc},
+		From, #state{reqs = Reqs, fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
-			Reply = gen_fsm:sync_send_all_state_event(Fsm, {'M-SCTP_STATUS', request}),
-			{reply, Reply, State};
+			try
+				Ref = make_ref(),
+				gen_fsm:send_all_state_event(Fsm, {'M-SCTP_STATUS', request, Ref, self()}),
+				NewReqs = gb_trees:insert(Ref, From, Reqs),
+				NewState = State#state{reqs = NewReqs},
+				{noreply, NewState}
+			catch
+				_:Reason ->
+					{reply, {error, Reason}, State}
+			end;
 		none ->
 			{reply, {error, not_found}, State}
 	end;
@@ -419,6 +433,52 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 %%
 handle_cast(stop, State) ->
 	{stop, normal, State};
+handle_cast({'CONNECT', Ref, {ok, EP, AspFsm, Assoc}},
+		#state{reqs = Reqs, fsms = Fsms} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, {ok, Assoc}),
+			link(AspFsm),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewFsms = gb_trees:insert({EP, Assoc}, AspFsm, Fsms),
+			NewState = State#state{fsms = NewFsms, reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({'CONNECT', Ref, {error, Reason}},
+		#state{reqs = Reqs} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, {error, Reason}),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({'M-SCTP_STATUS', confirm, Ref, Result},
+		#state{reqs = Reqs} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, Result),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({'M-SCTP_RELEASE', confirm, Ref, Result},
+		#state{reqs = Reqs} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, Result),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
 handle_cast({_AspOp, confirm, Ref, _ASP, {error, Reason}},
 		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of

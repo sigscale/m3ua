@@ -529,6 +529,26 @@ handle_event({'M-RK_REG', {RC, RK}}, StateName,
 	NewRKs = [#{rc => RC, rk => RK} | RKs],
 	NewStateData = StateData#statedata{rks = NewRKs},
 	{next_state, StateName, NewStateData};
+handle_event({'M-SCTP_RELEASE', request, Ref, From},
+		_StateName, #statedata{socket = Socket} = StateData) ->
+	gen_server:cast(From,
+			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
+	NewStateData = StateData#statedata{socket = undefined},
+	{stop, shutdown, NewStateData};
+handle_event({'M-SCTP_STATUS', request, Ref, From},
+		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
+	case inet_getopts(Socket, Options) of
+		{ok, SCTPStatus} ->
+			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
+			gen_server:cast(From,
+					{'M-SCTP_STATUS', confirm, Ref, {ok, Status}}),
+			{next_state, StateName, StateData};
+		{error, Reason} ->
+			gen_server:cast(From,
+					{'M-SCTP_STATUS', confirm, Ref, {error, Reason}}),
+			{next_state, StateName, StateData}
+	end;
 handle_event({Indication,  State}, StateName, StateData)
 		when Indication == 'M-ASP_UP'; Indication == 'M-ASP_DOWN';
 		Indication == 'M-ASP_ACTIVE'; Indication == 'M-ASP_INACTIVE';
@@ -552,21 +572,7 @@ handle_sync_event({getstat, undefined}, _From, StateName,
 	{reply, inet:getstat(Socket), StateName, StateData};
 handle_sync_event({getstat, Options}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), StateName, StateData};
-handle_sync_event({'M-SCTP_STATUS', request}, _From, StateName,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
-	case inet_getopts(Socket, Options) of
-		{ok, SCTPStatus} ->
-			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
-			{reply, {ok, Status}, StateName, StateData};
-		{error, Reason} ->
-			{reply, {error, Reason}, StateName, StateData}
-	end;
-handle_sync_event({'M-SCTP_RELEASE', request}, _From,
-		_StateName, #statedata{socket = Socket} = StateData) ->
-	NewStateData = StateData#statedata{socket = undefined},
-	{stop, shutdown, gen_sctp:close(Socket), NewStateData}.
+	{reply, inet:getstat(Socket, Options), StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
