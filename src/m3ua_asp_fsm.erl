@@ -705,7 +705,7 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		info = Info, assoc_id = Assoc, data = Data}}},
 		_StateName, #statedata{ep = EP} = StateData) ->
 	error_logger:error_report(["SCTP error",
-		{error, gen_sctp:error_string(Error)}, {flags = Flags},
+		{error, gen_sctp:error_string(Error)}, {flags, Flags},
 		{assoc, Assoc}, {info, Info}, {data, Data}, {socket, Socket},
 		{peer, {PeerAddr, PeerPort}}]),
 	{stop, {shutdown, {{EP, Assoc}, Error}}, StateData}.
