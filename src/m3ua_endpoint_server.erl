@@ -189,15 +189,15 @@ handle_info({'EXIT', _Pid, {shutdown,{{_EP, Assoc}, _Reason}}},
 	NewState = State#state{fsms = NewFsms},
 	{noreply, NewState};
 handle_info({'EXIT', Pid, _Reason}, #state{fsms = Fsms} = State) ->
-	Fdel = fun(_F, {Assoc, P, _Iter}) when P ==  Pid ->
-				Assoc;
-			(F, {_Key, _Val, Iter}) ->
-				F(F, gb_trees:next(Iter));
-			(_F, none) ->
-				none
+	Fdel = fun Fdel({Assoc, P, _Iter}) when P ==  Pid ->
+		       Assoc;
+		   Fdel({_Key, _Val, Iter}) ->
+		       Fdel(gb_trees:next(Iter));
+		   Fdel(none) ->
+		       none
 	end,
 	Iter = gb_trees:iterator(Fsms),
-	Key = Fdel(Fdel, gb_trees:next(Iter)),
+	Key = Fdel(gb_trees:next(Iter)),
 	NewFsms = gb_trees:delete(Key, Fsms),
 	NewState = State#state{fsms = NewFsms},
 	{noreply, NewState}.
