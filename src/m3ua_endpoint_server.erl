@@ -82,6 +82,7 @@ init([Sup, [Callback, Opts]] = _Args) ->
 	end,
 	Options = [{active, once},
 			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
+			{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
 			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
 			| Opts4],
 	case gen_sctp:open(Options) of
