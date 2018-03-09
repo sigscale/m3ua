@@ -81,7 +81,8 @@ init([Sup, [Callback, Opts]] = _Args) ->
 			{true, Opts3}
 	end,
 	Options = [{active, once},
-			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}}
+			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
+			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
 			| Opts4],
 	case gen_sctp:open(Options) of
 		{ok, Socket} ->
