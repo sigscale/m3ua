@@ -535,6 +535,14 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	gen_server:cast(From, {AspOp, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
+active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
+		#statedata{registration = static, ep = EP,
+		assoc = Assoc, callback = CbMod,
+		cb_state = UState} = StateData) ->
+	gen_server:cast(From,
+			{'M-RK_REG', confirm, Ref, self(),
+			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
+	{next_state, active, StateData};
 active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->
 	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
