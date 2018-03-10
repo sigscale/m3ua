@@ -841,8 +841,8 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params}, acti
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
-		active, Stream, #statedata{callback = CbMod, cb_state = State, assoc = Assoc, ep = EP} =
-		StateData) when CbMod /= undefined ->
+		active, Stream, #statedata{callback = CbMod, cb_state = State,
+		socket = Socket, assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
