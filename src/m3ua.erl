@@ -26,7 +26,7 @@
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
--export([get_ep/0, get_as/0, get_asp/0]).
+-export([get_ep/0, get_as/0, get_asp/0, get_sgp/0]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/7]).
@@ -396,6 +396,26 @@ get_asp([H | T], Acc) ->
 	P = [Pid || {_, Pid, _, _} <- supervisor:which_children(Sup)],
 	get_asp(T, [P | Acc]);
 get_asp([], Acc) ->
+	lists:flatten(lists:reverse(Acc)).
+
+-spec get_sgp() -> Result
+	when
+		Result :: {ok, [SGP]} | {error, Reason},
+		SGP :: {EP, Assoc},
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		Reason :: term().
+%% @doc Get all M3UA Signaling Gateway Processes (SGP) on local node.
+%%
+get_sgp() ->
+	get_sgp(get_ep_sups(), []).
+%% @hidden
+get_sgp([H | T], Acc) ->
+	C = supervisor:which_children(H),
+	{_, Sup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, C),
+	P = [Pid || {_, Pid, _, _} <- supervisor:which_children(Sup)],
+	get_sgp(T, [P | Acc]);
+get_sgp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
 %%----------------------------------------------------------------------
