@@ -26,7 +26,7 @@
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
--export([get_ep/0, get_as/0]).
+-export([get_ep/0, get_as/0, get_asp/0]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/7]).
@@ -377,6 +377,26 @@ get_ep([H | T], Acc) ->
 	get_ep(T, [EP | Acc]);
 get_ep([], Acc) ->
 	lists:reverse(Acc).
+
+-spec get_asp() -> Result
+	when
+		Result :: {ok, [ASP]} | {error, Reason},
+		ASP :: {EP, Assoc},
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		Reason :: term().
+%% @doc Get all M3UA Application Server Processes (ASP) on local node.
+%%
+get_asp() ->
+	get_asp(get_ep_sups(), []).
+%% @hidden
+get_asp([H | T], Acc) ->
+	C = supervisor:which_children(H),
+	{_, Sup, _, _} = lists:keyfind(m3ua_asp_sup, 1, C),
+	P = [Pid || {_, Pid, _, _} <- supervisor:which_children(Sup)],
+	get_asp(T, [P | Acc]);
+get_asp([], Acc) ->
+	lists:flatten(lists:reverse(Acc)).
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API
