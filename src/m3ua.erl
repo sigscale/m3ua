@@ -26,7 +26,7 @@
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
--export([get_ep/0, get_as/0, get_asp/0, get_sgp/0]).
+-export([get_ep/0, get_as/0, get_asp/0, get_asp/1, get_sgp/0, get_sgp/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/7]).
@@ -363,9 +363,8 @@ get_as() ->
 
 -spec get_ep() -> Result
 	when
-		Result :: {ok, [EP]} | {error, Reason},
-		EP :: pid(),
-		Reason :: term().
+		Result :: [EP],
+		EP :: pid().
 %% @doc Get all SCTP endpoints on local node.
 %%
 get_ep() ->
@@ -380,11 +379,10 @@ get_ep([], Acc) ->
 
 -spec get_asp() -> Result
 	when
-		Result :: {ok, [ASP]} | {error, Reason},
+		Result :: [ASP],
 		ASP :: {EP, Assoc},
 		EP :: pid(),
-		Assoc :: pos_integer(),
-		Reason :: term().
+		Assoc :: pos_integer().
 %% @doc Get all M3UA Application Server Processes (ASP) on local node.
 %%
 get_asp() ->
@@ -398,13 +396,24 @@ get_asp([H | T], Acc) ->
 get_asp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
+-spec get_asp(EP) -> Result
+	when
+		EP :: pid(),
+		Result :: [ASP],
+		ASP :: {EP, Assoc},
+		EP :: pid(),
+		Assoc :: pos_integer().
+%% @doc Get M3UA Application Server Processes (ASP) on local endpoint.
+%%
+get_asp(EP) when is_pid(EP) ->
+	[{EP, Assoc} || Assoc <- gen_server:call(EP, getassoc)].
+
 -spec get_sgp() -> Result
 	when
-		Result :: {ok, [SGP]} | {error, Reason},
+		Result :: [SGP],
 		SGP :: {EP, Assoc},
 		EP :: pid(),
-		Assoc :: pos_integer(),
-		Reason :: term().
+		Assoc :: pos_integer().
 %% @doc Get all M3UA Signaling Gateway Processes (SGP) on local node.
 %%
 get_sgp() ->
@@ -417,6 +426,17 @@ get_sgp([H | T], Acc) ->
 	get_sgp(T, [P | Acc]);
 get_sgp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
+
+-spec get_sgp(EP) -> Result
+	when
+		Result :: [SGP],
+		SGP :: {EP, Assoc},
+		EP :: pid(),
+		Assoc :: pos_integer().
+%% @doc Get all M3UA Signaling Gateway Processes (SGP) on local endpoint.
+%%
+get_sgp(EP) when is_pid(EP) ->
+	[{EP, Assoc} || Assoc <- gen_server:call(EP, getassoc)].
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API
