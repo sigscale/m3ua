@@ -62,7 +62,7 @@ start(normal = _StartType, _Args) ->
 	end.
 %% @hidden
 start1() ->
-	case supervisor:start_link(m3ua_sup, []) of
+	case supervisor:start_link({local, m3ua_sup}, m3ua_sup, []) of
 		{ok, Sup} ->
 			{ok, Sup};
 		{error, Reason} ->

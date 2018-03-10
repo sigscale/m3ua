@@ -26,7 +26,7 @@
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
--export([get_as/0]).
+-export([get_ep/0, get_as/0]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/7]).
@@ -361,6 +361,23 @@ get_as() ->
 			{error, Reason}
 	end.
 
+-spec get_ep() -> Result
+	when
+		Result :: {ok, [EP]} | {error, Reason},
+		EP :: pid(),
+		Reason :: term().
+%% @doc Get all SCTP endpoints on local node.
+%%
+get_ep() ->
+	get_ep(get_ep_sups(), []).
+%% @hidden
+get_ep([H | T], Acc) ->
+	C = supervisor:which_children(H),
+	{_, EP, _, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
+	get_ep(T, [EP | Acc]);
+get_ep([], Acc) ->
+	lists:reverse(Acc).
+
 %%----------------------------------------------------------------------
 %%  The m3ua private API
 %%----------------------------------------------------------------------
@@ -386,4 +403,15 @@ sort([], Acc) ->
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+%% @hidden
+get_ep_sups() ->
+	get_ep_sups(whereis(m3ua_sup)).
+%% @hidden
+get_ep_sups(TopSup) when is_pid(TopSup) ->
+	Children1 = supervisor:which_children(TopSup),
+	{_, Sup2,  _, _} = lists:keyfind(m3ua_endpoint_sup_sup, 1, Children1),
+	[S || {_, S, _, _} <- supervisor:which_children(Sup2)];
+get_ep_sups(undefined) ->
+	[].
 
