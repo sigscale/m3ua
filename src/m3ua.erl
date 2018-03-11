@@ -372,7 +372,7 @@ get_ep() ->
 %% @hidden
 get_ep([H | T], Acc) ->
 	C = supervisor:which_children(H),
-	{_, EP, _, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
+	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
 	get_ep(T, [EP | Acc]);
 get_ep([], Acc) ->
 	lists:reverse(Acc).
