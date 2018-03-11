@@ -379,8 +379,8 @@ init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, Cb, Reg, UseRC]) ->
-	Args = [?MODULE, self(), EP, Assoc],
-	case m3ua_callback:cb(init, Cb, Args) of
+	CbArgs = [?MODULE, self(), EP, Assoc],
+	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
 			process_flag(trap_exit, true),
 			Statedata = #statedata{sctp_role = SctpRole,
@@ -846,10 +846,10 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
 		active, _Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From},
-		socket = Socket, callback = CbMod, cb_state = State, ep = EP,
+		socket = Socket, callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_DOWN', confirm, Ref,
-			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
+			{ok, CbMod, self(), EP, Assoc, CbState, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
@@ -864,51 +864,51 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?TransferMessage,
 		type = ?TransferMessageData, params = Params}, active, Stream,
-		#statedata{callback = CbMod, cb_state = State, socket = Socket,
+		#statedata{callback = CbMod, cb_state = CbState, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State],
-	{ok, NewState} = m3ua_callback:cb(transfer, CbMod, Args),
+	CbArgs = [self(), EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(transfer, CbMod, CbArgs),
 	inet:setopts(Socket, [{active, once}]),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		_StateName, Stream, #statedata{callback = CbMod, cb_state = State,
+		_StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
 		assoc = Assoc, ep = EP, socket = Socket} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
-	{ok, NewState} = m3ua_callback:cb(pause, CbMod, Args),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		_StateName, Stream, #statedata{callback = CbMod, cb_state = State,
+		_StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
 		assoc = Assoc, ep = EP, socket = Socket} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
-	{ok, NewState} = m3ua_callback:cb(resume, CbMod, Args),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
-		StateName, Stream, #statedata{callback = CbMod, cb_state = State,
+		StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
 		assoc = Assoc, ep = EP, socket = Socket} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
-	{ok, NewState} = m3ua_callback:cb(status, CbMod, Args),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(status, CbMod, CbArgs),
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.
 
