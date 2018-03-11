@@ -390,9 +390,8 @@ get_asp() ->
 %% @hidden
 get_asp([H | T], Acc) ->
 	C = supervisor:which_children(H),
-	{_, Sup, _, _} = lists:keyfind(m3ua_asp_sup, 1, C),
-	P = [Pid || {_, Pid, _, _} <- supervisor:which_children(Sup)],
-	get_asp(T, [P | Acc]);
+	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
+	get_asp(T, [get_asp(EP) | Acc]);
 get_asp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
@@ -406,7 +405,12 @@ get_asp([], Acc) ->
 %% @doc Get M3UA Application Server Processes (ASP) on local endpoint.
 %%
 get_asp(EP) when is_pid(EP) ->
-	[{EP, Assoc} || Assoc <- gen_server:call(EP, getassoc)].
+	case gen_server:call(EP, getassoc) of
+		{asp, L} ->
+			[{EP, Assoc} || Assoc <- L];
+		{sgp, _} ->
+			[]
+	end.
 
 -spec get_sgp() -> Result
 	when
@@ -421,9 +425,8 @@ get_sgp() ->
 %% @hidden
 get_sgp([H | T], Acc) ->
 	C = supervisor:which_children(H),
-	{_, Sup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, C),
-	P = [Pid || {_, Pid, _, _} <- supervisor:which_children(Sup)],
-	get_sgp(T, [P | Acc]);
+	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
+	get_sgp(T, [get_sgp(EP) | Acc]);
 get_sgp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
@@ -436,7 +439,12 @@ get_sgp([], Acc) ->
 %% @doc Get all M3UA Signaling Gateway Processes (SGP) on local endpoint.
 %%
 get_sgp(EP) when is_pid(EP) ->
-	[{EP, Assoc} || Assoc <- gen_server:call(EP, getassoc)].
+	case gen_server:call(EP, getassoc) of
+		{sgp, L} ->
+			[{EP, Assoc} || Assoc <- L];
+		{asp, _} ->
+			[]
+	end.
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API

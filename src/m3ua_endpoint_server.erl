@@ -136,8 +136,8 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 		asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
-handle_call(getassoc, _From, #state{fsms = Fsms} = State) ->
-	{reply, gb_trees:keys(Fsms), State};
+handle_call(getassoc, _From, #state{m3ua_role = Role, fsms = Fsms} = State) ->
+	{reply, {Role, gb_trees:keys(Fsms)}, State};
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
 handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->
