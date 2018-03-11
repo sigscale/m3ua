@@ -44,8 +44,8 @@
 %%%
 %%%  <h3 class="function"><a name="transfer-11">transfer/11</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Sgp, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State)
-%%% 		-&gt; Result </tt>
+%%%  <p><tt>transfer(Sgp, EP, Assoc, Stream,
+%%% 		RC, OPC, DPC, SLS, SIO, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Sgp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
@@ -238,7 +238,8 @@
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().
--callback transfer(Sgp, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
+-callback transfer(Sgp, EP, Assoc, Stream,
+		RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Sgp :: pid(),
 		EP :: pid(),
@@ -365,7 +366,8 @@ transfer(SGP, Stream, OPC, DPC, SLS, SIO, Data)
 
 -spec init(Args :: [term()]) ->
 	{ok, StateName :: atom(), StateData :: #statedata{}}
-			| {ok, StateName :: atom(), StateData :: #statedata{}, timeout() | hibernate}
+			| {ok, StateName :: atom(),
+					StateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term()} | ignore.
 %% @doc Initialize the {@module} finite state machine.
 %% @see //stdlib/gen_fsm:init/1
@@ -392,8 +394,8 @@ init([SctpRole, Socket, Address, Port,
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+					NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
@@ -412,8 +414,10 @@ down({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 
 -spec down(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
-		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
+		{reply, Reply :: term(),
+				NextStateName :: atom(), NewStateData :: #statedata{}}
+		| {stop, Reason :: term(),
+				Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>down</b> state.
 %% @private
@@ -423,8 +427,8 @@ down({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 
 -spec inactive(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+					NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
@@ -440,8 +444,10 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 
 -spec inactive(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
-		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
+		{reply, Reply :: term(), NextStateName :: atom(),
+				NewStateData :: #statedata{}}
+		| {stop, Reason :: term(),
+				Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>inactive</b> state.
 %% @private
@@ -451,8 +457,8 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 
 -spec active(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+				NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
@@ -468,17 +474,21 @@ active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 
 -spec active(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
-		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
+		{reply, Reply :: term(),
+				NextStateName :: atom(), NewStateData :: #statedata{}}
+		| {stop, Reason :: term(),
+				Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
 %% @private
 %%
-active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
-		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
-	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
+active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}}, _From,
+		#statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
+	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
+			si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
-	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
+	TransferMsg = #m3ua{class = ?TransferMessage,
+			type = ?TransferMessageData, params = P0},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
@@ -493,8 +503,8 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 -spec handle_event(Event :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+					NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with
 %% 	{@link //stdlib/gen_fsm:send_all_state_event/2.
@@ -577,8 +587,8 @@ handle_sync_event({getstat, Options}, _From, StateName,
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+					NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: normal | term(), NewStateData :: #statedata{}}.
 %% @doc Handle a received message.
 %% @see //stdlib/gen_fsm:handle_info/3
@@ -590,8 +600,8 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		assoc = Assoc} = StateData) when is_binary(Data) ->
 	handle_sgp(Data, StateName, Stream, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}}, StateName,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
+		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
@@ -677,8 +687,8 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %% @hidden
 handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
-handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
-		_Stream, #statedata{socket = Socket, assoc = Assoc,
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
+		down, _Stream, #statedata{socket = Socket, assoc = Assoc,
 		callback = CbMod, cb_state = State, ep = EP} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
@@ -694,15 +704,17 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, down,
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP}, inactive,
-		_Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
+		inactive, _Stream, #statedata{socket = Socket,
+		assoc = Assoc, ep = EP} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			P0 = m3ua_codec:add_parameter(?ErrorCode, unexpected_message, []),
 			EParams = m3ua_codec:parameters(P0),
-			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = EParams},
+			ErrorMsg = #m3ua{class = ?MGMTMessage,
+					type = ?MGMTError, params = EParams},
 			Packet2 = m3ua_codec:m3ua(ErrorMsg),
 			case gen_sctp:send(Socket, Assoc, 0, Packet2) of
 				ok ->
@@ -736,8 +748,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 	Packet = m3ua_codec:m3ua(Message),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua,
-					{'M-ASP_ACTIVE', indication, self(), EP, Assoc, RCs, CbMod, State}),
+			gen_server:cast(m3ua, {'M-ASP_ACTIVE',
+					indication, self(), EP, Assoc, RCs, CbMod, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, active, StateData};
 		{error, eagain} ->
@@ -773,8 +785,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 	Packet = m3ua_codec:m3ua(Message),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			gen_server:cast(m3ua,
-					{'M-ASP_INACTIVE', indication, self(), EP, Assoc, RCs, CbMod, State}),
+			gen_server:cast(m3ua, {'M-ASP_INACTIVE',
+					indication, self(), EP, Assoc, RCs, CbMod, State}),
 			inet:setopts(Socket, [{active, once}]),
 			{next_state, inactive, StateData};
 		{error, eagain} ->
@@ -783,13 +795,15 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
-		_ActiveState, Stream, #statedata{socket = Socket, callback = CbMod, cb_state = State,
+handle_sgp(#m3ua{class = ?TransferMessage,
+		type = ?TransferMessageData, params = Params},
+		_ActiveState, Stream,
+		#statedata{socket = Socket, callback = CbMod, cb_state = State,
 		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
-	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
-			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
+	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS,
+			data = Data} = m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
 	Args = [self(), EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State],
 	{ok, NewState} = m3ua_callback:cb(transfer, CbMod, Args),
 	NewStateData = StateData#statedata{cb_state = NewState},
@@ -797,7 +811,8 @@ handle_sgp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params =
 	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = State, assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+		cb_state = State, assoc = Assoc, ep = EP} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
@@ -808,7 +823,8 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 	{next_state, inactive, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = State, assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+		cb_state = State, assoc = Assoc, ep = EP} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
@@ -819,7 +835,8 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = State, assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+		cb_state = State, assoc = Assoc, ep = EP} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
