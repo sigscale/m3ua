@@ -63,8 +63,10 @@ init([Sup, [Callback, Opts]] = _Args) ->
 			{client, Opts}
 	end,
 	{M3uaRole, Opts2} = case lists:keytake(m3ua_role, 1, Opts1) of
-		{value, {m3ua_role, R2}, O2} ->
-			{R2, O2};
+		{value, {m3ua_role, asp}, O2} ->
+			{asp, O2};
+		{value, {m3ua_role, sgp}, O2} ->
+			{sgp, O2};
 		false ->
 			{asp, Opts1}
 	end,
@@ -136,6 +138,8 @@ handle_call(Request, From, #state{sgp_sup = undefined,
 		asp_sup = undefined} = State) ->
 	NewState = get_sup(State),
 	handle_call(Request, From, NewState);
+handle_call(getassoc, _From, #state{m3ua_role = Role, fsms = Fsms} = State) ->
+	{reply, {Role, gb_trees:keys(Fsms)}, State};
 handle_call({getstat, undefined}, _From, #state{socket = Socket} = State) ->
 	{reply, inet:getstat(Socket), State};
 handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->
@@ -152,7 +156,10 @@ handle_call({getstat, Options}, _From, #state{socket = Socket} = State) ->
 %% @private
 %%
 handle_cast({'M-SCTP_ESTABLISH', request, Ref, From, Address, Port, Options},
-		#state{sctp_role = client, asp_sup = Sup} = State) ->
+		#state{sctp_role = client, m3ua_role = asp, asp_sup = Sup} = State) ->
+	connect(Address, Port, Options, Ref, From, Sup, State);
+handle_cast({'M-SCTP_ESTABLISH', request, Ref, From, Address, Port, Options},
+		#state{sctp_role = client, m3ua_role = sgp, sgp_sup = Sup} = State) ->
 	connect(Address, Port, Options, Ref, From, Sup, State);
 handle_cast({'M-SCTP_RELEASE', request, Ref, From}, #state{socket = Socket} = State) ->
 	gen_server:cast(From,
@@ -174,14 +181,14 @@ handle_info(timeout, #state{sgp_sup = undefined, asp_sup = undefined} = State) -
    {noreply, NewState};
 handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 		#sctp_assoc_change{state = comm_up} = AssocChange}},
-		#state{sctp_role = server, sgp_sup = Sup,
-		socket = Socket} = State) ->
-	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State);
+		#state{sctp_role = server, m3ua_role = sgp,
+		sgp_sup = FsmSup, socket = Socket} = State) ->
+	accept(Socket, PeerAddr, PeerPort, AssocChange, FsmSup, State);
 handle_info({sctp, Socket, PeerAddr, PeerPort, {_AncData,
 		#sctp_assoc_change{state = comm_up} = AssocChange}},
-		#state{sctp_role = server, sgp_sup = Sup,
-		socket = Socket} = State) ->
-	accept(Socket, PeerAddr, PeerPort, AssocChange, Sup, State);
+		#state{sctp_role = server, m3ua_role = asp,
+		asp_sup = FsmSup, socket = Socket} = State) ->
+	accept(Socket, PeerAddr, PeerPort, AssocChange, FsmSup, State);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}} = _Msg, State) ->
 	inet:setopts(Socket, [{active, once}]),

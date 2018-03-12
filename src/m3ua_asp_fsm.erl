@@ -44,8 +44,8 @@
 %%%
 %%%  <h3 class="function"><a name="transfer-11">transfer/11</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Asp, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State)
-%%% 		-&gt; Result </tt>
+%%%  <p><tt>transfer(Asp, EP, Assoc, Stream,
+%%% 		RC, OPC, DPC, SLS, SIO, Data, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
@@ -240,7 +240,8 @@
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().
--callback transfer(Asp, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
+-callback transfer(Asp, EP, Assoc, Stream,
+		RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Asp :: pid(),
 		EP :: pid(),
@@ -367,7 +368,8 @@ transfer(ASP, Stream, OPC, DPC, SLS, SIO, Data)
 
 -spec init(Args :: [term()]) ->
 	{ok, StateName :: atom(), StateData :: #statedata{}}
-			| {ok, StateName :: atom(), StateData :: #statedata{}, timeout() | hibernate}
+			| {ok, StateName :: atom(),
+					StateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term()} | ignore.
 %% @doc Initialize the {@module} finite state machine.
 %% @see //stdlib/gen_fsm:init/1
@@ -377,8 +379,8 @@ init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, Cb, Reg, UseRC]) ->
-	Args = [?MODULE, self(), EP, Assoc],
-	case m3ua_callback:cb(init, Cb, Args) of
+	CbArgs = [?MODULE, self(), EP, Assoc],
+	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
 			process_flag(trap_exit, true),
 			Statedata = #statedata{sctp_role = SctpRole,
@@ -394,8 +396,8 @@ init([SctpRole, Socket, Address, Port,
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+						NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
@@ -405,7 +407,8 @@ down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
 	gen_server:cast(From, {'M-ASP_UP', confirm, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-down({'M-ASP_UP', request, Ref, From}, #statedata{req = undefined, socket = Socket,
+down({'M-ASP_UP', request, Ref, From},
+		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->
 	AspUp = #m3ua{class = ?ASPSMMessage,
 			type = ?ASPSMASPUP, params = <<>>},
@@ -421,13 +424,15 @@ down({'M-ASP_UP', request, Ref, From}, #statedata{req = undefined, socket = Sock
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-down({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
+down({AspOp, request, Ref, From},
+		#statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
 	{next_state, down, StateData}.
 
 -spec down(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
+		{reply, Reply :: term(),
+				NextStateName :: atom(), NewStateData :: #statedata{}}
 		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>down</b> state.
@@ -491,7 +496,8 @@ inactive({'M-ASP_ACTIVE', request, Ref, From},
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-inactive({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = Socket,
+inactive({'M-ASP_DOWN', request, Ref, From},
+		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->
 	AspDown = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
 	Message = m3ua_codec:m3ua(AspDown),
@@ -506,13 +512,15 @@ inactive({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket 
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-inactive({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
+inactive({AspOp, request, Ref, From},
+		#statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
 	{next_state, inactive, StateData}.
 
 -spec inactive(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
+		{reply, Reply :: term(), NextStateName :: atom(),
+				NewStateData :: #statedata{}}
 		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>inactive</b> state.
@@ -523,8 +531,8 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 
 -spec active(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+					NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
@@ -543,7 +551,8 @@ active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 			{'M-RK_REG', confirm, Ref, self(),
 			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
 	{next_state, active, StateData};
-active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socket = Socket,
+active({'M-ASP_INACTIVE', request, Ref, From},
+		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->
 	AspInActive = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
 	Message = m3ua_codec:m3ua(AspInActive),
@@ -558,7 +567,8 @@ active({'M-ASP_INACTIVE', request, Ref, From}, #statedata{req = undefined, socke
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-active({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = Socket,
+active({'M-ASP_DOWN', request, Ref, From},
+		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->
 	AspDown = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN},
 	Message = m3ua_codec:m3ua(AspDown),
@@ -573,13 +583,15 @@ active({'M-ASP_DOWN', request, Ref, From}, #statedata{req = undefined, socket = 
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-active({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req /= undefined ->
+active({AspOp, request, Ref, From},
+		#statedata{req = Req} = StateData) when Req /= undefined ->
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, asp_busy}}),
 	{next_state, active, StateData}.
 
 -spec active(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: #statedata{}}
+		{reply, Reply :: term(),
+				NextStateName :: atom(), NewStateData :: #statedata{}}
 		| {stop, Reason :: term(), Reply :: term(), NewStateData :: #statedata{}}.
 %% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
@@ -587,9 +599,11 @@ active({AspOp, request, Ref, From}, #statedata{req = Req} = StateData) when Req 
 %%
 active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
-	ProtocolData = #protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data},
+	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
+			si = SIO, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
-	TransferMsg = #m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = P0},
+	TransferMsg = #m3ua{class = ?TransferMessage,
+			type = ?TransferMessageData, params = P0},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
@@ -649,7 +663,7 @@ handle_event({_AspOp, State}, StateName, StateData) ->
 		StateName :: atom(), StateData :: #statedata{}) ->
 	{reply, Reply :: term(), NextStateName :: atom(), NewStateData :: term()}
 			| {reply, Reply :: term(), NextStateName :: atom(),
-				NewStateData :: #statedata{}, timeout() | hibernate}
+					NewStateData :: #statedata{}, timeout() | hibernate}
 			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
 			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
 				timeout() | hibernate}
@@ -672,8 +686,8 @@ handle_sync_event({getstat, Options}, _From, StateName,
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(), NewStateData :: #statedata{},
-				timeout() | hibernate}
+			| {next_state, NextStateName :: atom(),
+				NewStateData :: #statedata{}, timeout() | hibernate}
 			| {stop, Reason :: normal | term(), NewStateData :: #statedata{}}.
 %% @doc Handle a received message.
 %% @see //stdlib/gen_fsm:handle_info/3
@@ -781,108 +795,120 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
 	gen_server:cast(m3ua, {'M-NOTIFY', indication, self(), Status, ASPId, RC}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
-handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK}, down,
-		_Stream, #statedata{req = {'M-ASP_UP', request, Ref, From}, socket = Socket,
-		callback = CbMod, cb_state = State, ep = EP, assoc = Assoc} = StateData) ->
+handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
+		down, _Stream, #statedata{req = {'M-ASP_UP', request, Ref, From},
+		socket = Socket, callback = CbMod, cb_state = State, ep = EP,
+		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_UP', confirm, Ref,
 			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
-handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK}, inactive,
-		_Stream, #statedata{req = {'M-ASP_ACTIVE', request, Ref, From}, socket = Socket,
-		callback = CbMod, cb_state = State, ep = EP, assoc = Assoc} = StateData) ->
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
+		inactive, _Stream, #statedata{req = {'M-ASP_ACTIVE', request, Ref, From},
+		socket = Socket, callback = CbMod, cb_state = State, ep = EP,
+		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_ACTIVE', confirm, Ref,
 			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
-handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP} = Msg, inactive,
-		_Stream, #statedata{socket = Socket, req ={'M-RK_REG', request, Ref,
-		From, #m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}},
-		callback = CbMod, cb_state = UState, ep = EP, assoc = Assoc} = StateData) ->
+handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP} = Msg,
+		inactive, _Stream, #statedata{socket = Socket,
+		req ={'M-RK_REG', request, Ref, From,
+		#m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}},
+		callback = CbMod, cb_state = UState, ep = EP,
+		assoc = Assoc} = StateData) ->
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
 			Msg, NA, Keys, TMT, AS, EP, Assoc, CbMod, UState}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
-handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK}, StateName,
-		_Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From}, socket = Socket,
-		callback = CbMod, cb_state = State, ep = EP, assoc = Assoc} = StateData)
-		when StateName == inactive; StateName == active ->
+handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
+		StateName, _Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From},
+		socket = Socket, callback = CbMod, cb_state = State, ep = EP,
+		assoc = Assoc} = StateData) when StateName == inactive;
+		StateName == active ->
 	gen_server:cast(From, {'M-ASP_DOWN', confirm, Ref,
 			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK}, active,
-		_Stream, #statedata{req = {'M-ASP_INACTIVE', request, Ref, From}, socket = Socket,
-		callback = CbMod, cb_state = State, ep = EP, assoc = Assoc} = StateData) ->
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
+		active, _Stream, #statedata{req = {'M-ASP_INACTIVE', request, Ref, From},
+		socket = Socket, callback = CbMod, cb_state = State, ep = EP,
+		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_INACTIVE', confirm, Ref,
 			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
-handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK}, active,
-		_Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From}, socket = Socket,
-		callback = CbMod, cb_state = State, ep = EP, assoc = Assoc} = StateData) ->
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
+		active, _Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From},
+		socket = Socket, callback = CbMod, cb_state = CbState, ep = EP,
+		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_DOWN', confirm, Ref,
-			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
+			{ok, CbMod, self(), EP, Assoc, CbState, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params}, active,
-		_Stream, #statedata{req = {AspOp, request, Ref, From}, socket = Socket} = StateData) ->
+handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
+		active, _Stream, #statedata{req = {AspOp, request, Ref, From},
+		socket = Socket} = StateData) ->
 	Parameters = m3ua_codec:parameters(Params),
 	{ok, Reason} = m3ua_codec:find_parameter(?ErrorCode, Parameters),
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, Reason}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-handle_asp(#m3ua{class = ?TransferMessage, type = ?TransferMessageData, params = Params},
-		active, Stream, #statedata{callback = CbMod, cb_state = State,
-		socket = Socket, assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+handle_asp(#m3ua{class = ?TransferMessage,
+		type = ?TransferMessageData, params = Params}, active, Stream,
+		#statedata{callback = CbMod, cb_state = CbState, socket = Socket,
+		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State],
-	{ok, NewState} = m3ua_callback:cb(transfer, CbMod, Args),
+	CbArgs = [self(), EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(transfer, CbMod, CbArgs),
 	inet:setopts(Socket, [{active, once}]),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		_StateName, Stream, #statedata{callback = CbMod, cb_state = State,
-		assoc = Assoc, ep = EP, socket = Socket} = StateData) when CbMod /= undefined ->
+		_StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
+		assoc = Assoc, ep = EP, socket = Socket} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
-	{ok, NewState} = m3ua_callback:cb(pause, CbMod, Args),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		_StateName, Stream, #statedata{callback = CbMod, cb_state = State,
-		assoc = Assoc, ep = EP, socket = Socket} = StateData) when CbMod /= undefined ->
+		_StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
+		assoc = Assoc, ep = EP, socket = Socket} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
-	{ok, NewState} = m3ua_callback:cb(resume, CbMod, Args),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
-		StateName, Stream, #statedata{callback = CbMod, cb_state = State,
-		assoc = Assoc, ep = EP, socket = Socket} = StateData) when CbMod /= undefined ->
+		StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
+		assoc = Assoc, ep = EP, socket = Socket} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	Args = [self(), EP, Assoc, Stream, RC, APCs, State],
-	{ok, NewState} = m3ua_callback:cb(status, CbMod, Args),
-	NewStateData = StateData#statedata{cb_state = NewState},
+	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(status, CbMod, CbArgs),
+	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, NewStateData}.
 

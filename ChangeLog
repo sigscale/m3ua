@@ -1,3 +1,9 @@
+2018-03-11  Vance Shipley <vances@sigscale.org>
+
+	* add API functions for getting endpoints, asp, sgp
+	* set SCTP payload protocol identifier
+	* set SCTP adaptation indication parameter
+
 2018-03-08  Vance Shipley <vances@sigscale.org>
 
 	* add module name to init callback
