@@ -1,3 +1,8 @@
+2018-03-13  Vance Shipley <vances@sigscale.org>
+
+	* correct parameter padding length
+	* handle and log protocol error messages
+
 2018-03-11  Vance Shipley <vances@sigscale.org>
 
 	* add API functions for getting endpoints, asp, sgp
