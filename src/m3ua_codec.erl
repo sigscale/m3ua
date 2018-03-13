@@ -216,7 +216,7 @@ parameters([{?DeregistrationStatus, _} | T], Acc) ->
 parameters(<<>>, Acc) ->
 	lists:reverse(Acc);
 parameters([], Acc) when (size(Acc) rem 4) /= 0 ->
-	Pad = (size(Acc) rem 4) * 8,
+	Pad = (4 - (size(Acc) rem 4)) * 8,
 	<<Acc/binary, 0:Pad>>;
 parameters(Pad, Acc) when (size(Pad) rem 4) /= 0 ->
 	lists:reverse(Acc);
