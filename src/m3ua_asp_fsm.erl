@@ -910,7 +910,17 @@ handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 	{ok, NewCbState} = m3ua_callback:cb(status, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, NewStateData}.
+	{next_state, StateName, NewStateData};
+handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
+		StateName, _Stream,
+		#statedata{assoc = Assoc, ep = EP, socket = Socket} = StateData) ->
+	Parameters = m3ua_codec:parameters(Params),
+	ErrorCode = proplists:get_value(?ErrorCode, Parameters),
+	error_logger:error_report(["M3UA protocol error",
+			{module, ?MODULE}, {state, StateName}, {endpoint, EP},
+			{association, Assoc}, {error, ErrorCode}]),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, StateName, StateData}.
 
 %% @hidden
 generate_lrk_id() ->
