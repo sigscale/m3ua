@@ -785,8 +785,13 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		{error, gen_sctp:error_string(Error)}, {flags, Flags},
 		{assoc, Assoc}, {info, Info}, {data, Data}, {socket, Socket},
 		{peer, {PeerAddr, PeerPort}}]),
-	{stop, {shutdown, {{EP, Assoc}, Error}}, StateData}.
-
+	{stop, {shutdown, {{EP, Assoc}, Error}}, StateData};
+handle_info({'EXIT', EP, {shutdown, {EP, Reason}}}, _StateName,
+		#statedata{ep = EP, assoc = Assoc} = StateData) ->
+	{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData};
+handle_info({'EXIT', Socket, Reason}, _StateName,
+		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
+	{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) -> any().
