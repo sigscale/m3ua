@@ -189,6 +189,17 @@
 %%%  </ul></p>
 %%%  </div>
 %%%
+%%%  <h3 class="function"><a name="terminate-5">terminate/5</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>terminate(Asp, EP, Assoc, Reason, State)</tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%  </ul></p>
+%%%  </div><p>Called when an ASP terminates.</p>
+%%%
 %%% @end
 -module(m3ua_sgp_fsm).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
@@ -334,6 +345,14 @@
 		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
+-callback terminate(Asp, EP, Assoc, Reason, State) -> Result
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		Reason :: term(),
+		State :: term(),
+		Result :: any().
 
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm public API
@@ -645,36 +664,41 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
-terminate(normal = _Reason, _StateName,
-		#statedata{socket = undefined} = _StateData) ->
-	ok;
-terminate(normal = _Reason, _StateName,
-		#statedata{socket = Socket} = _StateData) ->
+terminate(Reason, _StateName, #statedata{socket = undefined,
+		callback = CbMod, cb_state = CbState, ep = EP,
+		assoc = Assoc} = _StateData) when CbMod /= undefined,
+		((Reason == normal) orelse (Reason == shutdown)
+		orelse ((element(1, Reason) == shutdown))) ->
+	CbArgs = [self(), EP, Assoc, Reason, CbState],
+	m3ua_callback:cb(terminate, CbMod, CbArgs);
+terminate(Reason, _StateName, #statedata{socket = Socket,
+		callback = CbMod, cb_state = CbState, ep = EP,
+		assoc = Assoc} = _StateData) when
+		((Reason == normal) orelse (Reason == shutdown)
+		orelse ((element(1, Reason) == shutdown))) ->
+	CbArgs = [self(), EP, Assoc, Reason, CbState],
 	gen_sctp:close(Socket),
-	ok;
-terminate(shutdown, _StateName,
-		#statedata{socket = undefined} = _StateData) ->
-	ok;
-terminate(shutdown, _StateName,
-		#statedata{socket = Socket} = _StateData) ->
-	gen_sctp:close(Socket),
-	ok;
-terminate({shutdown, _}, _StateName,
-		#statedata{socket = undefined} = _StateData) ->
-	ok;
-terminate({shutdown, _}, _StateName,
-		#statedata{socket = Socket} = _StateData) ->
-	gen_sctp:close(Socket),
-	ok;
-terminate(Reason, StateName, #statedata{socket = undefined} = StateData) ->
+	CbArgs = [self(), EP, Assoc, Reason, CbState],
+	m3ua_callback:cb(terminate, CbMod, CbArgs);
+terminate(Reason, StateName, #statedata{socket = undefined,
+		callback = CbMod, cb_state = CbState, ep = EP,
+		assoc = Assoc} = StateData) ->
 	error_logger:error_report(["Abnormal process termination",
-			{module, ?MODULE}, {pid, self()}, {reason, Reason},
-			{statename, StateName}, {statedata, StateData}]);
-terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
+			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
+			{association, Assoc}, {reason, Reason},
+			{statename, StateName}, {statedata, StateData}]),
+	CbArgs = [self(), EP, Assoc, Reason, CbState],
+	m3ua_callback:cb(terminate, CbMod, CbArgs);
+terminate(Reason, StateName, #statedata{socket = Socket,
+		callback = CbMod, cb_state = CbState, ep = EP,
+		assoc = Assoc} = StateData) ->
 	gen_sctp:close(Socket),
 	error_logger:error_report(["Abnormal process termination",
-			{module, ?MODULE}, {pid, self()}, {reason, Reason},
-			{statename, StateName}, {statedata, StateData}]).
+			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
+			{association, Assoc}, {reason, Reason},
+			{statename, StateName}, {statedata, StateData}]),
+	CbArgs = [self(), EP, Assoc, Reason, CbState],
+	m3ua_callback:cb(terminate, CbMod, CbArgs).
 
 -spec code_change(OldVsn :: term() | {down, term()}, StateName :: atom(),
 		StateData :: term(), Extra :: term()) ->
