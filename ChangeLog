@@ -1,3 +1,7 @@
+2018-03-15  Vance Shipley <vances@sigscale.org>
+
+	* terminate and notify callbacks
+
 2018-03-13  Vance Shipley <vances@sigscale.org>
 
 	* correct parameter padding length
