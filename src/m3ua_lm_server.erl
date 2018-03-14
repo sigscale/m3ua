@@ -611,8 +611,52 @@ handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, UState, _Identifie
 		none ->
 			{noreply, State}
 	end;
-handle_cast({'M-NOTIFY', indication, Asp, Status, ASPIdentifier, RC}, State) ->
-	handle_notify(Status, Asp, ASPIdentifier, RC, State);
+handle_cast({'M-NOTIFY', indication, ASP, EP, Assoc,
+		RC, Status, AspID, CbMod, CbState}, State)
+		when (Status == as_inactive) orelse (Status == as_active)
+		orelse (Status == as_pending) ->
+	F = fun() ->
+		case mnesia:read(m3ua_asp, ASP, read) of
+			[] ->
+				ok;
+			ASPs ->
+				F1 = fun(#m3ua_asp{rk = RK}) ->
+					case mnesia:read(m3ua_as, RK, write) of
+						[] ->
+							ok;
+						[#m3ua_as{} = AS] ->
+							F2 = fun(as_active) ->
+										active;
+									(as_inactive) ->
+										inactive;
+									(as_pending) ->
+										pending
+							end,
+							NewAS = AS#m3ua_as{state = F2(Status)},
+							ok = mnesia:write(NewAS)
+					end
+				end,
+				lists:foreach(F1, ASPs)
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			CbArgs = [ASP, EP, Assoc, RC, Status, AspID, CbState],
+			{ok, NewCbState} = m3ua_callback:cb(notify, CbMod, CbArgs),
+			ok = gen_fsm:send_all_state_event(ASP, {'M-NOTIFY', NewCbState}),
+			{noreply, State};
+		{aborted, Reason} ->
+			{stop, Reason, State}
+	end;
+handle_cast({'M-NOTIFY', indication, ASP, EP, Assoc,
+		RC, Status, AspID, CbMod, CbState}, State)
+		when (Status == insufficient_asp_active)
+		orelse (Status == alternate_asp_active)
+		orelse (Status == asp_failure) ->
+	CbArgs = [ASP, EP, Assoc, RC, Status, AspID, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(notify, CbMod, CbArgs),
+	ok = gen_fsm:send_all_state_event(ASP, {notify, NewCbState}),
+	{noreply, State};
 handle_cast({TrafficMaint, indication, Sgp, EP, Assoc, RCs, CbMod, SgpState},
 		State) when TrafficMaint == 'M-ASP_ACTIVE'; TrafficMaint == 'M-ASP_INACTIVE' ->
 	traffic_maint(TrafficMaint, Sgp, EP, Assoc, RCs, CbMod, SgpState, State);
@@ -661,9 +705,9 @@ handle_cast({StateMaint, indication, CbMod, Sgp, EP, Assoc, SgpState}, #state{} 
 			{ok, NewSgpState} = m3ua_callback:cb(cb_func(StateMaint), CbMod, CbArgs),
 			ok = gen_fsm:send_all_state_event(Sgp, {StateMaint, NewSgpState}),
 			F3 = fun({Fsm, RC, active}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'NTFY', 'AS_ACTIVE', RC});
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_ACTIVE', RC});
 					({Fsm, RC, inactive}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'NTFY', 'AS_INACTIVE', RC})
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC})
 			end,
 			ok = lists:foreach(F3, NotifyFsms),
 			{noreply, State};
@@ -1025,9 +1069,9 @@ traffic_maint(TrafficMaint, Sgp, EP, Assoc, RCs, CbMod, SgpState, State) ->
 				{ok, NewSgpState} ->
 					ok = gen_fsm:send_all_state_event(Sgp, {TrafficMaint, NewSgpState}),
 					F2 = fun({Fsm, RC, active}) ->
-								gen_fsm:send_all_state_event(Fsm, {'NTFY', 'AS_ACTIVE', RC});
+								gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_ACTIVE', RC});
 							({Fsm, RC, inactive}) ->
-								gen_fsm:send_all_state_event(Fsm, {'NTFY', 'AS_INACTIVE', RC})
+								gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC})
 					end,
 					ok = lists:foreach(F2, Fsms),
 					{noreply, State};
@@ -1134,37 +1178,6 @@ traffic_maint2([#m3ua_asp{rk = RK, rc = RC} | T], TrafficMaint, Sgp, Notify) ->
 						traffic_maint2(T, TrafficMaint, Sgp, Notify)
 				end
 	end.
-%% @hidden
-handle_notify({assc, AsState}, Asp, _ASPIdentifier, _RC, State) ->
-	F = fun() ->
-		case mnesia:read(m3ua_asp, Asp, read) of
-			[] ->
-				ok;
-			Asps ->
-				F1 = fun(#m3ua_asp{rk = RK}) ->
-					case mnesia:read(m3ua_as, RK, write) of
-						[] ->
-							ok;
-						[#m3ua_as{} = AS] ->
-							NewAS = AS#m3ua_as{state = AsState},
-							ok = mnesia:write(NewAS)
-					end
-				end,
-				lists:foreach(F1, Asps)
-		end
-	end,
-	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			{noreply, State};
-		{aborted, Reason} ->
-			error_logger:error_report(["Update AS table failed",
-					{asp, Asp}, {reason, Reason}, {module, ?MODULE}]),
-			{noreply, State}
-	end;
-handle_notify({other, AsState}, Asp, _ASPIdentifier, _RC, State) ->
-	error_logger:error_report(["AS state change error",
-			{asp, Asp}, {reason, AsState}, {module, ?MODULE}]),
-	{noreply, State}.
 	
 %% @private
 cb_func('M-ASP_UP') -> asp_up;

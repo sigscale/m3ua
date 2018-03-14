@@ -152,17 +152,17 @@ parameters([{?TrafficModeType, broadcast} | T], Acc) ->
 parameters([{?ErrorCode, ErrorCode} | T], Acc) ->
 	EC = error_code(ErrorCode),
 	parameters(T, <<Acc/binary, ?ErrorCode:16, 8:16, EC/binary>>);
-parameters([{?Status, {assc, inactive}} | T], Acc) ->
+parameters([{?Status, as_inactive} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?Status:16, 8:16, 1:16, 2:16>>);
-parameters([{?Status, {assc, active}} | T], Acc) ->
+parameters([{?Status, as_active} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?Status:16, 8:16, 1:16, 3:16>>);
-parameters([{?Status, {assc, pending}} | T], Acc) ->
+parameters([{?Status, as_pending} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?Status:16, 8:16, 1:16, 4:16>>);
-parameters([{?Status, {other, insufficient_asp_resource_active}} | T], Acc) ->
+parameters([{?Status, insufficient_asp_active} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?Status:16, 8:16, 2:16, 1:16>>);
-parameters([{?Status, {other, alternate_asp_active}} | T], Acc) ->
+parameters([{?Status, alternate_asp_active} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?Status:16, 8:16, 2:16, 2:16>>);
-parameters([{?Status, {other, asp_failure}} | T], Acc) ->
+parameters([{?Status, asp_failure} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?Status:16, 8:16, 2:16, 3:16>>);
 parameters([{?ASPIdentifier, ASPI} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?ASPIdentifier:16, 8:16, ASPI:32>>);
@@ -340,17 +340,17 @@ parameter(?TrafficModeType, <<3:32>>, Acc) ->
 parameter(?ErrorCode, EC, Acc) ->
 	[{?ErrorCode, error_code(EC)} | Acc];
 parameter(?Status, <<1:16, 2:16>>, Acc) ->
-	[{?Status, {assc, inactive}} | Acc];
+	[{?Status, as_inactive} | Acc];
 parameter(?Status, <<1:16, 3:16>>, Acc) ->
-	[{?Status, {assc, active}} | Acc];
+	[{?Status, as_active} | Acc];
 parameter(?Status, <<1:16, 4:16>>, Acc) ->
-	[{?Status, {assc, pending}} | Acc];
+	[{?Status, as_pending} | Acc];
 parameter(?Status, <<2:16, 1:16>>, Acc) ->
-	[{?Status, {other, insufficient_asp_resource_active}} | Acc];
+	[{?Status, insufficient_asp_active} | Acc];
 parameter(?Status, <<2:16, 2:16>>, Acc) ->
-	[{?Status, {other, alternate_asp_active}} | Acc];
+	[{?Status, alternate_asp_active} | Acc];
 parameter(?Status, <<2:16, 3:16>>, Acc) ->
-	[{?Status, {other, asp_failure}} | Acc];
+	[{?Status, asp_failure} | Acc];
 parameter(?ASPIdentifier, <<ASPIdentifier:32>>, Acc) ->
 	[{?ASPIdentifier, ASPIdentifier} | Acc];
 parameter(?AffectedPointCode, APC, Acc) ->

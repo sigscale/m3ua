@@ -189,6 +189,23 @@
 %%%  </ul></p>
 %%%  </div>
 %%%
+%%%  <h3 class="function"><a name="notify-7">notify/7</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>notify(Asp, EP, Assoc, RC, Status, AspID, State) -&gt; Result </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>RC = pos_integer()</tt></li>
+%%%    <li><tt>Status = as_inactive | as_active | as_pending
+%%%         | insufficient_asp_active | alternate_asp_active
+%%%         | asp_failure</tt></li>
+%%%    <li><tt>AspID = pos_integer()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>Result = {ok, State}</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
 %%%  <h3 class="function"><a name="terminate-5">terminate/5</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>terminate(Asp, EP, Assoc, Reason, State)</tt>
@@ -345,6 +362,17 @@
 		Asp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
+		State :: term(),
+		Result :: {ok, State}.
+-callback notify(Asp, EP, Assoc, RC, Status, AspID, State) -> Result
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		RC :: pos_integer(),
+		Status :: as_inactive | as_active | as_pending
+				| insufficient_asp_active | alternate_asp_active | asp_failure,
+		AspID :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
 -callback terminate(Asp, EP, Assoc, Reason, State) -> Result
@@ -646,7 +674,7 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}},
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
-handle_event({'NTFY', _NotifyFor, _RC}, StateName, StateData) ->
+handle_event({'M-NOTIFY', _NotifyFor, _RC}, StateName, StateData) ->
 	% @todo do need to send notify ?
 	{next_state, StateName, StateData};
 handle_event({'M-RK_REG', {RC, RK}}, StateName,
@@ -674,8 +702,11 @@ handle_event({'M-SCTP_STATUS', request, Ref, From},
 					{'M-SCTP_STATUS', confirm, Ref, {error, Reason}}),
 			{next_state, StateName, StateData}
 	end;
-handle_event({_AspOp, State}, StateName, StateData) ->
-	NewStateData = StateData#statedata{cb_state = State},
+handle_event({Callback, CbState}, StateName, StateData)
+		when (Callback == 'M-ASP_UP') orelse (Callback == 'M-ASP_DOWN')
+		orelse (Callback == 'M-ASP_ACTIVE') orelse (Callback == 'M-ASP_INACTIVE')
+		orelse (Callback == 'M-RK_REG') orelse (Callback == 'M-NOTIFY') ->
+	NewStateData = StateData#statedata{cb_state = CbState},
 	{next_state, StateName, NewStateData}.
 
 -spec handle_sync_event(Event :: term(), From :: {pid(), Tag :: term()},
@@ -816,12 +847,14 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 handle_asp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_asp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
-		StateName, _Stream, #statedata{socket = Socket} = StateData) ->
+		StateName, _Stream, #statedata{socket = Socket, callback = CbMod,
+		cb_state = CbState, ep = EP, assoc = Assoc} = StateData) ->
 	Parameters = m3ua_codec:parameters(Params),
 	Status = m3ua_codec:fetch_parameter(?Status, Parameters),
 	ASPId = proplists:get_value(?ASPIdentifier, Parameters),
 	RC = proplists:get_value(?RoutingContext, Parameters),
-	gen_server:cast(m3ua, {'M-NOTIFY', indication, self(), Status, ASPId, RC}),
+	gen_server:cast(m3ua, {'M-NOTIFY', indication, self(),
+			EP, Assoc, RC, Status, ASPId, CbMod, CbState}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},

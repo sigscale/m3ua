@@ -189,6 +189,23 @@
 %%%  </ul></p>
 %%%  </div>
 %%%
+%%%  <h3 class="function"><a name="notify-7">notify/7</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>notify(Asp, EP, Assoc, RC, Status, AspID, State) -&gt; Result </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Asp = pid()</tt></li>
+%%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>RC = pos_integer()</tt></li>
+%%%    <li><tt>Status = as_inactive | as_active | as_pending
+%%%         | insufficient_asp_active | alternate_asp_active
+%%%         | asp_failure</tt></li>
+%%%    <li><tt>AspID = pos_integer()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>Result = {ok, State}</tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
 %%%  <h3 class="function"><a name="terminate-5">terminate/5</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>terminate(Asp, EP, Assoc, Reason, State)</tt>
@@ -343,6 +360,17 @@
 		Sgp :: pid(),
 		EP :: pid(),
 		Assoc :: pos_integer(),
+		State :: term(),
+		Result :: {ok, State}.
+-callback notify(Asp, EP, Assoc, RC, Status, AspID, State) -> Result
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		RC :: pos_integer(),
+		Status :: as_inactive | as_active | as_pending
+				| insufficient_asp_active | alternate_asp_active | asp_failure,
+		AspID :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
 -callback terminate(Asp, EP, Assoc, Reason, State) -> Result
@@ -531,22 +559,26 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}}, _From,
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
-handle_event({'NTFY', NotifyFor, _RC}, StateName,
-		#statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
-	Params = case NotifyFor of
+handle_event({'M-NOTIFY', NotifyFor, RC}, StateName,
+		#statedata{socket = Socket, ep = EP, assoc = Assoc,
+		callback = CbMod, cb_state = CbState} = StateData) ->
+	Status = case NotifyFor of
 		'AS_ACTIVE' ->
-			[{?Status, {assc, active}}];
+			as_active;
 		'AS_INACTIVE' ->
-			[{?Status, {assc, inactive}}];
+			as_inactive;
 		'AS_PENDING' ->
-			[{?Status, {assc, pending}}]
+			as_pending
 	end,
-	Notify = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
+	Notify = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify,
+			params = [{?Status, Status}]},
 	Message = m3ua_codec:m3ua(Notify),
 	case gen_sctp:send(Socket, Assoc, 0, Message) of
 		ok ->
+			CbArgs = [self(), EP, Assoc, RC, Status, undefined, CbState],
+			{ok, NewCbState} = m3ua_callback:cb(notify, CbMod, CbArgs),
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, StateName, StateData};
+			{next_state, StateName, StateData#statedata{cb_state = NewCbState}};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};

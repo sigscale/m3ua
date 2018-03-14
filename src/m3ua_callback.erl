@@ -23,7 +23,7 @@
 %% export the m3ua_callback public API
 -export([init/4, transfer/11, pause/7, resume/7, status/7,
 		register/7, asp_up/4, asp_down/4, asp_active/4,
-		asp_inactive/4, terminate/5]).
+		asp_inactive/4, notify/7, terminate/5]).
 
 %% export the m3ua_callback private API
 -export([cb/3]).
@@ -168,6 +168,21 @@ asp_active(_Fsm, _EP, _Assoc, State) ->
 asp_inactive(_Fsm, _EP, _Assoc, State) ->
 	{ok, State}.
 
+-spec notify(Asp, EP, Assoc, RC, Status, AspID, State) -> Result
+	when
+		Asp :: pid(),
+		EP :: pid(),
+		Assoc :: pos_integer(),
+		RC :: undefined | pos_integer(),
+		Status :: as_inactive | as_active | as_pending
+				| insufficient_asp_active | alternate_asp_active
+				| asp_failure,
+		AspID :: undefined | pos_integer(),
+		State :: term(),
+		Result :: {ok, State}.
+notify(_Fsm, _EP, _Assoc, _RC, _Status, _AspID, State) ->
+	{ok, State}.
+
 -spec terminate(Asp, EP, Assoc, Reason, State) -> Result
 	when
 		Asp :: pid(),
@@ -231,6 +246,10 @@ cb(asp_active, #m3ua_fsm_cb{asp_active = F, extra = E}, Args) ->
 cb(asp_inactive, #m3ua_fsm_cb{asp_inactive = false}, Args) ->
 	apply(?MODULE, asp_inactive, Args);
 cb(asp_inactive, #m3ua_fsm_cb{asp_inactive = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(notify, #m3ua_fsm_cb{notify = false}, Args) ->
+	apply(?MODULE, notify, Args);
+cb(notify, #m3ua_fsm_cb{notify = F, extra = E}, Args) ->
 	apply(F, Args ++ E);
 cb(terminate, #m3ua_fsm_cb{terminate = false}, Args) ->
 	apply(?MODULE, terminate, Args);

@@ -23,7 +23,7 @@
 
 -export([init/4, transfer/11, pause/7, resume/7, status/7,
 		register/7, terminate/5]).
--export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
+-export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4, notify/7]).
 
 %%----------------------------------------------------------------------
 %%  The demo_sg API 
@@ -66,6 +66,9 @@ asp_active(_Sgp, _EP, _Assoc, State) ->
 
 asp_inactive(_Sgp, _EP, _Assoc, State) ->
 %	State ! {sgp, asp_inactive, indication},
+	{ok, State}.
+
+notify(_Sgp, _EP, _Assoc, _RC, _Status, _AspID, State) ->
 	{ok, State}.
 
 terminate(_Asp, _EP, _Assoc, _Reason, _State) ->

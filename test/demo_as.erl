@@ -23,7 +23,7 @@
 
 -export([init/4, transfer/11, pause/7, resume/7, status/7,
 		register/7, terminate/5]).
--export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4]).
+-export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4, notify/7]).
 
 %%----------------------------------------------------------------------
 %%  The demo_as API 
@@ -64,6 +64,9 @@ asp_active(Asp, _EP, _Assoc, PID) ->
 	{ok, PID}.
 
 asp_inactive(_Asp, _EP, _Assoc, State) ->
+	{ok, State}.
+
+notify(_Asp, _EP, _Assoc, _RC, _Status, _AspID, State) ->
 	{ok, State}.
 
 terminate(_Asp, _EP, _Assoc, _Reason, _State) ->
