@@ -717,6 +717,11 @@ handle_info({sctp, Socket, _, _,
 	NewStateData = StateData#statedata{peer_addr = PeerAddr,
 			peer_port = PeerPort},
 	{next_state, StateName, NewStateData};
+handle_info({sctp, Socket, _, _,
+		{[], #sctp_paddr_change{addr = {_PeerAddr, _PeerPort},
+		state = addr_unreachable}}}, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	{stop, StateName, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
 		_StateName, #statedata{socket = Socket, assoc = AssocId,
