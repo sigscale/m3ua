@@ -27,29 +27,27 @@
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
-%%%  <h3 class="function"><a name="init-4">init/4</a></h3>
+%%%  <h3 class="function"><a name="init-5">init/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>init(Module, Asp, EP, Assoc) -&gt; Result </tt>
+%%%  <p><tt>init(Module, Asp, EP, EpName, Assoc) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Module = atom()</tt></li>
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
+%%%    <li><tt>EpName = term()</tt></li>
 %%%    <li><tt>Assoc = pos_integer()</tt></li>
-%%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, State} | {error, Reason} </tt></li>
+%%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
 %%%  </div><p>Initialize ASP callback handler.</p>
 %%%  <p>Called when ASP is started.</p>
 %%%
-%%%  <h3 class="function"><a name="transfer-11">transfer/11</a></h3>
+%%%  <h3 class="function"><a name="transfer-8">transfer/8</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Asp, EP, Assoc, Stream,
-%%% 		RC, OPC, DPC, SLS, SIO, Data, State) -&gt; Result </tt>
+%%%  <p><tt>transfer(Stream, RC, OPC, DPC, SLS, SIO,
+%%%        Data, State) -&gt; Result</tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>OPC = pos_integer() </tt></li>
@@ -65,13 +63,10 @@
 %%%  </div><p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
-%%%  <h3 class="function"><a name="pause-7">pause/7</a></h3>
+%%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(Asp, EP, Assoc, Stream, RC, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>pause(Stream, RC, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
@@ -84,13 +79,10 @@
 %%%  </div><p>MTP-PAUSE indication.</p>
 %%%  <p>Called when an SS7 destination is unreachable.</p>
 %%%
-%%%  <h3 class="function"><a name="resume-7">resume/7</a></h3>
+%%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(Asp, EP, Assoc, Stream, RC, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>resume(Stream, RC, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
@@ -104,13 +96,10 @@
 %%%  <p>Called when a previously unreachable SS7 destination
 %%%  becomes reachable.</p>
 %%%
-%%%  <h3 class="function"><a name="status-7">status/7</a></h3>
+%%%  <h3 class="function"><a name="status-4">status/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(Asp, EP, Assoc, Stream, RC, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>status(Stream, RC, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RC = pos_integer() | undefined </tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
@@ -123,13 +112,10 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
-%%%  <h3 class="function"><a name="register-7">register/7</a></h3>
+%%%  <h3 class="function"><a name="register-4">register/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>register(Asp, EP, Assoc, NA, Keys, TMT, State) -&gt; Result </tt>
+%%%  <p><tt>register(NA, Keys, TMT, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>NA = pos_integer()</tt></li>
 %%%    <li><tt>Keys = [key()]</tt></li>
 %%%    <li><tt>TMT = tmt()</tt></li>
@@ -141,61 +127,46 @@
 %%%  </div><p>Called when Registration Response message with a
 %%%   registration status of successful from its peer</p>
 %%%
-%%%  <h3 class="function"><a name="asp_up-4">asp_up/4</a></h3>
+%%%  <h3 class="function"><a name="asp_up-1">asp_up/1</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_up(Asp, EP, Assoc, State) -&gt; Result </tt>
+%%%  <p><tt>asp_up(State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State}</tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_down-4">asp_down/4</a></h3>
+%%%  <h3 class="function"><a name="asp_down-1">asp_down/1</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_down(Asp, EP, Assoc, State) -&gt; Result </tt>
+%%%  <p><tt>asp_down(State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State}</tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_active-4">asp_active/4</a></h3>
+%%%  <h3 class="function"><a name="asp_active-1">asp_active/1</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_active(Asp, EP, Assoc, State) -&gt; Result </tt>
+%%%  <p><tt>asp_active(State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State}</tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="asp_inactive-4">asp_inactive/4</a></h3>
+%%%  <h3 class="function"><a name="asp_inactive-1">asp_inactive/1</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_inactive(Asp, EP, Assoc, State) -&gt; Result </tt>
+%%%  <p><tt>asp_inactive(State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State}</tt></li>
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="notify-7">notify/7</a></h3>
+%%%  <h3 class="function"><a name="notify-4">notify/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>notify(Asp, EP, Assoc, RC, Status, AspID, State) -&gt; Result </tt>
+%%%  <p><tt>notify(RC, Status, AspID, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
 %%%    <li><tt>RC = pos_integer()</tt></li>
 %%%    <li><tt>Status = as_inactive | as_active | as_pending
 %%%         | insufficient_asp_active | alternate_asp_active
@@ -206,13 +177,11 @@
 %%%  </ul></p>
 %%%  </div>
 %%%
-%%%  <h3 class="function"><a name="terminate-5">terminate/5</a></h3>
+%%%  <h3 class="function"><a name="terminate-2">terminate/2</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>terminate(Asp, EP, Assoc, Reason, State)</tt>
+%%%  <p><tt>terminate(Reason, State)</tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Reason = term()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%  </ul></p>
 %%%  </div><p>Called when an ASP terminates.</p>
@@ -260,21 +229,18 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback init(Module, Asp, EP, Assoc) -> Result
+-callback init(Module, Asp, EP, EpName, Assoc) -> Result
 	when
 		Module :: atom(),
 		Asp :: pid(),
 		EP :: pid(),
+		EpName :: term(),
 		Assoc :: pos_integer(),
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().
--callback transfer(Asp, EP, Assoc, Stream,
-		RC, OPC, DPC, SLS, SIO, Data, State) -> Result
+-callback transfer(Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		RC :: pos_integer() | undefined,
 		OPC :: pos_integer(),
@@ -286,11 +252,8 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback pause(Asp, EP, Assoc, Stream, RC, DPCs, State) -> Result
+-callback pause(Stream, RC, DPCs, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
 		RC :: pos_integer() | undefined,
@@ -299,11 +262,8 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback resume(Asp, EP, Assoc, Stream, RC, DPCs, State) -> Result
+-callback resume(Stream, RC, DPCs, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
 		RC :: pos_integer() | undefined,
@@ -312,11 +272,8 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback status(Asp, EP, Assoc, Stream, RC, DPCs, State) -> Result
+-callback status(Stream, RC, DPCs, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
 		RC :: pos_integer() | undefined,
@@ -325,11 +282,8 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback register(Asp, EP, Assoc, NA, Keys, TMT, State) -> Result
+-callback register(NA, Keys, TMT, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		NA :: pos_integer(),
 		Keys :: [key()],
 		TMT :: tmt(),
@@ -337,50 +291,32 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback asp_up(Asp, EP, Assoc, State) -> Result
+-callback asp_up(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback asp_down(Asp, EP, Assoc, State) -> Result
+-callback asp_down(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback asp_active(Asp, EP, Assoc, State) -> Result
+-callback asp_active(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback asp_inactive(Asp, EP, Assoc, State) -> Result
+-callback asp_inactive(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback notify(Asp, EP, Assoc, RC, Status, AspID, State) -> Result
+-callback notify(RC, Status, AspID, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		RC :: pos_integer(),
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active | asp_failure,
 		AspID :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
--callback terminate(Asp, EP, Assoc, Reason, State) -> Result
+-callback terminate(Reason, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Reason :: term(),
 		State :: term(),
 		Result :: any().
@@ -427,7 +363,7 @@ init([SctpRole, Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, EpName, Cb, Reg, UseRC]) ->
-	CbArgs = [?MODULE, self(), EP, Assoc],
+	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
 			process_flag(trap_exit, true),
@@ -506,10 +442,10 @@ inactive(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{registration = static, ep = EP,
 		assoc = Assoc, callback = CbMod,
-		cb_state = UState} = StateData) ->
+		cb_state = CbState} = StateData) ->
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
+			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
 	{next_state, inactive, StateData};
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{req = undefined, socket = Socket,
@@ -594,10 +530,10 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{registration = static, ep = EP,
 		assoc = Assoc, callback = CbMod,
-		cb_state = UState} = StateData) ->
+		cb_state = CbState} = StateData) ->
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
+			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
 	{next_state, active, StateData};
 active({'M-ASP_INACTIVE', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
@@ -801,21 +737,17 @@ handle_info({'EXIT', Socket, Reason}, _StateName,
 %% @private
 %%
 terminate(Reason, _StateName, #statedata{socket = undefined,
-		callback = CbMod, cb_state = CbState, ep = EP,
-		assoc = Assoc} = _StateData) when CbMod /= undefined,
+		callback = CbMod, cb_state = CbState} = _StateData)
+		when CbMod /= undefined,
 		((Reason == normal) orelse (Reason == shutdown)
 		orelse ((element(1, Reason) == shutdown))) ->
-	CbArgs = [self(), EP, Assoc, Reason, CbState],
-	m3ua_callback:cb(terminate, CbMod, CbArgs);
+	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]);
 terminate(Reason, _StateName, #statedata{socket = Socket,
-		callback = CbMod, cb_state = CbState, ep = EP,
-		assoc = Assoc} = _StateData) when
-		((Reason == normal) orelse (Reason == shutdown)
+		callback = CbMod, cb_state = CbState} = _StateData)
+		when ((Reason == normal) orelse (Reason == shutdown)
 		orelse ((element(1, Reason) == shutdown))) ->
-	CbArgs = [self(), EP, Assoc, Reason, CbState],
 	gen_sctp:close(Socket),
-	CbArgs = [self(), EP, Assoc, Reason, CbState],
-	m3ua_callback:cb(terminate, CbMod, CbArgs);
+	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]);
 terminate(Reason, StateName, #statedata{socket = undefined,
 		callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
@@ -823,8 +755,7 @@ terminate(Reason, StateName, #statedata{socket = undefined,
 			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
 			{association, Assoc}, {reason, Reason},
 			{statename, StateName}, {statedata, StateData}]),
-	CbArgs = [self(), EP, Assoc, Reason, CbState],
-	m3ua_callback:cb(terminate, CbMod, CbArgs);
+	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]);
 terminate(Reason, StateName, #statedata{socket = Socket,
 		callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
@@ -833,8 +764,7 @@ terminate(Reason, StateName, #statedata{socket = Socket,
 			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
 			{association, Assoc}, {reason, Reason},
 			{statename, StateName}, {statedata, StateData}]),
-	CbArgs = [self(), EP, Assoc, Reason, CbState],
-	m3ua_callback:cb(terminate, CbMod, CbArgs).
+	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]).
 
 -spec code_change(OldVsn :: term() | {down, term()}, StateName :: atom(),
 		StateData :: term(), Extra :: term()) ->
@@ -885,11 +815,11 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP} = Msg,
 		inactive, _Stream, #statedata{socket = Socket,
 		req ={'M-RK_REG', request, Ref, From,
 		#m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}},
-		callback = CbMod, cb_state = UState, ep = EP,
+		callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			Msg, NA, Keys, TMT, AS, EP, Assoc, CbMod, UState}),
+			Msg, NA, Keys, TMT, AS, EP, Assoc, CbMod, CbState}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
@@ -932,49 +862,46 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?TransferMessage,
 		type = ?TransferMessageData, params = Params}, active, Stream,
-		#statedata{callback = CbMod, cb_state = CbState, socket = Socket,
-		assoc = Assoc, ep = EP} = StateData) when CbMod /= undefined ->
+		#statedata{callback = CbMod, cb_state = CbState,
+		socket = Socket} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS, data = Data} =
 			m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	CbArgs = [self(), EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, CbState],
+	CbArgs = [Stream, RC, OPC, DPC, SLS, SIO, Data, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(transfer, CbMod, CbArgs),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		_StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
-		assoc = Assoc, ep = EP, socket = Socket} = StateData)
-		when CbMod /= undefined ->
+		socket = Socket} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		_StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
-		assoc = Assoc, ep = EP, socket = Socket} = StateData)
-		when CbMod /= undefined ->
+		socket = Socket} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
 handle_asp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{callback = CbMod, cb_state = CbState,
-		assoc = Assoc, ep = EP, socket = Socket} = StateData)
-		when CbMod /= undefined ->
+		socket = Socket} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	CbArgs = [self(), EP, Assoc, Stream, RC, APCs, CbState],
+	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(status, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),

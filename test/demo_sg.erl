@@ -21,9 +21,9 @@
 
 -include("m3ua.hrl").
 
--export([init/4, transfer/11, pause/7, resume/7, status/7,
-		register/7, terminate/5]).
--export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4, notify/7]).
+-export([init/5, transfer/8, pause/4, resume/4, status/4,
+		register/4, terminate/2]).
+-export([asp_up/1, asp_down/1, asp_active/1, asp_inactive/1, notify/4]).
 
 %%----------------------------------------------------------------------
 %%  The demo_sg API 
@@ -32,45 +32,41 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_sgp_fsm callback 
 %%----------------------------------------------------------------------
-init(_Module, _Asp, _EP, _Assoc) ->
+init(_Module, _Asp, _EP, _EpName, _Assoc) ->
 	{ok, []}.
 
-transfer(Sgp, _EP, Assoc, Stream, _RK, OPC, DPC, SLS, SIO, Data, State) ->
-	Args = [Sgp, Assoc, Stream, DPC, OPC, SLS, SIO, Data],
+transfer(Stream, _RK, OPC, DPC, SLS, SIO, Data, State) ->
+	Args = [Stream, DPC, OPC, SLS, SIO, Data],
 	proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
 	{ok, State}.
 
-pause(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+pause(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-resume(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+resume(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-status(_Sgp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+status(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-register(_Asp, _EP, _Assoc, _NA, _Keys, _TMT, State) ->
+register(_NA, _Keys, _TMT, State) ->
 	{ok, State}.
 
-asp_up(_Sgp, _EP, _Assoc, State) ->
-%	State ! {sgp, asp_up, indication},
+asp_up(State) ->
 	{ok, State}.
 
-asp_down(_Sgp, _EP, _Assoc, State) ->
-%	State ! {sgp, asp_down, indication},
+asp_down(State) ->
 	{ok, State}.
 
-asp_active(_Sgp, _EP, _Assoc, State) ->
-%	State ! {sgp, asp_active, indication},
+asp_active(State) ->
 	{ok, State}.
 
-asp_inactive(_Sgp, _EP, _Assoc, State) ->
-%	State ! {sgp, asp_inactive, indication},
+asp_inactive(State) ->
 	{ok, State}.
 
-notify(_Sgp, _EP, _Assoc, _RC, _Status, _AspID, State) ->
+notify(_RC, _Status, _AspID, State) ->
 	{ok, State}.
 
-terminate(_Asp, _EP, _Assoc, _Reason, _State) ->
+terminate(_Reason, _State) ->
 	ok.
 

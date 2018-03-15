@@ -21,9 +21,9 @@
 
 -include("m3ua.hrl").
 
--export([init/4, transfer/11, pause/7, resume/7, status/7,
-		register/7, terminate/5]).
--export([asp_up/4, asp_down/4, asp_active/4, asp_inactive/4, notify/7]).
+-export([init/5, transfer/8, pause/4, resume/4, status/4,
+		register/4, terminate/2]).
+-export([asp_up/1, asp_down/1, asp_active/1, asp_inactive/1, notify/4]).
 
 %%----------------------------------------------------------------------
 %%  The demo_as API 
@@ -33,42 +33,39 @@
 %%  The m3ua_asp_fsm callback 
 %%----------------------------------------------------------------------
 
-init(_Module, _Asp, _EP, _Assoc) ->
+init(_Module, _Asp, _EP, _EpName, _Assoc) ->
 	{ok, []}.
 
-transfer(_Asp, _EP, _Assoc, Stream, _RK, OPC, DPC, SLS, SIO, Data, State) ->
-	Msg = {Stream, OPC, DPC, SLS, SIO, Data},
-%	State ! {asp, transfer, Msg},
+transfer(_Stream, _RK, _OPC, _DPC, _SLS, _SIO, _Data, State) ->
 	{ok, State}.
 
-pause(_Asp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+pause(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-resume(_Asp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+resume(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-status(_Asp, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+status(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
-register(_Asp, _EP, _Assoc, _NA, _Keys, _TMT, State) ->
+register( _NA, _Keys, _TMT, State) ->
 	{ok, State}.
 
-asp_up(_Asp, _EP, _Assoc, State) ->
+asp_up(State) ->
 	{ok, State}.
 
-asp_down(_Asp, _EP, _Assoc, State) ->
+asp_down(State) ->
 	{ok, State}.
 
-asp_active(Asp, _EP, _Assoc, PID) ->
-%	PID ! {asp, active, Asp},
-	{ok, PID}.
-
-asp_inactive(_Asp, _EP, _Assoc, State) ->
+asp_active(State) ->
 	{ok, State}.
 
-notify(_Asp, _EP, _Assoc, _RC, _Status, _AspID, State) ->
+asp_inactive(State) ->
 	{ok, State}.
 
-terminate(_Asp, _EP, _Assoc, _Reason, _State) ->
+notify(_RC, _Status, _AspID, State) ->
+	{ok, State}.
+
+terminate(_Reason, _State) ->
 	ok.
 

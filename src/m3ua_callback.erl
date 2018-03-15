@@ -21,9 +21,9 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua_callback public API
--export([init/4, transfer/11, pause/7, resume/7, status/7,
-		register/7, asp_up/4, asp_down/4, asp_active/4,
-		asp_inactive/4, notify/7, terminate/5]).
+-export([init/5, transfer/8, pause/4, resume/4, status/4,
+		register/4, asp_up/1, asp_down/1, asp_active/1,
+		asp_inactive/1, notify/4, terminate/2]).
 
 %% export the m3ua_callback private API
 -export([cb/3]).
@@ -33,23 +33,21 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_callback public API
 %%----------------------------------------------------------------------
--spec init(Module, Fsm, EP, Assoc) -> Result
+-spec init(Module, Fsm, EP, EpName, Assoc) -> Result
 	when
 		Module :: atom(),
 		Fsm :: pid(),
 		EP :: pid(),
+		EpName :: term(),
 		Assoc :: pos_integer(),
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().
-init(_Module, _Fsm, _EP, _Assoc) ->
+init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
 	{ok, []}.
 
--spec transfer(Fsm, EP, Assoc, Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
+-spec transfer(Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
-		Fsm :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		RC :: undefined | pos_integer(),
 		OPC :: pos_integer(),
@@ -61,15 +59,11 @@ init(_Module, _Fsm, _EP, _Assoc) ->
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
-transfer(_Fsm, _EP, _Assoc, _Stream,
-		_RK, _OPC, _DPC, _SLS, _SIO, _Data, State) ->
+transfer(_Stream, _RK, _OPC, _DPC, _SLS, _SIO, _Data, State) ->
 	{ok, State}.
 
--spec pause(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
+-spec pause(Stream, RC, DPCs, State) -> Result
 	when
-		Fsm :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
 		RC :: undefined | pos_integer(),
@@ -78,14 +72,11 @@ transfer(_Fsm, _EP, _Assoc, _Stream,
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
-pause(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+pause(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
--spec resume(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
+-spec resume(Stream, RC, DPCs, State) -> Result
 	when
-		Fsm :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
 		RC :: undefined | pos_integer(),
@@ -94,14 +85,11 @@ pause(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
-resume(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+resume(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
--spec status(Fsm, EP, Assoc, Stream, RC, DPCs, State) -> Result
+-spec status(Stream, RC, DPCs, State) -> Result
 	when
-		Fsm :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
 		RC :: undefined | pos_integer(),
@@ -110,14 +98,11 @@ resume(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
-status(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
+status(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
--spec register(Asp, EP, Assoc, NA, Keys, TMT, State) -> Result
+-spec register(NA, Keys, TMT, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		NA :: pos_integer(),
 		Keys :: [key()],
 		TMT :: tmt(),
@@ -125,54 +110,39 @@ status(_Fsm, _EP, _Assoc, _Stream, _RK, _DPCs, State) ->
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
-register(_Fsm, _EP, _Assoc, _NA, _Keys, _TMT, State) ->
+register(_NA, _Keys, _TMT, State) ->
 	{ok, State}.
 
--spec asp_up(Asp, EP, Assoc, State) -> Result
+-spec asp_up(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
-asp_up(_Fsm, _EP, _Assoc, State) ->
+asp_up(State) ->
 	{ok, State}.
 
--spec asp_down(Asp, EP, Assoc, State) -> Result
+-spec asp_down(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
-asp_down(_Fsm, _EP, _Assoc, State) ->
+asp_down(State) ->
 	{ok, State}.
 
--spec asp_active(Asp, EP, Assoc, State) -> Result
+-spec asp_active(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
-asp_active(_Fsm, _EP, _Assoc, State) ->
+asp_active(State) ->
 	{ok, State}.
 
--spec asp_inactive(Asp, EP, Assoc, State) -> Result
+-spec asp_inactive(State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
-asp_inactive(_Fsm, _EP, _Assoc, State) ->
+asp_inactive(State) ->
 	{ok, State}.
 
--spec notify(Asp, EP, Assoc, RC, Status, AspID, State) -> Result
+-spec notify(RC, Status, AspID, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		RC :: undefined | pos_integer(),
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active
@@ -180,18 +150,15 @@ asp_inactive(_Fsm, _EP, _Assoc, State) ->
 		AspID :: undefined | pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
-notify(_Fsm, _EP, _Assoc, _RC, _Status, _AspID, State) ->
+notify(_RC, _Status, _AspID, State) ->
 	{ok, State}.
 
--spec terminate(Asp, EP, Assoc, Reason, State) -> Result
+-spec terminate(Reason, State) -> Result
 	when
-		Asp :: pid(),
-		EP :: pid(),
-		Assoc :: pos_integer(),
 		Reason :: term(),
 		State :: term(),
 		Result :: any().
-terminate(_Fsm, _EP, _Assoc, _Reason, _State) ->
+terminate(_Reason, _State) ->
 	ok.
 
 %%----------------------------------------------------------------------

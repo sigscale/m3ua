@@ -63,13 +63,13 @@ init([Sup, [Callback, Opts]] = _Args) ->
 		false ->
 			{make_ref(), Opts}
 	end,
-	{SctpRole, Opts2} = case lists:keytake(sctp_role, 1, Opts) of
+	{SctpRole, Opts2} = case lists:keytake(sctp_role, 1, Opts1) of
 		{value, {sctp_role, R2}, O2} ->
 			{R2, O2};
 		false ->
 			{client, Opts1}
 	end,
-	{M3uaRole, Opts3} = case lists:keytake(m3ua_role, 1, Opts1) of
+	{M3uaRole, Opts3} = case lists:keytake(m3ua_role, 1, Opts2) of
 		{value, {m3ua_role, asp}, O3} ->
 			{asp, O3};
 		{value, {m3ua_role, sgp}, O3} ->
@@ -77,13 +77,13 @@ init([Sup, [Callback, Opts]] = _Args) ->
 		false ->
 			{asp, Opts2}
 	end,
-	{Registration, Opts4} = case lists:keytake(registration, 1, Opts2) of
+	{Registration, Opts4} = case lists:keytake(registration, 1, Opts3) of
 		{value, {registration, R4}, O4} ->
 			{R4, O4};
 		false ->
 			{dynamic, Opts3}
 	end,
-	{UseRC, Opts5} = case lists:keytake(use_rc, 1, Opts3) of
+	{UseRC, Opts5} = case lists:keytake(use_rc, 1, Opts4) of
 		{value, {use_rc, R5}, O5} ->
 			{R5, O5};
 		false ->

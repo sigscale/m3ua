@@ -282,30 +282,30 @@ get_sctp_status(_Config) ->
 			[{sctp_role, server}, {m3ua_role, sgp}], demo_sg),
 	{ok, ClientEP} = m3ua:open(demo_as),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
-	{ok, #sctp_status{assoc_id = AssocId}} = m3ua:sctp_status(ClientEP, Assoc).
+	{ok, #sctp_status{assoc_id = Assoc}} = m3ua:sctp_status(ClientEP, Assoc).
 
 mtp_transfer() ->
 	[{userdata, [{doc, "Send MTP Transfer Message"}]}].
 mtp_transfer(_Config) ->
-	Active = fun(ASP, _, _, _, Pid) ->
+	AspActive = fun(ASP, Pid) ->
 		Pid ! {asp, active, ASP},
 		{ok, []}
 	end,
-	SgpTransfer = fun(SGP, _, _ASSOC, STREAM, _, OPC1, DPC1, SLS1, SIO1, Data1, _) ->
+	AspInit = fun(_, ASP, _, _, _, _) -> {ok, ASP} end,
+	SgpInit = fun(_, SGP, _, _, _) -> {ok, SGP} end,
+	SgpTransfer = fun(STREAM, _, OPC1, DPC1, SLS1, SIO1, Data1, SGP) ->
 			Args = [SGP, STREAM, DPC1, OPC1, SLS1, SIO1, Data1],
 			proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
 		{ok, []}
 	end,
-	AspTransfer = fun(_, _, _, STREAM1, _, OPC1, DPC1, SLS1, SIO1, Data1, _, Pid) ->
+	AspTransfer = fun(STREAM1, _, OPC1, DPC1, SLS1, SIO1, Data1, _, Pid) ->
 		Pid ! {asp, transfer, {STREAM1, OPC1, DPC1, SLS1, SIO1, Data1}},
 		{ok, []}
 	end,
-
 	Port = rand:uniform(64511) + 1024,
-	{ok, _ServerEP} = m3ua:open(Port,
-		[{sctp_role, server}, {m3ua_role, sgp}],
-		#m3ua_fsm_cb{transfer = SgpTransfer}),
-	{ok, ClientEP} = m3ua:open(#m3ua_fsm_cb{asp_active = Active,
+	{ok, _ServerEP} = m3ua:open(Port, [{sctp_role, server},
+			{m3ua_role, sgp}], #m3ua_fsm_cb{init = SgpInit, transfer = SgpTransfer}),
+	{ok, ClientEP} = m3ua:open(#m3ua_fsm_cb{init = AspInit, asp_active = AspActive,
 			transfer = AspTransfer, extra = [self()]}),
 	{ok, Assoc} = m3ua:sctp_establish(ClientEP, {127,0,0,1}, Port, []),
 	ok = m3ua:asp_up(ClientEP, Assoc),
@@ -333,7 +333,7 @@ asp_up_indication() ->
 	[{userdata, [{doc, "Received M-ASP_UP indication"}]}].
 
 asp_up_indication(_Config) ->
-	F = fun(_, _, _, _, Pid) ->
+	F = fun(_, Pid) ->
 		Pid ! {sgp, asp_up, indication},
 		{ok, []}
 	end,
@@ -353,7 +353,7 @@ asp_active_indication() ->
 	[{userdata, [{doc, "Received M-ASP_ACTIVE indication"}]}].
 
 asp_active_indication(_Config) ->
-	F = fun(_, _, _, _, Pid) ->
+	F = fun(_, Pid) ->
 		Pid ! {sgp, asp_active, indication},
 		{ok, []}
 	end,
@@ -377,7 +377,7 @@ asp_inactive_indication() ->
 	[{userdata, [{doc, "Received M-ASP_INACTIVE indication"}]}].
 
 asp_inactive_indication(_Config) ->
-	F = fun(_, _, _, _, Pid) ->
+	F = fun(_, Pid) ->
 		Pid ! {sgp, asp_inactive, indication},
 		{ok, []}
 	end,
@@ -402,7 +402,7 @@ asp_down_indication() ->
 	[{userdata, [{doc, "Received M-ASP_DOWN indication"}]}].
 
 asp_down_indication(_Config) ->
-	F = fun(_, _, _, _, Pid) ->
+	F = fun(_, Pid) ->
 		Pid ! {sgp, asp_down, indication},
 		{ok, []}
 	end,
