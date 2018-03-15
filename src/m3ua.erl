@@ -34,7 +34,8 @@
 %% export the m3ua private API
 -export([sort/1]).
 
--type option() :: {sctp_role, client | server}
+-type option() :: {name, term()}
+		| {sctp_role, client | server}
 		| {m3ua_role, sgp | asp}
 		| {registration, dynamic | static}
 		| {use_rc, boolean()}

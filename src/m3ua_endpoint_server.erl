@@ -31,6 +31,7 @@
 
 -record(state,
 		{sup :: undefined | pid(),
+		name :: term(),
 		asp_sup :: undefined | pid(),
 		sgp_sup :: undefined | pid(),
 		socket :: gen_sctp:sctp_socket(),
@@ -56,42 +57,48 @@
 %% @private
 %%
 init([Sup, [Callback, Opts]] = _Args) ->
-	{SctpRole, Opts1} = case lists:keytake(sctp_role, 1, Opts) of
-		{value, {sctp_role, R1}, O1} ->
+	{Name, Opts1} = case lists:keytake(name, 1, Opts) of
+		{value, {name, R1}, O1} ->
 			{R1, O1};
 		false ->
-			{client, Opts}
+			{make_ref(), Opts}
 	end,
-	{M3uaRole, Opts2} = case lists:keytake(m3ua_role, 1, Opts1) of
-		{value, {m3ua_role, asp}, O2} ->
-			{asp, O2};
-		{value, {m3ua_role, sgp}, O2} ->
-			{sgp, O2};
+	{SctpRole, Opts2} = case lists:keytake(sctp_role, 1, Opts) of
+		{value, {sctp_role, R2}, O2} ->
+			{R2, O2};
 		false ->
-			{asp, Opts1}
+			{client, Opts1}
 	end,
-	{Registration, Opts3} = case lists:keytake(registration, 1, Opts2) of
-		{value, {registration, R3}, O3} ->
-			{R3, O3};
+	{M3uaRole, Opts3} = case lists:keytake(m3ua_role, 1, Opts1) of
+		{value, {m3ua_role, asp}, O3} ->
+			{asp, O3};
+		{value, {m3ua_role, sgp}, O3} ->
+			{sgp, O3};
 		false ->
-			{dynamic, Opts2}
+			{asp, Opts2}
 	end,
-	{UseRC, Opts4} = case lists:keytake(use_rc, 1, Opts3) of
-		{value, {use_rc, R4}, O4} ->
+	{Registration, Opts4} = case lists:keytake(registration, 1, Opts2) of
+		{value, {registration, R4}, O4} ->
 			{R4, O4};
 		false ->
-			{true, Opts3}
+			{dynamic, Opts3}
+	end,
+	{UseRC, Opts5} = case lists:keytake(use_rc, 1, Opts3) of
+		{value, {use_rc, R5}, O5} ->
+			{R5, O5};
+		false ->
+			{true, Opts4}
 	end,
 	Options = [{active, once},
 			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
 			{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
 			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
-			| Opts4],
+			| Opts5],
 	case gen_sctp:open(Options) of
 		{ok, Socket} ->
 			State = #state{sup = Sup, socket = Socket, sctp_role = SctpRole,
 					m3ua_role = M3uaRole, registration = Registration,
-					use_rc = UseRC, options = Options,
+					use_rc = UseRC, options = Options, name = Name,
 					callback = Callback},
 			init1(State);
 		{error, Reason} ->
@@ -253,12 +260,12 @@ get_sup(#state{sup = Sup, asp_sup = undefined, sgp_sup = undefined} = State) ->
 
 %% @hidden
 connect(Address, Port, Options, Ref, From, FsmSup,
-		#state{socket = Socket, fsms = Fsms, callback = Cb,
-		registration = Reg, use_rc = UseRC} = State) ->
+		#state{socket = Socket, fsms = Fsms, name = Name,
+		callback = Cb, registration = Reg, use_rc = UseRC} = State) ->
 	case gen_sctp:connect(Socket, Address, Port, Options) of
 		{ok, #sctp_assoc_change{assoc_id = Assoc} = AssocChange} ->
 		   case supervisor:start_child(FsmSup, [[client, Socket,
-					Address, Port, AssocChange, self(), Cb, Reg, UseRC], []]) of
+					Address, Port, AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(Socket, Fsm) of
 						ok ->
@@ -282,12 +289,12 @@ connect(Address, Port, Options, Ref, From, FsmSup,
 %% @hidden
 accept(Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc} = AssocChange,
-		Sup, #state{fsms = Fsms, callback = Cb,
+		Sup, #state{fsms = Fsms, name = Name, callback = Cb,
 		registration = Reg, use_rc = UseRC} = State) ->
 	case gen_sctp:peeloff(Socket, Assoc) of
 		{ok, NewSocket} ->
 			case supervisor:start_child(Sup, [[server, NewSocket,
-					Address, Port, AssocChange, self(), Cb, Reg, UseRC], []]) of
+					Address, Port, AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(NewSocket, Fsm) of
 						ok ->
