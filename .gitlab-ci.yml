@@ -13,12 +13,26 @@ stages:
     # Prepare environmental variables
     - export ERL_LIBS="${CI_PROJECT_DIR}/.build/otp-${OTP_VERSION}/lib"
     - export ERLANG_INSTALL_LIB_DIR=${ERL_LIBS}
+    # Install sccp
+    - mkdir -p  .build/otp-${OTP_VERSION}/lib
+    - cd .build/otp-${OTP_VERSION}/
+    - git clone https://gitlab.com/sigscale/sccp.git
+    - cd sccp
     - aclocal
     - autoheader
     - autoconf
     - libtoolize --automake
     - automake --add-missing
-    - rm -rf .build/otp-${OTP_VERSION}
+    - ./configure
+    - make
+    - make install
+    - cd ${CI_PROJECT_DIR}
+    # Configure m3ua
+    - aclocal
+    - autoheader
+    - autoconf
+    - libtoolize --automake
+    - automake --add-missing
     - mkdir -p .build/otp-${OTP_VERSION}/{lib,m3ua}
     - cd .build/otp-${OTP_VERSION}/
     - cd ${CI_PROJECT_DIR}/.build/otp-${OTP_VERSION}/m3ua
