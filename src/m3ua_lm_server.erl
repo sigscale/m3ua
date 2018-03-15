@@ -840,8 +840,8 @@ reg_request([RK | T], SGP, EP, Assoc, Socket, CbMod, SGPState, State, AsState, R
 				{atomic, {reg, NewAsState, RegRes}} ->
 					CbArgs =	[NA, m3ua:sort(Keys), Mode, SGPState],
 					case m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs) of
-						{ok, NewSGPState} ->
-							ok = gen_fsm:send_all_state_event(SGP, {'M-RK_REG', NewSGPState}),
+						{ok, NewCbState} ->
+							ok = gen_fsm:send_all_state_event(SGP, {'M-RK_REG', NewCbState}),
 							reg_request(T, SGP, EP, Assoc, Socket, CbMod,
 									SGPState, State, NewAsState, RegRes ++ RegResults);
 						{error, _Reason} ->
