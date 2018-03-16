@@ -906,7 +906,7 @@ reg_request1(_Sgp, #m3ua_routing_key{lrk_id = undefined, key = Keys,
 			[#m3ua_as{state = active}] ->
 				as_active;
 			[#m3ua_as{state = pending}] ->
-				as_pending;
+				as_pending
 		end,
 		RegResult = #registration_result{status = unsupported_rk_parameter_field_, rc = 0},
 		Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
