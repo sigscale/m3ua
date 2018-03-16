@@ -868,7 +868,7 @@ reg_request([], _SGP, _EP, Assoc, Socket, _CbMod, _SGPState, State, AsState, Reg
 		RegResPacket = m3ua_codec:m3ua(RegResMsg),
 		case gen_sctp:send(Socket, Assoc, 0, RegResPacket) of
 			ok ->
-				P0 = m3ua_codec:add_parameter(?Status, {assc, AsState}, []),
+				P0 = m3ua_codec:add_parameter(?Status, AsState, []),
 				NtfyMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = P0},
 				NtfyPacket = m3ua_codec:m3ua(NtfyMsg),
 				case gen_sctp:send(Socket, Assoc, 0, NtfyPacket) of
@@ -898,9 +898,15 @@ reg_request1(_Sgp, #m3ua_routing_key{lrk_id = undefined, key = Keys,
 		RK = {NA, m3ua:sort(Keys), Mode},
 		AsState = case mnesia:read(m3ua_as, RK) of
 			[] ->
-				inactive;
-			[#m3ua_as{state = State}] ->
-				State
+				as_inactive;
+			[#m3ua_as{state = down}] ->
+				as_down;
+			[#m3ua_as{state = inactive}] ->
+				as_inactive;
+			[#m3ua_as{state = active}] ->
+				as_active;
+			[#m3ua_as{state = pending}] ->
+				as_pending;
 		end,
 		RegResult = #registration_result{status = unsupported_rk_parameter_field_, rc = 0},
 		Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
