@@ -627,6 +627,9 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		{assoc, Assoc}, {info, Info}, {data, Data}, {socket, Socket},
 		{peer, {PeerAddr, PeerPort}}]),
 	{stop, {shutdown, {{EP, Assoc}, Error}}, StateData};
+handle_info({Ref, ok}, StateName, StateData) when is_reference(Ref) ->
+	% late result arrival of timed out transfer request
+	{next_state, StateName, StateData};
 handle_info({'EXIT', EP, {shutdown, {EP, Reason}}}, _StateName,
 		#statedata{ep = EP, assoc = Assoc} = StateData) ->
 	{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData};
