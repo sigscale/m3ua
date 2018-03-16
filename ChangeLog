@@ -1,6 +1,8 @@
 2018-03-15  Vance Shipley <vances@sigscale.org>
 
 	* terminate and notify callbacks
+	* named endpoints
+	* refactor callback api
 
 2018-03-13  Vance Shipley <vances@sigscale.org>
 
