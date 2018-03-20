@@ -813,7 +813,7 @@ handle_sgp(#m3ua{class = ?TransferMessage,
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		_StateName, Stream, #statedata{socket = Socket, callback = CbMod,
+		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
 		cb_state = CbState} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
@@ -822,9 +822,9 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, inactive, NewStateData};
+	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		_StateName, Stream, #statedata{socket = Socket, callback = CbMod,
+		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
 		cb_state = CbState} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
@@ -833,7 +833,7 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
-	{next_state, active, NewStateData};
+	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
 		cb_state = CbState} = StateData) when CbMod /= undefined ->
