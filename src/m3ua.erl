@@ -406,10 +406,12 @@ get_asp([], Acc) ->
 %% @doc Get M3UA Application Server Processes (ASP) on local endpoint.
 %%
 get_asp(EP) when is_pid(EP) ->
-	case gen_server:call(EP, getassoc) of
+	case catch gen_server:call(EP, getassoc) of
 		{asp, L} ->
 			[{EP, Assoc} || Assoc <- L];
 		{sgp, _} ->
+			[];
+		{'EXIT', _} ->
 			[]
 	end.
 
@@ -440,10 +442,12 @@ get_sgp([], Acc) ->
 %% @doc Get all M3UA Signaling Gateway Processes (SGP) on local endpoint.
 %%
 get_sgp(EP) when is_pid(EP) ->
-	case gen_server:call(EP, getassoc) of
+	case catch gen_server:call(EP, getassoc) of
 		{sgp, L} ->
 			[{EP, Assoc} || Assoc <- L];
 		{asp, _} ->
+			[];
+		{'EXIT', _} ->
 			[]
 	end.
 
