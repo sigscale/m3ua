@@ -744,25 +744,25 @@ handle_info({'EXIT', Pid, _Reason},
 		#state{eps = EPs, fsms = Fsms, reqs = Reqs} = State) ->
 	case catch gb_trees:delete(Pid, EPs) of
 		{'EXIT', _} ->
-			Fdel1 = fun(_F, {Key, Fsm, _Iter}) when Fsm ==  Pid ->
-						Key;
-					(F, {_Key, _Val, Iter}) ->
-						F(F, gb_trees:next(Iter));
-					(_F, none) ->
+			Fdel1 = fun Fdel1({Key, Fsm, _Iter}) when Fsm ==  Pid ->
+					Key;
+				    Fdel1({_Key, _Val, Iter}) ->
+					Fdel1(gb_trees:next(Iter));
+				    Fdel1(none) ->
 						none
 			end,
 			Iter1 = gb_trees:iterator(Fsms),
-			case Fdel1(Fdel1, gb_trees:next(Iter1)) of
+			case Fdel1(gb_trees:next(Iter1)) of
 				none ->
-					Fdel2 = fun(_F, {Key, {P, _},  _Iter}) when P ==  Pid ->
-								Key;
-							(F, {_Key, _Val, Iter}) ->
-								F(F, gb_trees:next(Iter));
-							(_F, none) ->
-								none
+					Fdel2 = fun Fdel2({Key, {P, _},  _Iter}) when P ==  Pid ->
+							Key;
+						    Fdel2({_Key, _Val, Iter}) ->
+							Fdel2(gb_trees:next(Iter));
+						    Fdel2(none) ->
+							none
 					end,
 					Iter2 = gb_trees:iterator(Reqs),
-					case Fdel2(Fdel2, gb_trees:next(Iter2)) of
+					case Fdel2(gb_trees:next(Iter2)) of
 						none ->
 							{noreply, State};
 						Key2 ->

@@ -280,20 +280,20 @@ routing_key1([], _RK, Acc) ->
 routing_key2(<<?DestinationPointCode:16, Len:16, Chunk/binary>>, Acc) ->
 	VLen = (Len - 4) * 8,
 	<<DPC:VLen, Rest1/binary>> = Chunk,
-	F = fun(F, <<?OriginatingPointCodeList:16, L1:16, C1/binary>>, AccIn) ->
+	F = fun F(<<?OriginatingPointCodeList:16, L1:16, C1/binary>>, AccIn) ->
 				L2 = L1 - 4,
 				<<D:L2/binary, R/binary>> = C1,
 				OPCs = [OPC || <<0, OPC:24>> <= D],
-				F(F, R, [{?OriginatingPointCodeList, OPCs} | AccIn]);
-			(F, <<?ServiceIndicators:16, L1:16, C1/binary>>, AccIn) ->
+				F(R, [{?OriginatingPointCodeList, OPCs} | AccIn]);
+		F(<<?ServiceIndicators:16, L1:16, C1/binary>>, AccIn) ->
 				L2 = L1 - 4,
 				<<D:L2/binary, R/binary>> = C1,
 				SIs = [SI || <<SI>> <= D],
-				F(F, R, [{?ServiceIndicators, SIs} | AccIn]);
-			(_F, C1, AccIn)  ->
+				F(R, [{?ServiceIndicators, SIs} | AccIn]);
+		F(C1, AccIn)  ->
 				{C1, AccIn}
 	end,
-	{Rest2, DPCGroup} = F(F, Rest1, []),
+	{Rest2, DPCGroup} = F(Rest1, []),
 	OriginatingPointCodeList = proplists:get_value(?OriginatingPointCodeList, DPCGroup, []),
 	ServiceIndicators = proplists:get_value(?ServiceIndicators, DPCGroup, []),
 	Group = {DPC, ServiceIndicators, OriginatingPointCodeList},
