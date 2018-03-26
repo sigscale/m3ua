@@ -373,7 +373,7 @@ init([SctpRole, Socket, Address, Port,
 					in_streams = InStreams, out_streams = OutStreams,
 					ep = EP, ep_name = EpName, callback = Cb,
 					cb_state = CbState, registration = Reg, use_rc = UseRC},
-			{ok, down, Statedata};
+			{ok, down, Statedata, 0};
 		{error, Reason} ->
 			{stop, Reason}
 	end.
@@ -391,6 +391,9 @@ down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
 	gen_server:cast(From, {'M-ASP_UP', confirm, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
+down(timeout, #statedata{ep = EP, assoc = Assoc} = StateData) ->
+	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', indication, self(), EP, Assoc}),
+	{next_state, down, StateData};
 down({'M-ASP_UP', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->

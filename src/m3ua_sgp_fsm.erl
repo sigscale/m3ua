@@ -388,7 +388,7 @@ init([SctpRole, Socket, Address, Port,
 %% @private
 %%
 down(timeout, #statedata{ep = EP, assoc = Assoc} = StateData) ->
-	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', self(), EP, Assoc}),
+	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', indication, self(), EP, Assoc}),
 	{next_state, down, StateData};
 down({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
@@ -610,7 +610,7 @@ handle_info({sctp, Socket, _, _,
 	{next_state, StateName, NewStateData};
 handle_info({sctp, Socket, _, _,
 		{[], #sctp_paddr_change{addr = {_PeerAddr, _PeerPort},
-		state = addr_unreachable}}}, StateName,
+		state = addr_unreachable}}}, _StateName,
 		#statedata{socket = Socket} = StateData) ->
 	{stop, addr_unreachable, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
