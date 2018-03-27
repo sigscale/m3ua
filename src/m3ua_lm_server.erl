@@ -504,7 +504,7 @@ handle_cast({'M-RK_REG', confirm, Ref, Asp,
 	RegResults = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
 	reg_result(RegResults, NA, m3ua:sort(Keys), TMT,
 			AS, Asp, EP, Assoc, CbMod, CbState, Ref, State);
-handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
+handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, _EP, _Assoc,
 		CbState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
@@ -521,7 +521,7 @@ handle_cast({'M-SCTP_ESTABLISH', SgpFsm, EP, Assoc}, #state{fsms = Fsms} = State
 	NewFsms = gb_trees:insert({EP, Assoc}, SgpFsm, Fsms),
 	link(SgpFsm),
 	{noreply, State#state{fsms = NewFsms}};
-handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
+handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, _EP, _Assoc,
 		CbState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
 	F = fun() ->
 		case mnesia:read(m3ua_asp, Asp, write) of
@@ -562,7 +562,7 @@ handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 		none ->
 			{noreply, State}
 	end;
-handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, CbState, _Identifier, _Info}},
+handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, _EP, _Assoc, CbState, _Identifier, _Info}},
 		#state{reqs = Reqs} = State) when  AspOp == 'M-ASP_ACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
 	F = fun() ->
 			case mnesia:read(m3ua_asp, Asp, write) of
@@ -608,7 +608,7 @@ handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc, CbState, _Identifi
 		none ->
 			{noreply, State}
 	end;
-handle_cast({'M-NOTIFY', indication, ASP, EP, Assoc,
+handle_cast({'M-NOTIFY', indication, ASP, _EP, _Assoc,
 		RC, Status, AspID, CbMod, CbState}, State)
 		when (Status == as_inactive) orelse (Status == as_active)
 		orelse (Status == as_pending) ->
@@ -645,7 +645,7 @@ handle_cast({'M-NOTIFY', indication, ASP, EP, Assoc,
 		{aborted, Reason} ->
 			{stop, Reason, State}
 	end;
-handle_cast({'M-NOTIFY', indication, ASP, EP, Assoc,
+handle_cast({'M-NOTIFY', indication, ASP, _EP, _Assoc,
 		RC, Status, AspID, CbMod, CbState}, State)
 		when (Status == insufficient_asp_active)
 		orelse (Status == alternate_asp_active)
@@ -657,7 +657,7 @@ handle_cast({'M-NOTIFY', indication, ASP, EP, Assoc,
 handle_cast({TrafficMaint, indication, Sgp, EP, Assoc, RCs, CbMod, CbState},
 		State) when TrafficMaint == 'M-ASP_ACTIVE'; TrafficMaint == 'M-ASP_INACTIVE' ->
 	traffic_maint(TrafficMaint, Sgp, EP, Assoc, RCs, CbMod, CbState, State);
-handle_cast({StateMaint, indication, CbMod, Sgp, EP, Assoc, CbState}, #state{} = State) when
+handle_cast({StateMaint, indication, CbMod, Sgp, _EP, _Assoc, CbState}, #state{} = State) when
 		StateMaint == 'M-ASP_UP'; StateMaint == 'M-ASP_DOWN' ->
  	F = fun() ->
 			case mnesia:read(m3ua_asp, Sgp, write) of
@@ -1010,7 +1010,7 @@ reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 
 %% @hidden
 reg_result([#registration_result{status = registered, rc = RC}],
-		NA, Keys, TMT, AS, Asp, EP, Assoc, CbMod, CbState,  Ref,
+		NA, Keys, TMT, AS, Asp, _EP, _Assoc, CbMod, CbState,  Ref,
 		#state{reqs = Reqs} = State) ->
 	RK = {NA, Keys, TMT},
 	F = fun() ->
@@ -1063,7 +1063,7 @@ reg_result([#registration_result{status = Status}],
 	end.
 
 %% @hidden
-traffic_maint(TrafficMaint, Sgp, EP, Assoc, RCs, CbMod, CbState, State) ->
+traffic_maint(TrafficMaint, Sgp, _EP, _Assoc, RCs, CbMod, CbState, State) ->
 	F = fun() -> traffic_maint1(TrafficMaint, Sgp, RCs) end,
 	case mnesia:transaction(F) of
 		{atomic, Fsms} ->
