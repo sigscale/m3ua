@@ -298,7 +298,7 @@ routing_key2(<<?DestinationPointCode:16, Len:16, Chunk/binary>>, Acc) ->
 	ServiceIndicators = proplists:get_value(?ServiceIndicators, DPCGroup, []),
 	Group = {DPC, ServiceIndicators, OriginatingPointCodeList},
 	routing_key2(Rest2, [Group | Acc]);
-routing_key2([{{?DestinationPointCode, DPC}, [], []} | T], Acc) ->
+routing_key2([{DPC, [], []} | T], Acc) ->
 	routing_key2(T, <<Acc/binary, ?DestinationPointCode:16, 8:16, DPC:32>>);
 routing_key2([{DPC, SIs, OPCs} | T], Acc) ->
 	DestinationPointCode = <<?DestinationPointCode:16, 8:16, DPC:32>>,
