@@ -35,10 +35,23 @@
 %% @see //stdlib/supervisor:init/1
 %% @private
 %%
-init(Args) when is_list(Args) ->
-	ChildSpecs = [server(m3ua_endpoint_server, [self(), Args]),
-			supervisor(m3ua_sgp_sup, []),
-			supervisor(m3ua_asp_sup, [])],
+init([Callback, Opts1] = _Args) ->
+	{ChildSpec, Opts3} = case lists:keytake(sctp_role, 1, Opts1) of
+		{value, {sctp_role, server}, Opts2} ->
+			{fsm(m3ua_listen_fsm, [self(), Callback, Opts2]), Opts2};
+		{value, {sctp_role, client}, Opts2} ->
+			{fsm(m3ua_connect_fsm, [self(), Callback, Opts2]), Opts2};
+		false ->
+			{fsm(m3ua_connect_fsm, [self(), Callback, Opts1]), Opts1}
+	end,
+	ChildSpecs = case lists:keyfind(m3ua_role, 1, Opts3) of
+		{m3ua_role, sgp} ->
+			[ChildSpec, supervisor(m3ua_sgp_sup, [])];
+		{m3ua_role, asp} ->
+			[ChildSpec, supervisor(m3ua_asp_sup, [])];
+		false ->
+			[ChildSpec, supervisor(m3ua_asp_sup, [])]
+	end,
 	{ok, {{one_for_all, 0, 1}, ChildSpecs}}.
 
 %%----------------------------------------------------------------------
@@ -54,16 +67,15 @@ init(Args) when is_list(Args) ->
 supervisor(StartMod, Args) ->
 	StartArgs = [StartMod, Args],
 	StartFunc = {supervisor, start_link, StartArgs},
-	{StartMod, StartFunc, temporary, infinity, supervisor, [StartMod]}.
+	{StartMod, StartFunc, permanent, infinity, supervisor, [StartMod]}.
 
--spec server(StartMod :: atom(), Args :: [term()]) ->
+-spec fsm(StartMod :: atom(), Args :: [term()]) ->
 	supervisor:child_spec().
 %% @doc Build a supervisor child specification for a
-%% 	{@link //stdlib/gen_server. gen_server} behaviour.
+%% 	{@link //stdlib/gen_fsm. gen_fsm} behaviour.
 %% @private
-%%
-server(StartMod, Args) ->
+fsm(StartMod, Args) ->
 	StartArgs = [StartMod, Args, []],
-	StartFunc = {gen_server, start_link, StartArgs},
-	{StartMod, StartFunc, temporary, 4000, worker, [StartMod]}.
+	StartFunc = {gen_fsm, start_link, StartArgs},
+	{StartMod, StartFunc, permanent, 4000, worker, [StartMod]}.
 

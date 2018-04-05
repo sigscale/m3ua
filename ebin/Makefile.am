@@ -10,7 +10,8 @@ beam_DATA = m3ua.beam m3ua_app.beam \
 		m3ua_sup.beam \
 		m3ua_endpoint_sup_sup.beam \
 		m3ua_endpoint_sup.beam \
-		m3ua_endpoint_server.beam \
+		m3ua_listen_fsm.beam \
+		m3ua_connect_fsm.beam \
 		m3ua_sgp_sup.beam \
 		m3ua_sgp_fsm.beam \
 		m3ua_asp_sup.beam \

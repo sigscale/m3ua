@@ -21,8 +21,8 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua public API
--export([open/1, open/3, close/1]).
--export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([start/1, start/3, stop/1]).
+-export([sctp_release/2, sctp_status/2]).
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
@@ -56,17 +56,17 @@
 %%  The m3ua public API
 %%----------------------------------------------------------------------
 
--spec open(Callback) -> Result
+-spec start(Callback) -> Result
 	when
 		Callback :: atom() | #m3ua_fsm_cb{},
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
-%% @equiv open(0, [], Callback)
-open(Callback) ->
-	open(0, [], Callback).
+%% @equiv start(Callback, 0, [])
+start(Callback) ->
+	start(Callback, 0, []).
 
--spec open(Port, Options, Callback) -> Result
+-spec start(Callback, Port, Options) -> Result
 	when
 		Port :: inet:port_number(),
 		Options :: [option()],
@@ -74,32 +74,19 @@ open(Callback) ->
 		Result :: {ok, EndPoint} | {error, Reason},
 		EndPoint :: pid(),
 		Reason :: term().
-%% @doc Create a new SCTP endpoint.
+%% @doc Start an M3UA service on a new SCTP endpoint.
 %%
 %% 	Default options create an endpoint for an M3UA
 %% 	Application Server Process (ASP) in client mode.
 %%
-open(Port, Options, Callback) when is_integer(Port), is_list(Options),
+start(Callback, Port, Options) when is_integer(Port), is_list(Options),
 		((Callback == false) orelse is_atom(Callback) orelse is_tuple(Callback)) ->
-	m3ua_lm_server:open([{port, Port} | Options], Callback).
+	m3ua_lm_server:start(Callback, [{port, Port} | Options]).
 
--spec close(EndPoint:: pid()) -> ok | {error, Reason :: term()}.
+-spec stop(EndPoint:: pid()) -> ok | {error, Reason :: term()}.
 %% @doc Close a previously opened endpoint.
-close(EP) when is_pid(EP) ->
-	m3ua_lm_server:close(EP).
-
--spec sctp_establish(EndPoint, Address, Port, Options) -> Result
-	when
-		EndPoint :: pid(),
-		Address :: inet:ip_address() | inet:hostname(),
-		Port :: inet:port_number(),
-		Options :: [gen_sctp:option()],
-		Result :: {ok, Assoc} | {error, Reason},
-		Assoc :: pos_integer(),
-		Reason :: term().
-%% @doc Establish an SCTP association.
-sctp_establish(EndPoint, Address, Port, Options) ->
-	m3ua_lm_server:sctp_establish(EndPoint, Address, Port, Options).
+stop(EP) when is_pid(EP) ->
+	m3ua_lm_server:stop(EP).
 
 -spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
 	when

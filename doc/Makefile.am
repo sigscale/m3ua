@@ -6,7 +6,8 @@ modhtml = m3ua.html m3ua_app.html \
 		m3ua_sup.html \
 		m3ua_endpoint_sup_sup.html \
 		m3ua_endpoint_sup.html \
-		m3ua_endpoint_server.html \
+		m3ua_listen_fsm.html \
+		m3ua_connect_fsm.html \
 		m3ua_sgp_sup.html \
 		m3ua_sgp_fsm.html \
 		m3ua_asp_sup.html \

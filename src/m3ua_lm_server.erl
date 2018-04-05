@@ -24,8 +24,8 @@
 -behaviour(gen_server).
 
 %% export the m3ua_lm_server API
--export([open/2, close/1]).
--export([sctp_establish/4, sctp_release/2, sctp_status/2]).
+-export([start/2, stop/1]).
+-export([sctp_release/2, sctp_status/2]).
 -export([register/6]).
 -export([as_add/6, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
@@ -54,38 +54,23 @@
 %%  The m3ua_lm_server API
 %%----------------------------------------------------------------------
 
--spec open(Args, Callback) -> Result 
+-spec start(Callback, Options) -> Result
 	when
-		Args :: [term()],
 		Callback :: atom() | #m3ua_fsm_cb{},
+		Options :: [term()],
 		Result :: {ok, EP} | {error, Reason},
 		EP :: pid(),
 		Reason :: term().
 %% @doc Open a new server end point (`EP').
 %% @private
-open(Args, Callback) when is_list(Args) ->
-	gen_server:call(m3ua, {open, Args, Callback}).
+start(Callback, Options) when is_list(Options) ->
+	gen_server:call(m3ua, {start, Callback, Options}).
 
--spec close(EP :: pid()) -> ok | {error, Reason :: term()}.
+-spec stop(EP :: pid()) -> ok | {error, Reason :: term()}.
 %% @doc Close a previously opened end point (`EP').
 %% @private
-close(EP) ->
-	gen_server:call(m3ua, {close, EP}).
-
--spec sctp_establish(EndPoint, Address, Port, Options) -> Result
-	when
-		EndPoint :: pid(),
-		Address :: inet:ip_address() | inet:hostname(),
-		Port :: inet:port_number(),
-		Options :: [gen_sctp:option()],
-		Result :: {ok, Assoc} | {error, Reason},
-		Assoc :: pos_integer(),
-		Reason :: term().
-%% @doc Establish an SCTP association.
-%% @private
-sctp_establish(EndPoint, Address, Port, Options) ->
-	gen_server:call(m3ua, {'M-SCTP_ESTABLISH',
-			request, EndPoint, Address, Port, Options}).
+stop(EP) ->
+	gen_server:call(m3ua, {stop, EP}).
 
 -spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
 	when
@@ -284,9 +269,9 @@ init([Sup] = _Args) when is_pid(Sup) ->
 handle_call(Request, From, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
 	handle_call(Request, From, NewState);
-handle_call({open, Args, Callback}, {USAP, _Tag} = _From,
+handle_call({start, Callback, Options}, {USAP, _Tag} = _From,
 		#state{ep_sup_sup = EPSupSup, eps = EndPoints} = State) ->
-	case supervisor:start_child(EPSupSup, [[Callback, Args]]) of
+	case supervisor:start_child(EPSupSup, [[Callback, Options]]) of
 		{ok, EndPointSup} ->
 			Children = supervisor:which_children(EndPointSup),
 			{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server,
@@ -298,23 +283,10 @@ handle_call({open, Args, Callback}, {USAP, _Tag} = _From,
 		{error, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({close, EP}, From, #state{reqs = Reqs} = State) when is_pid(EP) ->
+handle_call({stop, EP}, From, #state{reqs = Reqs} = State) when is_pid(EP) ->
 	try
 		Ref = make_ref(),
 		gen_server:cast(EP, {'M-SCTP_RELEASE', request, Ref, self()}),
-		NewReqs = gb_trees:insert(Ref, From, Reqs),
-		NewState = State#state{reqs = NewReqs},
-		{noreply, NewState}
-	catch
-		_:Reason ->
-			{reply, {error, Reason}, State}
-	end;
-handle_call({'M-SCTP_ESTABLISH', request, EndPoint, Address, Port, Options},
-		From, #state{reqs = Reqs} = State) ->
-	try
-		Ref = make_ref(),
-		gen_server:cast(EndPoint,
-			{'M-SCTP_ESTABLISH', request, Ref, self(), Address, Port, Options}),
 		NewReqs = gb_trees:insert(Ref, From, Reqs),
 		NewState = State#state{reqs = NewReqs},
 		{noreply, NewState}
