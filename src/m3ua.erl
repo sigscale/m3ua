@@ -359,8 +359,7 @@ get_ep() ->
 	get_ep(get_ep_sups(), []).
 %% @hidden
 get_ep([H | T], Acc) ->
-	C = supervisor:which_children(H),
-	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
+	EP = find_ep(supervisor:which_children(H)),
 	get_ep(T, [EP | Acc]);
 get_ep([], Acc) ->
 	lists:reverse(Acc).
@@ -377,8 +376,7 @@ get_asp() ->
 	get_asp(get_ep_sups(), []).
 %% @hidden
 get_asp([H | T], Acc) ->
-	C = supervisor:which_children(H),
-	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
+	EP = find_ep(supervisor:which_children(H)),
 	ASPs = [{EP, ASP} || ASP <- get_assoc(EP)],
 	get_asp(T, [ASPs | Acc]);
 get_asp([], Acc) ->
@@ -396,8 +394,7 @@ get_sgp() ->
 	get_sgp(get_ep_sups(), []).
 %% @hidden
 get_sgp([H | T], Acc) ->
-	C = supervisor:which_children(H),
-	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
+	EP = find_ep(supervisor:which_children(H)),
 	SGPs = [{EP, SGP} || SGP <- get_assoc(EP)],
 	get_sgp(T, [SGPs | Acc]);
 get_sgp([], Acc) ->
@@ -455,4 +452,12 @@ get_ep_sups(TopSup) when is_pid(TopSup) ->
 	[S || {_, S, _, _} <- supervisor:which_children(Sup2)];
 get_ep_sups(undefined) ->
 	[].
+
+%% @hidden
+find_ep([{m3ua_listen_fsm, EP, _, _} | _]) ->
+	EP;
+find_ep([{m3ua_connect_fsm, EP, _, _} | _]) ->
+	EP;
+find_ep([_ | T]) ->
+	find_ep(T).
 

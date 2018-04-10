@@ -273,9 +273,14 @@ handle_call({start, Callback, Options}, {USAP, _Tag} = _From,
 		#state{ep_sup_sup = EPSupSup, eps = EndPoints} = State) ->
 	case supervisor:start_child(EPSupSup, [[Callback, Options]]) of
 		{ok, EndPointSup} ->
-			Children = supervisor:which_children(EndPointSup),
-			{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server,
-					1, Children),
+			Find = fun F([{m3ua_listen_fsm, EP, _, _} | _]) ->
+						EP;
+					F([{m3ua_connect_fsm, EP, _, _} | _]) ->
+						EP;
+					F([_ | T]) ->
+						F(T)
+			end,
+			EP = Find(supervisor:which_children(EndPointSup)),
 			link(EP),
 			NewEndPoints = gb_trees:insert(EP, USAP, EndPoints),
 			NewState = State#state{eps = NewEndPoints},
