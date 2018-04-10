@@ -77,7 +77,7 @@ init([Sup, Callback, Opts] = _Args) ->
 		{value, {m3ua_role, asp}, O2} ->
 			{asp, O2};
 		false ->
-			{asp, Opts1}
+			{sgp, Opts1}
 	end,
 	{Registration, Opts3} = case lists:keytake(registration, 1, Opts2) of
 		{value, {registration, R3}, O3} ->
