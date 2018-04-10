@@ -77,7 +77,7 @@ start(Callback) ->
 %% @doc Start an M3UA service on a new SCTP endpoint.
 %%
 %% 	Default options create an endpoint for an M3UA
-%% 	Application Server Process (ASP) in client mode.
+%% 	Signaling Gateway Process (SGP) in server mode.
 %%
 start(Callback, Port, Options) when is_integer(Port), is_list(Options),
 		((Callback == false) orelse is_atom(Callback) orelse is_tuple(Callback)) ->
@@ -379,13 +379,8 @@ get_asp() ->
 get_asp([H | T], Acc) ->
 	C = supervisor:which_children(H),
 	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
-	case get_assoc(EP) of
-		{ok, Assocs} ->
-			ASPs = [{EP, A} || A <- Assocs],
-			get_asp(T, [ASPs | Acc]);
-		{error, Reason} ->
-			{error, Reason}
-	end;
+	ASPs = [{EP, ASP} || ASP <- get_assoc(EP)],
+	get_asp(T, [ASPs | Acc]);
 get_asp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
@@ -403,33 +398,26 @@ get_sgp() ->
 get_sgp([H | T], Acc) ->
 	C = supervisor:which_children(H),
 	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
-	case get_assoc(EP) of
-		{ok, Assocs} ->
-			SGPs = [{EP, A} || A <- Assocs],
-			get_sgp(T, [SGPs | Acc]);
-		{error, Reason} ->
-			{error, Reason}
-	end;
+	SGPs = [{EP, SGP} || SGP <- get_assoc(EP)],
+	get_sgp(T, [SGPs | Acc]);
 get_sgp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
 -spec get_assoc(EP) -> Result
 	when
 		EP :: pid(),
-		Result :: {ok, [Assoc]} | {error, Reason},
-		Assoc :: pos_integer(),
-		Reason :: term().
+		Result :: [Assoc],
+		Assoc :: pos_integer().
 %% @doc Get SCTP associations on local endpoint.
 %%
 get_assoc(EP) when is_pid(EP) ->
-	case catch gen_server:call(EP, getassoc) of
-		{'EXIT', Reason} ->
-			{error, Reason};
-		{error, Reason} ->
-			{error, Reason};
-		{ok, Assocs} ->
-			{ok, Assocs}
-	end.
+	get_assoc(gen_server:call(EP, getassoc), []).
+%% @hidden
+get_assoc([H | T], Acc) ->
+	Assoc = gen_fsm:sync_send_all_state_event(H, getassoc),
+	get_assoc(T, [Assoc | Acc]);
+get_assoc([], Acc) ->
+	lists:reverse(Acc).
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API

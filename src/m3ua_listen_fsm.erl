@@ -164,8 +164,8 @@ handle_event(_Event, _StateName, StateData) ->
 %% @private
 %%
 handle_sync_event(getassoc, _From, StateName,
-		#statedata{m3ua_role = Role, fsms = Fsms} = StateData) ->
-	{reply, {Role, gb_trees:keys(Fsms)}, StateName, StateData};
+		#statedata{fsms = Fsms} = StateData) ->
+	{reply, gb_trees:keys(Fsms), StateName, StateData};
 handle_sync_event({getstat, undefined}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
 	{reply, inet:getstat(Socket), StateName, StateData};
