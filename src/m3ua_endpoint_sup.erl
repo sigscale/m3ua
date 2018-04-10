@@ -42,7 +42,7 @@ init([Callback, Opts1] = _Args) ->
 		{value, {sctp_role, client}, Opts2} ->
 			{fsm(m3ua_connect_fsm, [self(), Callback, Opts2]), Opts2};
 		false ->
-			{fsm(m3ua_connect_fsm, [self(), Callback, Opts1]), Opts1}
+			{fsm(m3ua_listen_fsm, [self(), Callback, Opts1]), Opts1}
 	end,
 	ChildSpecs = case lists:keyfind(m3ua_role, 1, Opts3) of
 		{m3ua_role, sgp} ->
@@ -50,7 +50,7 @@ init([Callback, Opts1] = _Args) ->
 		{m3ua_role, asp} ->
 			[ChildSpec, supervisor(m3ua_asp_sup, [])];
 		false ->
-			[ChildSpec, supervisor(m3ua_asp_sup, [])]
+			[ChildSpec, supervisor(m3ua_sgp_sup, [])]
 	end,
 	{ok, {{one_for_all, 0, 1}, ChildSpecs}}.
 
