@@ -26,7 +26,7 @@
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
--export([get_ep/0, get_as/0, get_asp/0, get_asp/1, get_sgp/0, get_sgp/1]).
+-export([get_ep/0, get_as/0, get_asp/0, get_sgp/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/7]).
@@ -379,28 +379,15 @@ get_asp() ->
 get_asp([H | T], Acc) ->
 	C = supervisor:which_children(H),
 	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
-	get_asp(T, [get_asp(EP) | Acc]);
+	case get_assoc(EP) of
+		{ok, Assocs} ->
+			ASPs = [{EP, A} || A <- Assocs],
+			get_asp(T, [ASPs | Acc]);
+		{error, Reason} ->
+			{error, Reason}
+	end;
 get_asp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
-
--spec get_asp(EP) -> Result
-	when
-		EP :: pid(),
-		Result :: [ASP],
-		ASP :: {EP, Assoc},
-		EP :: pid(),
-		Assoc :: pos_integer().
-%% @doc Get M3UA Application Server Processes (ASP) on local endpoint.
-%%
-get_asp(EP) when is_pid(EP) ->
-	case catch gen_server:call(EP, getassoc) of
-		{asp, L} ->
-			[{EP, Assoc} || Assoc <- L];
-		{sgp, _} ->
-			[];
-		{'EXIT', _} ->
-			[]
-	end.
 
 -spec get_sgp() -> Result
 	when
@@ -416,26 +403,32 @@ get_sgp() ->
 get_sgp([H | T], Acc) ->
 	C = supervisor:which_children(H),
 	{_, EP, _, _} = lists:keyfind(m3ua_endpoint_server, 1, C),
-	get_sgp(T, [get_sgp(EP) | Acc]);
+	case get_assoc(EP) of
+		{ok, Assocs} ->
+			SGPs = [{EP, A} || A <- Assocs],
+			get_sgp(T, [SGPs | Acc]);
+		{error, Reason} ->
+			{error, Reason}
+	end;
 get_sgp([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
--spec get_sgp(EP) -> Result
+-spec get_assoc(EP) -> Result
 	when
-		Result :: [SGP],
-		SGP :: {EP, Assoc},
 		EP :: pid(),
-		Assoc :: pos_integer().
-%% @doc Get all M3UA Signaling Gateway Processes (SGP) on local endpoint.
+		Result :: {ok, [Assoc]} | {error, Reason},
+		Assoc :: pos_integer(),
+		Reason :: term().
+%% @doc Get SCTP associations on local endpoint.
 %%
-get_sgp(EP) when is_pid(EP) ->
+get_assoc(EP) when is_pid(EP) ->
 	case catch gen_server:call(EP, getassoc) of
-		{sgp, L} ->
-			[{EP, Assoc} || Assoc <- L];
-		{asp, _} ->
-			[];
-		{'EXIT', _} ->
-			[]
+		{'EXIT', Reason} ->
+			{error, Reason};
+		{error, Reason} ->
+			{error, Reason};
+		{ok, Assocs} ->
+			{ok, Assocs}
 	end.
 
 %%----------------------------------------------------------------------
