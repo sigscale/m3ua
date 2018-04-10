@@ -35,8 +35,7 @@
 -record(statedata,
 		{sup :: undefined | pid(),
 		name :: term(),
-		asp_sup :: undefined | pid(),
-		sgp_sup :: undefined | pid(),
+		fsm_sup :: undefined | pid(),
 		socket :: gen_sctp:sctp_socket(),
 		port :: undefined | inet:port_number(),
 		options :: [tuple()],
@@ -128,8 +127,7 @@ init([Sup, Callback, Opts] = _Args) ->
 %% 	gen_fsm:send_event/2} in the <b>listening</b> state.
 %% @private
 %%
-listening(timeout, #statedata{sgp_sup = undefined,
-		asp_sup = undefined} = StateData) ->
+listening(timeout, #statedata{fsm_sup = undefined} = StateData) ->
    {next_state, listening, get_sup(StateData)};
 listening({'M-SCTP_RELEASE', request, Ref, From},
 		#statedata{socket = Socket} = StateData) ->
@@ -184,13 +182,7 @@ handle_sync_event({getstat, Options}, _From, StateName,
 %% @private
 handle_info({sctp, Socket, PeerAddr, PeerPort,
 		{_AncData, #sctp_assoc_change{state = comm_up} = AssocChange}},
-		listening, #statedata{m3ua_role = sgp, sgp_sup = FsmSup,
-		socket = Socket} = StateData) ->
-	accept(Socket, PeerAddr, PeerPort, AssocChange, FsmSup, StateData);
-handle_info({sctp, Socket, PeerAddr, PeerPort,
-		{_AncData, #sctp_assoc_change{state = comm_up} = AssocChange}},
-		listening, #statedata{m3ua_role = asp, asp_sup = FsmSup,
-		socket = Socket} = StateData) ->
+		listening, #statedata{fsm_sup = FsmSup, socket = Socket} = StateData) ->
 	accept(Socket, PeerAddr, PeerPort, AssocChange, FsmSup, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
@@ -249,12 +241,14 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-get_sup(#statedata{sup = Sup, asp_sup = undefined,
-		sgp_sup = undefined} = StateData) ->
+get_sup(#statedata{m3ua_role = asp, sup = Sup} = StateData) ->
+	Children = supervisor:which_children(Sup),
+	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
+	StateData#statedata{fsm_sup = AspSup};
+get_sup(#statedata{m3ua_role = sgp, sup = Sup} = StateData) ->
 	Children = supervisor:which_children(Sup),
 	{_, SgpSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
-	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
-	StateData#statedata{asp_sup = AspSup, sgp_sup = SgpSup}.
+	StateData#statedata{fsm_sup = SgpSup}.
 
 %% @hidden
 accept(Socket, Address, Port,

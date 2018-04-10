@@ -35,8 +35,7 @@
 -record(statedata,
 		{sup :: undefined | pid(),
 		name :: term(),
-		asp_sup :: undefined | pid(),
-		sgp_sup :: undefined | pid(),
+		fsm_sup :: undefined | pid(),
 		socket :: gen_sctp:sctp_socket(),
 		port :: undefined | inet:port_number(),
 		options :: [tuple()],
@@ -131,8 +130,7 @@ init([Sup, Callback, Opts] = _Args) ->
 %% 	gen_fsm:send_event/2} in the <b>connecting</b> state.
 %% @private
 %%
-connecting(timeout, #statedata{sgp_sup = undefined,
-		asp_sup = undefined} = StateData) ->
+connecting(timeout, #statedata{fsm_sup = undefined} = StateData) ->
    connecting(timeout, get_sup(StateData));
 connecting(timeout, #statedata{socket = Socket,
 		remote_addr = Address, remote_port = Port,
@@ -212,12 +210,8 @@ handle_sync_event({getstat, Options}, _From, StateName,
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_assoc_change{}} = AssocChange},
-		connecting, #statedata{m3ua_role = asp, asp_sup = Sup} = StateData) ->
-	handle_connect(Sup, AssocChange, StateData#statedata{socket = Socket});
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_assoc_change{}} = AssocChange},
-		connecting, #statedata{m3ua_role = sgp, sgp_sup = Sup} = StateData) ->
-	handle_connect(Sup, AssocChange, StateData#statedata{socket = Socket});
+		connecting, StateData) ->
+	handle_connect(AssocChange, StateData#statedata{socket = Socket});
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
 	inet:setopts(Socket, [{active, once}]),
@@ -259,17 +253,20 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-get_sup(#statedata{sup = Sup, asp_sup = undefined,
-		sgp_sup = undefined} = StateData) ->
+get_sup(#statedata{m3ua_role = asp, sup = Sup} = StateData) ->
+	Children = supervisor:which_children(Sup),
+	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
+	StateData#statedata{fsm_sup = AspSup};
+get_sup(#statedata{m3ua_role = sgp, sup = Sup} = StateData) ->
 	Children = supervisor:which_children(Sup),
 	{_, SgpSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
-	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
-	StateData#statedata{asp_sup = AspSup, sgp_sup = SgpSup}.
+	StateData#statedata{fsm_sup = SgpSup}.
 
 %% @hidden
-handle_connect(Sup, AssocChange, #statedata{socket = Socket,
-		remote_addr = Address, remote_port = Port, fsm = Fsm, name = Name,
-		callback = Cb, registration = Reg, use_rc = UseRC} = StateData) ->
+handle_connect(AssocChange, #statedata{socket = Socket,
+		fsm_sup = Sup, remote_addr = Address, remote_port = Port,
+		fsm = Fsm, name = Name, callback = Cb, registration = Reg,
+		use_rc = UseRC} = StateData) ->
 	case supervisor:start_child(Sup, [[client, Socket, Address, Port,
 			AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
 		{ok, Fsm} ->
