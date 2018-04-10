@@ -65,7 +65,7 @@
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init([Sup, [Callback, Opts]] = _Args) ->
+init([Sup, Callback, Opts] = _Args) ->
 	{Name, Opts1} = case lists:keytake(name, 1, Opts) of
 		{value, {name, R1}, O1} ->
 			{R1, O1};
