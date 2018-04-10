@@ -28,7 +28,7 @@
 		handle_info/3, terminate/3, code_change/4]).
 
 %% export the gen_fsm state callbacks
--export([connecting/2, connecting/3, connected/2, connected/3]).
+-export([connecting/2, connected/2]).
 
 -include_lib("kernel/include/inet_sctp.hrl").
 
@@ -149,19 +149,6 @@ connecting({'M-SCTP_RELEASE', request, Ref, From},
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	{stop, {shutdown, {self(), release}}, StateData}.
 
--spec connecting(Event :: timeout | term(),
-		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(),
-				NextStateName :: atom(), NewStateData :: #statedata{}}
-		| {stop, Reason :: term(),
-				Reply :: term(), NewStateData :: #statedata{}}.
-%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
-%% 	gen_fsm:sync_send_event/2,3} in the <b>connecting</b> state.
-%% @private
-%%
-connecting(_Event, _From, StateData) ->
-	{stop, unimplemented, StateData}.
-
 -spec connected(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
 			| {next_state, NextStateName :: atom(),
@@ -176,19 +163,6 @@ connected({'M-SCTP_RELEASE', request, Ref, From},
 	gen_server:cast(From,
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	{stop, {shutdown, {self(), release}}, StateData}.
-
--spec connected(Event :: timeout | term(),
-		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(),
-				NextStateName :: atom(), NewStateData :: #statedata{}}
-		| {stop, Reason :: term(),
-				Reply :: term(), NewStateData :: #statedata{}}.
-%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
-%% 	gen_fsm:sync_send_event/2,3} in the <b>connected</b> state.
-%% @private
-%%
-connected(_Event, _From, StateData) ->
-	{stop, unimplemented, StateData}.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->

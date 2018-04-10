@@ -28,7 +28,7 @@
 		handle_info/3, terminate/3, code_change/4]).
 
 %% export the gen_fsm state callbacks
--export([listening/2, listening/3]).
+-export([listening/2]).
 
 -include_lib("kernel/include/inet_sctp.hrl").
 
@@ -136,19 +136,6 @@ listening({'M-SCTP_RELEASE', request, Ref, From},
 	gen_server:cast(From,
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	{stop, {shutdown, {self(), release}}, StateData}.
-
--spec listening(Event :: timeout | term(),
-		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
-		{reply, Reply :: term(),
-				NextStateName :: atom(), NewStateData :: #statedata{}}
-		| {stop, Reason :: term(),
-				Reply :: term(), NewStateData :: #statedata{}}.
-%% @doc Handle an event sent with {@link //stdlib/gen_fsm:sync_send_event/2.
-%% 	gen_fsm:sync_send_event/2,3} in the <b>listening</b> state.
-%% @private
-%%
-listening(_Event, _From, StateData) ->
-	{stop, unimplemented, StateData}.
 
 -spec handle_event(Event :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
