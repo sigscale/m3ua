@@ -20,10 +20,10 @@
 %%%   for a Signaling Gateway Process (SGP).
 %%%
 %%% 	This behaviour module provides an MTP service primitives interface
-%%% 	for an MTP user. A calback module name is provided in the
-%%% 	`{callback, Module}' option when opening an `Endpoint'. MTP service
-%%% 	primitive indications are delivered to the MTP user by calling the
-%%% 	corresponding callback function as defined below.
+%%% 	for an MTP user. A callback module name is provided when starting
+%%% 	an `Endpoint'. MTP service primitive indications are delivered to
+%%% 	the MTP user through calls to the corresponding callback function
+%%% 	as defined below.
 %%%
 %%%  <h2><a name="functions">Callbacks</a></h2>
 %%%
