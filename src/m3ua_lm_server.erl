@@ -498,7 +498,7 @@ handle_cast({'M-SCTP_ESTABLISH', indication, Fsm, EP, Assoc},
 		#state{fsms = Fsms} = State) ->
 	NewFsms = gb_trees:insert({EP, Assoc}, Fsm, Fsms),
 	link(Fsm),
-	{norely, State#state{fsms = NewFsms}};
+	{noreply, State#state{fsms = NewFsms}};
 handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 		CbState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
 	F = fun() ->

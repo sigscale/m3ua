@@ -39,12 +39,10 @@
 		socket :: gen_sctp:sctp_socket(),
 		port :: undefined | inet:port_number(),
 		options :: [tuple()],
-		m3ua_role :: sgp | asp,
+		role :: sgp | asp,
 		registration :: dynamic | static,
 		use_rc :: boolean(),
-		local_addr :: inet:ip_address(),
 		local_port :: inet:port_number(),
-		local_opts :: [gen_sctp:option()],
 		remote_addr :: inet:ip_address(),
 		remote_port :: inet:port_number(),
 		remote_opts :: [gen_sctp:option()],
@@ -71,10 +69,10 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{make_ref(), Opts}
 	end,
-	{M3uaRole, Opts2} = case lists:keytake(m3ua_role, 1, Opts1) of
-		{value, {m3ua_role, sgp}, O2} ->
+	{Role, Opts2} = case lists:keytake(role, 1, Opts1) of
+		{value, {role, sgp}, O2} ->
 			{sgp, O2};
-		{value, {m3ua_role, asp}, O2} ->
+		{value, {role, asp}, O2} ->
 			{asp, O2};
 		false ->
 			{sgp, Opts1}
@@ -91,8 +89,8 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{true, Opts3}
 	end,
-	case lists:keytake(remote_addr, 1, Opts4) of
-		{value, {remote, {Raddr, Rport, Ropts}}, O5} ->
+	case lists:keytake(connect, 1, Opts4) of
+		{value, {connect, Raddr, Rport, Ropts}, O5} ->
 			Options = [{active, once},
 					{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
 					{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
@@ -104,7 +102,7 @@ init([Sup, Callback, Opts] = _Args) ->
 						{ok, {_, Port}} ->
 							process_flag(trap_exit, true),
 							StateData = #statedata{sup = Sup, socket = Socket,
-									m3ua_role = M3uaRole, registration = Registration,
+									role = Role, registration = Registration,
 									use_rc = UseRC, options = Options, name = Name,
 									callback = Callback, remote_addr = Raddr,
 									remote_port = Rport, remote_opts = Ropts,
@@ -209,7 +207,7 @@ handle_sync_event({getstat, Options}, _From, StateName,
 %% @private
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_assoc_change{}} = AssocChange},
+		{_AncData, #sctp_assoc_change{} = AssocChange}},
 		connecting, StateData) ->
 	handle_connect(AssocChange, StateData#statedata{socket = Socket});
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
@@ -253,11 +251,11 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-get_sup(#statedata{m3ua_role = asp, sup = Sup} = StateData) ->
+get_sup(#statedata{role = asp, sup = Sup} = StateData) ->
 	Children = supervisor:which_children(Sup),
 	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
 	StateData#statedata{fsm_sup = AspSup};
-get_sup(#statedata{m3ua_role = sgp, sup = Sup} = StateData) ->
+get_sup(#statedata{role = sgp, sup = Sup} = StateData) ->
 	Children = supervisor:which_children(Sup),
 	{_, SgpSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
 	StateData#statedata{fsm_sup = SgpSup}.
@@ -267,7 +265,7 @@ handle_connect(AssocChange, #statedata{socket = Socket,
 		fsm_sup = Sup, remote_addr = Address, remote_port = Port,
 		fsm = Fsm, name = Name, callback = Cb, registration = Reg,
 		use_rc = UseRC} = StateData) ->
-	case supervisor:start_child(Sup, [[client, Socket, Address, Port,
+	case supervisor:start_child(Sup, [[Socket, Address, Port,
 			AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
 		{ok, Fsm} ->
 			case gen_sctp:controlling_process(Socket, Fsm) of

@@ -35,19 +35,17 @@
 %% @see //stdlib/supervisor:init/1
 %% @private
 %%
-init([Callback, Opts1] = _Args) ->
-	{ChildSpec, Opts3} = case lists:keytake(sctp_role, 1, Opts1) of
-		{value, {sctp_role, server}, Opts2} ->
-			{fsm(m3ua_listen_fsm, [self(), Callback, Opts2]), Opts2};
-		{value, {sctp_role, client}, Opts2} ->
-			{fsm(m3ua_connect_fsm, [self(), Callback, Opts2]), Opts2};
+init([Callback, Opts] = _Args) ->
+	ChildSpec = case lists:keyfind(connect, 1, Opts) of
+		{connect, _, _, _} ->
+			fsm(m3ua_connect_fsm, [self(), Callback, Opts]);
 		false ->
-			{fsm(m3ua_listen_fsm, [self(), Callback, Opts1]), Opts1}
+			fsm(m3ua_listen_fsm, [self(), Callback, Opts])
 	end,
-	ChildSpecs = case lists:keyfind(m3ua_role, 1, Opts3) of
-		{m3ua_role, sgp} ->
+	ChildSpecs = case lists:keyfind(role, 1, Opts) of
+		{role, sgp} ->
 			[ChildSpec, supervisor(m3ua_sgp_sup, [])];
-		{m3ua_role, asp} ->
+		{role, asp} ->
 			[ChildSpec, supervisor(m3ua_asp_sup, [])];
 		false ->
 			[ChildSpec, supervisor(m3ua_sgp_sup, [])]

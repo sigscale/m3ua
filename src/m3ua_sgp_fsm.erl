@@ -208,8 +208,7 @@
 -include_lib("kernel/include/inet_sctp.hrl").
 
 -record(statedata,
-		{sctp_role :: client | server,
-		socket :: gen_sctp:sctp_socket() | undefined,
+		{socket :: gen_sctp:sctp_socket() | undefined,
 		peer_addr :: inet:ip_address(),
 		peer_port :: inet:port_number(),
 		in_streams :: non_neg_integer(),
@@ -359,7 +358,7 @@ transfer(SGP, Stream, OPC, DPC, SLS, SIO, Data)
 %% @see //stdlib/gen_fsm:init/1
 %% @private
 %%
-init([SctpRole, Socket, Address, Port,
+init([Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, EpName, Cb, Reg, UseRC]) ->
@@ -367,8 +366,7 @@ init([SctpRole, Socket, Address, Port,
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
 			process_flag(trap_exit, true),
-			Statedata = #statedata{sctp_role = SctpRole,
-					socket = Socket, assoc = Assoc,
+			Statedata = #statedata{socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
 					callback = Cb, cb_state = CbState, ep = EP,

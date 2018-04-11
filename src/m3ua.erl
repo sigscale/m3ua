@@ -35,14 +35,12 @@
 -export([sort/1]).
 
 -type option() :: {name, term()}
-		| {sctp_role, client | server}
-		| {m3ua_role, sgp | asp}
+		| {connect, inet:ip_address(), inet:port_number(), [gen_sctp:option()]}
+		| {role, sgp | asp}
 		| {registration, dynamic | static}
 		| {use_rc, boolean()}
-		| {ip, inet:ip_address()}
-		| {ifaddr, inet:ip_address()}
-		| {port, inet:port_number()}
 		| gen_sctp:option().
+%% Options used to configure SCTP endpoint and M3UA process behaviour.
 -export_type([option/0]).
 
 -include("m3ua.hrl").

@@ -39,12 +39,10 @@
 		socket :: gen_sctp:sctp_socket(),
 		port :: undefined | inet:port_number(),
 		options :: [tuple()],
-		m3ua_role :: sgp | asp,
+		role :: sgp | asp,
 		registration :: dynamic | static,
 		use_rc :: boolean(),
-		local_addr :: inet:ip_address(),
 		local_port :: inet:port_number(),
-		local_opts :: [gen_sctp:option()],
 		fsms = gb_trees:empty() :: gb_trees:tree(),
 		callback :: {Module :: atom(), State :: term()}}).
 
@@ -68,10 +66,10 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{make_ref(), Opts}
 	end,
-	{M3uaRole, Opts2} = case lists:keytake(m3ua_role, 1, Opts1) of
-		{value, {m3ua_role, asp}, O2} ->
+	{Role, Opts2} = case lists:keytake(role, 1, Opts1) of
+		{value, {role, asp}, O2} ->
 			{asp, O2};
-		{value, {m3ua_role, sgp}, O2} ->
+		{value, {role, sgp}, O2} ->
 			{sgp, O2};
 		false ->
 			{sgp, Opts1}
@@ -96,7 +94,7 @@ init([Sup, Callback, Opts] = _Args) ->
 	case gen_sctp:open(Options) of
 		{ok, Socket} ->
 			StateData = #statedata{sup = Sup, socket = Socket,
-					m3ua_role = M3uaRole, registration = Registration,
+					role = Role, registration = Registration,
 					use_rc = UseRC, options = Options,
 					name = Name, callback = Callback},
 			case gen_sctp:listen(Socket, true) of
@@ -241,11 +239,11 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-get_sup(#statedata{m3ua_role = asp, sup = Sup} = StateData) ->
+get_sup(#statedata{role = asp, sup = Sup} = StateData) ->
 	Children = supervisor:which_children(Sup),
 	{_, AspSup, _, _} = lists:keyfind(m3ua_asp_sup, 1, Children),
 	StateData#statedata{fsm_sup = AspSup};
-get_sup(#statedata{m3ua_role = sgp, sup = Sup} = StateData) ->
+get_sup(#statedata{role = sgp, sup = Sup} = StateData) ->
 	Children = supervisor:which_children(Sup),
 	{_, SgpSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
 	StateData#statedata{fsm_sup = SgpSup}.
@@ -257,8 +255,8 @@ accept(Socket, Address, Port,
 		registration = Reg, use_rc = UseRC} = StateData) ->
 	case gen_sctp:peeloff(Socket, Assoc) of
 		{ok, NewSocket} ->
-			case supervisor:start_child(Sup, [[server, NewSocket,
-					Address, Port, AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
+			case supervisor:start_child(Sup, [[NewSocket, Address, Port,
+					AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(NewSocket, Fsm) of
 						ok ->
