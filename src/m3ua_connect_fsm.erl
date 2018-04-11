@@ -263,7 +263,7 @@ get_sup(#statedata{role = sgp, sup = Sup} = StateData) ->
 %% @hidden
 handle_connect(AssocChange, #statedata{socket = Socket,
 		fsm_sup = Sup, remote_addr = Address, remote_port = Port,
-		fsm = Fsm, name = Name, callback = Cb, registration = Reg,
+		name = Name, callback = Cb, registration = Reg,
 		use_rc = UseRC} = StateData) ->
 	case supervisor:start_child(Sup, [[Socket, Address, Port,
 			AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
