@@ -291,7 +291,7 @@ handle_call({start, Callback, Options}, {USAP, _Tag} = _From,
 handle_call({stop, EP}, From, #state{reqs = Reqs} = State) when is_pid(EP) ->
 	try
 		Ref = make_ref(),
-		gen_server:cast(EP, {'M-SCTP_RELEASE', request, Ref, self()}),
+		gen_fsm:send_event(EP, {'M-SCTP_RELEASE', request, Ref, self()}),
 		NewReqs = gb_trees:insert(Ref, From, Reqs),
 		NewState = State#state{reqs = NewReqs},
 		{noreply, NewState}
