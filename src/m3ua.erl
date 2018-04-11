@@ -132,7 +132,7 @@ as_delete(RoutingKey) ->
 		Count :: non_neg_integer().
 %% @doc Get socket statistics for an endpoint.
 getstat_endpoint(EndPoint) when is_pid(EndPoint) ->
-	gen_server:call(EndPoint, {getstat, undefined}).
+	gen_fsm:sync_send_all_state_event(EndPoint, {getstat, undefined}).
 
 -spec getstat_endpoint(EndPoint, Options) -> Result
 	when
@@ -144,7 +144,7 @@ getstat_endpoint(EndPoint) when is_pid(EndPoint) ->
 %% @doc Get socket statistics for an endpoint.
 getstat_endpoint(EndPoint, Options)
 		when is_pid(EndPoint), is_list(Options)  ->
-	gen_server:call(EndPoint, {getstat, Options}).
+	gen_fsm:sync_send_all_state_event(EndPoint, {getstat, Options}).
 
 -spec getstat_association(EndPoint, Assoc) -> Result
 	when
