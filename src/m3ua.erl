@@ -406,7 +406,7 @@ get_sgp([], Acc) ->
 %% @doc Get SCTP associations on local endpoint.
 %%
 get_assoc(EP) when is_pid(EP) ->
-	get_assoc(gen_server:call(EP, getassoc), []).
+	get_assoc(gen_fsm:sync_send_all_state_event(EP, getassoc), []).
 %% @hidden
 get_assoc([H | T], Acc) ->
 	Assoc = gen_fsm:sync_send_all_state_event(H, getassoc),
