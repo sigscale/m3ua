@@ -664,7 +664,7 @@ handle_event({Callback, CbState}, StateName, StateData)
 %% @see //stdlib/gen_fsm:handle_sync_event/4
 %% @private
 %%
-handle_sync_event(get_assoc, _From, StateName,
+handle_sync_event(getassoc, _From, StateName,
 		#statedata{assoc = Assoc} = StateData) ->
 	{reply, Assoc, StateName, StateData};
 handle_sync_event({getstat, undefined}, _From, StateName,
