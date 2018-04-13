@@ -717,8 +717,11 @@ handle_info({'EXIT', _Pid, {shutdown, {{EP, Assoc}, _Reason}}},
 	{noreply, NewState};
 handle_info({'EXIT', Pid, _Reason},
 		#state{eps = EPs, fsms = Fsms, reqs = Reqs} = State) ->
-	case catch gb_trees:delete(Pid, EPs) of
-		{'EXIT', _} ->
+	case gb_trees:is_defined(Pid, EPs) of
+		true ->
+			NewState = #state{eps = gb_trees:delete(Pid, EPs)},
+			{noreply, NewState};
+		false ->
 			Fdel1 = fun Fdel1({Key, Fsm, _Iter}) when Fsm ==  Pid ->
 					Key;
 				    Fdel1({_Key, _Val, Iter}) ->
@@ -749,10 +752,7 @@ handle_info({'EXIT', Pid, _Reason},
 					NewFsms = gb_trees:delete(Key, Fsms),
 					NewState = State#state{eps = NewFsms},
 					{noreply, NewState}
-			end;
-		NewEPs ->
-			NewState = #state{eps = NewEPs},
-			{noreply, NewState}
+			end
 	end;
 handle_info(timeout, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
