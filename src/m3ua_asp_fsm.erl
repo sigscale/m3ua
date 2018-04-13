@@ -640,6 +640,9 @@ handle_event({'M-SCTP_STATUS', request, Ref, From},
 					{'M-SCTP_STATUS', confirm, Ref, {error, Reason}}),
 			{next_state, StateName, StateData}
 	end;
+handle_event({'M-ASP_STATUS', request, Ref, From}, StateName, StateData) ->
+	gen_server:cast(From, {'M-ASP_STATUS', confirm, Ref, StateName}),
+	{next_state, StateName, StateData};
 handle_event({Callback, CbState}, StateName, StateData)
 		when (Callback == 'M-ASP_UP') orelse (Callback == 'M-ASP_DOWN')
 		orelse (Callback == 'M-ASP_ACTIVE') orelse (Callback == 'M-ASP_INACTIVE')

@@ -153,13 +153,11 @@ sctp_release(EndPoint, Assoc) ->
 sctp_status(EndPoint, Assoc) ->
 	gen_server:call(m3ua, {'M-SCTP_STATUS', request, EndPoint, Assoc}).
 
--spec asp_status(EndPoint, Assoc) -> Result
+-spec asp_status(EndPoint, Assoc) -> AspState
 	when
 		EndPoint :: pid(),
 		Assoc :: pos_integer(),
-		Result :: {ok, AspState} | {error, Reason},
-		AspState :: down | inactive | active,
-		Reason :: term().
+		AspState :: down | inactive | active.
 %% @doc Report the status of local or remote ASP.
 %% @private
 asp_status(EndPoint, Assoc) ->
@@ -333,8 +331,18 @@ handle_call({'M-SCTP_STATUS', request, EndPoint, Assoc},
 		none ->
 			{reply, {error, not_found}, State}
 	end;
-handle_call({'M-ASP_STATUS', request,  _EndPoint, _Assoc}, _From, State) ->
-	{reply, {error, not_implement}, State};
+handle_call({'M-ASP_STATUS', request,  EndPoint, Assoc},
+		From, #state{reqs = Reqs, fsms = Fsms} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, Fsm} ->
+			Ref = make_ref(),
+			gen_fsm:send_all_state_event(Fsm, {'M-ASP_STATUS', request, Ref, self()}),
+			NewReqs = gb_trees:insert(Ref, From, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{reply, down, State}
+	end;
 handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 	F = fun() ->
 				SortedKeys = m3ua:sort(Keys),
@@ -435,6 +443,17 @@ handle_cast({'CONNECT', Ref, {error, Reason}},
 			{noreply, State}
 	end;
 handle_cast({'M-SCTP_STATUS', confirm, Ref, Result},
+		#state{reqs = Reqs} = State) ->
+	case gb_trees:lookup(Ref, Reqs) of
+		{value, From} ->
+			gen_server:reply(From, Result),
+			NewReqs = gb_trees:delete(Ref, Reqs),
+			NewState = State#state{reqs = NewReqs},
+			{noreply, NewState};
+		none ->
+			{noreply, State}
+	end;
+handle_cast({'M-ASP_STATUS', confirm, Ref, Result},
 		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->

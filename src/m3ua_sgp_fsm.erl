@@ -547,6 +547,9 @@ handle_event({'M-SCTP_STATUS', request, Ref, From},
 					{'M-SCTP_STATUS', confirm, Ref, {error, Reason}}),
 			{next_state, StateName, StateData}
 	end;
+handle_event({'M-ASP_STATUS', request, Ref, From}, StateName, StateData) ->
+	gen_server:cast(From, {'M-ASP_STATUS', confirm, Ref, StateName}),
+	{next_state, StateName, StateData};
 handle_event({Indication,  State}, StateName, StateData)
 		when Indication == 'M-ASP_UP'; Indication == 'M-ASP_DOWN';
 		Indication == 'M-ASP_ACTIVE'; Indication == 'M-ASP_INACTIVE';

@@ -234,13 +234,11 @@ sctp_release(EndPoint, Assoc) ->
 sctp_status(EndPoint, Assoc) ->
 	m3ua_lm_server:sctp_status(EndPoint, Assoc).
 
--spec asp_status(EndPoint, Assoc) -> Result
+-spec asp_status(EndPoint, Assoc) -> AspState
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
-		Result :: {ok, AspState} | {error, Reason},
-		AspState :: down | inactive | active,
-		Reason :: term().
+		AspState :: down | inactive | active.
 %% @doc Report the status of local or remote ASP.
 asp_status(EndPoint, Assoc) ->
 	m3ua_lm_server:asp_status(EndPoint, Assoc).
