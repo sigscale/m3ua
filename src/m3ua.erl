@@ -26,7 +26,7 @@
 -export([getstat_endpoint/1, getstat_endpoint/2,
 			getstat_association/2, getstat_association/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
--export([get_ep/0, get_as/0, get_asp/0, get_sgp/0, get_assoc/1]).
+-export([get_ep/0, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/7]).
@@ -149,7 +149,7 @@ getstat_endpoint(EndPoint, Options)
 -spec getstat_association(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
@@ -161,7 +161,7 @@ getstat_association(EndPoint, Assoc)
 -spec getstat_association(EndPoint, Assoc, Options) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Options :: [stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{stat_option(), Count}],
@@ -174,7 +174,7 @@ getstat_association(EndPoint, Assoc, Options)
 -spec register(EndPoint, Assoc, NA, Keys, Mode) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		NA :: pos_integer(),
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -196,7 +196,7 @@ register(EndPoint, Assoc, NA, Keys, Mode)
 -spec register(EndPoint, Assoc, NA, Keys, Mode, AsName) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		NA :: pos_integer(),
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -219,7 +219,7 @@ register(EndPoint, Assoc, NA, Keys, Mode, AsName)
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Release an established SCTP association.
@@ -229,7 +229,7 @@ sctp_release(EndPoint, Assoc) ->
 -spec sctp_status(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, AssocStatus} | {error, Reason},
 		AssocStatus :: #sctp_status{},
 		Reason :: term().
@@ -240,7 +240,7 @@ sctp_status(EndPoint, Assoc) ->
 -spec asp_status(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, AspState} | {error, Reason},
 		AspState :: down | inactive | active,
 		Reason :: term().
@@ -261,7 +261,7 @@ asp_status(EndPoint, Assoc) ->
 -spec asp_up(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: asp_not_found | term().
 %% @doc Requests that ASP start its operation
@@ -272,7 +272,7 @@ asp_up(EndPoint, Assoc) ->
 -spec asp_down(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: asp_not_found | term().
 %% @doc Requests that ASP stop its operation
@@ -283,7 +283,7 @@ asp_down(EndPoint, Assoc) ->
 -spec asp_active(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: asp_not_found | term().
 %% @doc Requests that ASP send an ASP Active message to its peer.
@@ -293,7 +293,7 @@ asp_active(EndPoint, Assoc) ->
 -spec asp_inactive(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: asp_not_found | term().
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
@@ -362,57 +362,32 @@ get_ep([H | T], Acc) ->
 get_ep([], Acc) ->
 	lists:reverse(Acc).
 
--spec get_asp() -> Result
+-spec get_assoc() -> Result
 	when
-		Result :: [ASP],
-		ASP :: {EP, Assoc},
+		Result :: [{EP, Assoc}],
 		EP :: pid(),
-		Assoc :: pos_integer().
-%% @doc Get all M3UA Application Server Processes (ASP) on local node.
+		Assoc :: gen_sctp:assoc_id().
+%% @doc Get all SCTP associations.
 %%
-get_asp() ->
-	get_asp(get_ep_sups(), []).
+get_assoc() ->
+	get_assoc(get_ep_sups(), []).
 %% @hidden
-get_asp([H | T], Acc) ->
+get_assoc([H | T], Acc) ->
 	EP = find_ep(supervisor:which_children(H)),
-	ASPs = [{EP, ASP} || ASP <- get_assoc(EP)],
-	get_asp(T, [ASPs | Acc]);
-get_asp([], Acc) ->
-	lists:flatten(lists:reverse(Acc)).
-
--spec get_sgp() -> Result
-	when
-		Result :: [SGP],
-		SGP :: {EP, Assoc},
-		EP :: pid(),
-		Assoc :: pos_integer().
-%% @doc Get all M3UA Signaling Gateway Processes (SGP) on local node.
-%%
-get_sgp() ->
-	get_sgp(get_ep_sups(), []).
-%% @hidden
-get_sgp([H | T], Acc) ->
-	EP = find_ep(supervisor:which_children(H)),
-	SGPs = [{EP, SGP} || SGP <- get_assoc(EP)],
-	get_sgp(T, [SGPs | Acc]);
-get_sgp([], Acc) ->
+	L = [{EP, Assoc} || Assoc <- get_assoc(EP)],
+	get_assoc(T, [L | Acc]);
+get_assoc([], Acc) ->
 	lists:flatten(lists:reverse(Acc)).
 
 -spec get_assoc(EP) -> Result
 	when
 		EP :: pid(),
 		Result :: [Assoc],
-		Assoc :: pos_integer().
+		Assoc :: gen_sctp:assoc_id().
 %% @doc Get SCTP associations on local endpoint.
 %%
 get_assoc(EP) when is_pid(EP) ->
-	get_assoc(gen_fsm:sync_send_all_state_event(EP, getassoc), []).
-%% @hidden
-get_assoc([H | T], Acc) ->
-	Assoc = gen_fsm:sync_send_all_state_event(H, getassoc),
-	get_assoc(T, [Assoc | Acc]);
-get_assoc([], Acc) ->
-	lists:reverse(Acc).
+	gen_fsm:sync_send_all_state_event(EP, getassoc).
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API

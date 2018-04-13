@@ -46,6 +46,7 @@
 		remote_addr :: inet:ip_address(),
 		remote_port :: inet:port_number(),
 		remote_opts :: [gen_sctp:option()],
+		assoc :: gen_sctp:assoc_id(),
 		fsm :: pid(),
 		callback :: {Module :: atom(), State :: term()}}).
 
@@ -187,8 +188,11 @@ handle_event(_Event, _StateName, StateData) ->
 %% @private
 %%
 handle_sync_event(getassoc, _From, StateName,
-		#statedata{fsm = Fsm} = StateData) ->
-	{reply, [Fsm], StateName, StateData};
+		#statedata{assoc = undefined} = StateData) ->
+	{reply, [], StateName, StateData};
+handle_sync_event(getassoc, _From, StateName,
+		#statedata{assoc = Assoc} = StateData) ->
+	{reply, [Assoc], StateName, StateData};
 handle_sync_event({getstat, undefined}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
 	{reply, inet:getstat(Socket), StateName, StateData};
@@ -207,9 +211,10 @@ handle_sync_event({getstat, Options}, _From, StateName,
 %% @private
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_assoc_change{} = AssocChange}},
+		{_AncData, #sctp_assoc_change{assoc_id = Assoc} = AssocChange}},
 		connecting, StateData) ->
-	handle_connect(AssocChange, StateData#statedata{socket = Socket});
+	NewStateData = StateData#statedata{socket = Socket, assoc = Assoc},
+	handle_connect(AssocChange, NewStateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
 	inet:setopts(Socket, [{active, once}]),

@@ -43,7 +43,7 @@
 		registration :: dynamic | static,
 		use_rc :: boolean(),
 		local_port :: inet:port_number(),
-		fsms = gb_trees:empty() :: gb_trees:tree(),
+		fsms = gb_trees:empty() :: gb_trees:tree(gen_sctp:assoc_id(), pid()),
 		callback :: {Module :: atom(), State :: term()}}).
 
 %%----------------------------------------------------------------------
