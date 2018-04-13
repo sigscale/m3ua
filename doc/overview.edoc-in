@@ -12,24 +12,19 @@ of telephony signaling protocol messages over Internet Protocol (IP) networks.
 
 ==Operation==
 
+Start an M3UA Signaling Gateway Process (ASP) endpoint:
+```
+	1> application:start(m3ua).
+	ok
+	2> {ok, EP} = m3ua:start(Module, 2905, []).
+	{ok,<0.51.0>}
+'''
 Create an M3UA Application Server Process (ASP) endpoint:
 ```
-	(as@h1)1> application:start(m3ua).
+	1> application:start(m3ua).
 	ok
-	(as@h1)2> {ok, EP} = m3ua:open().  
+	2> {ok, EP} = m3ua:start(Module, 0, [{connect, {127,0,0,1}, 2905, []}, {role, asp}]).  
 	{ok,<0.51.0>}
-'''
-Create an M3UA Signaling Gateway Process (ASP) endpoint:
-```
-	(sg@h2)1> application:start(m3ua).
-	ok
-	(sg@h2)2> {ok, EP} = m3ua:open(2905, [{sctp_role, server}, {m3ua_role, sgp}]).
-	{ok,<0.51.0>}
-'''
-Establish an SCTP association from the ASP to SGP:
-```
-	(as@h1)3> {ok, Assoc} = m3ua:sctp_establish(EP, {127,0,0,1}, 2905, []).
-{ok,192}
 '''
 
 ==Database Schema==
