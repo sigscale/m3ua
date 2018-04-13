@@ -181,7 +181,7 @@ getstat_ep() ->
 
 getstat_ep(_Config) ->
 	{ok, EP} = m3ua:start(demo_as),
-	{ok, OptionValues} = m3ua:getstat_endpoint(EP),
+	{ok, OptionValues} = m3ua:getstat(EP),
 	F = fun({Option, Value}) when is_atom(Option), is_integer(Value) ->
 				true;
 			(_) ->
@@ -201,7 +201,7 @@ getstat_assoc(_Config) ->
 			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
 	wait(Ref),
 	[Assoc] = m3ua:get_assoc(ClientEP),
-	{ok, OptionValues} = m3ua:getstat_association(ClientEP, Assoc),
+	{ok, OptionValues} = m3ua:getstat(ClientEP, Assoc),
 	F = fun({Option, Value}) when is_atom(Option), is_integer(Value) ->
 				true;
 			(_) ->

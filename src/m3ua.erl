@@ -23,8 +23,7 @@
 %% export the m3ua public API
 -export([start/1, start/3, stop/1]).
 -export([sctp_release/2, sctp_status/2]).
--export([getstat_endpoint/1, getstat_endpoint/2,
-			getstat_association/2, getstat_association/3]).
+-export([getstat/1, getstat/2, getstat/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
 -export([get_ep/0, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
@@ -124,41 +123,39 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 as_delete(RoutingKey) ->
 	m3ua_lm_server:as_delete(RoutingKey).
 
--spec getstat_endpoint(EndPoint) -> Result
+-spec getstat(EndPoint) -> Result
 	when
 		EndPoint :: pid(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
-%% @doc Get socket statistics for an endpoint.
-getstat_endpoint(EndPoint) when is_pid(EndPoint) ->
+%% @doc Get all socket statistics for an endpoint.
+getstat(EndPoint) when is_pid(EndPoint) ->
 	gen_fsm:sync_send_all_state_event(EndPoint, {getstat, undefined}).
 
--spec getstat_endpoint(EndPoint, Options) -> Result
+-spec getstat(EndPoint, AssocOrOptions) -> Result
 	when
 		EndPoint :: pid(),
+		AssocOrOptions :: Assoc | Options,
+		Assoc :: gen_sctp:assoc_id(),
 		Options :: [stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
-%% @doc Get socket statistics for an endpoint.
-getstat_endpoint(EndPoint, Options)
+%% @doc Get socket statistics.
+%%
+%% 	Get socket statistics for an endpoint with `Options'
+%% 	specifying the specific statistics to retrieve or
+%% 	get all socket statistics for the association `Assoc'.
+%%
+getstat(EndPoint, Options)
 		when is_pid(EndPoint), is_list(Options)  ->
-	gen_fsm:sync_send_all_state_event(EndPoint, {getstat, Options}).
-
--spec getstat_association(EndPoint, Assoc) -> Result
-	when
-		EndPoint :: pid(),
-		Assoc :: gen_sctp:assoc_id(),
-		Result :: {ok, OptionValues} | {error, inet:posix()},
-		OptionValues :: [{stat_option(), Count}],
-		Count :: non_neg_integer().
-%% @doc Get socket statistics for an association.
-getstat_association(EndPoint, Assoc)
+	gen_fsm:sync_send_all_state_event(EndPoint, {getstat, Options});
+getstat(EndPoint, Assoc)
 		when is_pid(EndPoint), is_integer(Assoc) ->
 	m3ua_lm_server:getstat(EndPoint, Assoc).
 
--spec getstat_association(EndPoint, Assoc, Options) -> Result
+-spec getstat(EndPoint, Assoc, Options) -> Result
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
@@ -166,8 +163,8 @@ getstat_association(EndPoint, Assoc)
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
-%% @doc Get socket statistics for an association.
-getstat_association(EndPoint, Assoc, Options)
+%% @doc Get specific socket statistics for an association.
+getstat(EndPoint, Assoc, Options)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Options)  ->
 	m3ua_lm_server:getstat(EndPoint, Assoc, Options).
 
