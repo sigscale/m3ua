@@ -36,21 +36,22 @@
 %% @private
 %%
 init([Callback, Opts] = _Args) ->
-	ChildSpec = case lists:keyfind(connect, 1, Opts) of
-		{connect, _, _, _} ->
-			fsm(m3ua_connect_fsm, [self(), Callback, Opts]);
-		false ->
-			fsm(m3ua_listen_fsm, [self(), Callback, Opts])
-	end,
-	ChildSpecs = case lists:keyfind(role, 1, Opts) of
+	ChildSpec2 = case lists:keyfind(role, 1, Opts) of
 		{role, sgp} ->
-			[ChildSpec, supervisor(m3ua_sgp_sup, [])];
+			supervisor(m3ua_sgp_sup, []);
 		{role, asp} ->
-			[ChildSpec, supervisor(m3ua_asp_sup, [])];
+			supervisor(m3ua_asp_sup, []);
 		false ->
-			[ChildSpec, supervisor(m3ua_sgp_sup, [])]
+			supervisor(m3ua_sgp_sup, [])
 	end,
-	{ok, {{one_for_all, 0, 1}, ChildSpecs}}.
+	case lists:keyfind(connect, 1, Opts) of
+		{connect, _, _, _} ->
+			ChildSpec1 = fsm(m3ua_connect_fsm, [self(), Callback, Opts]),
+			{ok, {{one_for_all, 1, 5}, [ChildSpec1, ChildSpec2]}};
+		false ->
+			ChildSpec1 = fsm(m3ua_listen_fsm, [self(), Callback, Opts]),
+			{ok, {{one_for_all, 1, 5}, [ChildSpec1, ChildSpec2]}}
+	end.
 
 %%----------------------------------------------------------------------
 %%  internal functions
