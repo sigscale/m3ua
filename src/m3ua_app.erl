@@ -50,7 +50,7 @@
 %% @see //kernel/application:start/2
 %%
 start(normal = _StartType, _Args) ->
-	Tables = [m3ua_as],
+	Tables = [m3ua_as, m3ua_asp],
 	case mnesia:wait_for_tables(Tables, 60000) of
 		ok ->
 			start1();
