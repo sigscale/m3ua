@@ -214,6 +214,9 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
+handle_info({'EXIT', Fsm, {shutdown, {{EP, _Assoc}, Reason}}},
+		_StateName, #statedata{fsm = Fsm} = StateData) ->
+	{stop, {shutdown, {EP, Reason}}, StateData};
 handle_info({'EXIT', Fsm, Reason},
 		_StateName, #statedata{fsm = Fsm} = StateData) ->
 	{stop, Reason, StateData}.
