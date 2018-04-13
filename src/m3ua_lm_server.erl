@@ -772,7 +772,7 @@ terminate(shutdown, _State) ->
 terminate({shutdown, _}, _State) ->
 	ok;
 terminate(Reason, State) ->
-	error_logger:error_report(["Abnormal process termination",
+	error_logger:error_report(["Shutdown",
 			{module, ?MODULE}, {pid, self()},
 			{reason, Reason}, {state, State}]).
 

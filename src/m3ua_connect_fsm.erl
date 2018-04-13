@@ -232,7 +232,7 @@ terminate(shutdown, _StateName, _StateData) ->
 terminate({shutdown, _}, _StateName, _StateData) ->
 	ok;
 terminate(Reason, _StateName, StateData) ->
-	error_logger:error_report(["Abnormal process termination",
+	error_logger:error_report(["Shutdown",
 			{module, ?MODULE}, {pid, self()},
 			{reason, Reason}, {statedata, StateData}]).
 
