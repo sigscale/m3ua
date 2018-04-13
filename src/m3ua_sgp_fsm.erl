@@ -35,7 +35,7 @@
 %%%    <li><tt>SGP = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>EpName = term()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Assoc = gen_sctp:assoc_id()</tt></li>
 %%%    <li><tt>Result = {ok, State} | {error, Reason} </tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
@@ -168,7 +168,7 @@
 %%%  <ul class="definitions">
 %%%    <li><tt>Asp = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = pos_integer()</tt></li>
+%%%    <li><tt>Assoc = gen_sctp:assoc_id()</tt></li>
 %%%    <li><tt>RC = pos_integer()</tt></li>
 %%%    <li><tt>Status = as_inactive | as_active | as_pending
 %%%         | insufficient_asp_active | alternate_asp_active
@@ -234,7 +234,7 @@
 		SGP :: pid(),
 		EP :: pid(),
 		EpName :: term(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().

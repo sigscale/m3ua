@@ -39,7 +39,7 @@
 		Fsm :: pid(),
 		EP :: pid(),
 		EpName :: term(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().

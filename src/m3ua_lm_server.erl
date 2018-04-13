@@ -39,9 +39,12 @@
 -record(state,
 		{sup :: undefined | pid(),
 		ep_sup_sup :: undefined | pid(),
-		eps = gb_trees:empty() :: gb_trees:tree(),
-		fsms = gb_trees:empty() :: gb_trees:tree(),
-		reqs = gb_trees:empty() :: gb_trees:tree()}).
+		eps = gb_trees:empty() :: gb_trees:tree(EP :: pid(),
+				USAP :: pid()),
+		fsms = gb_trees:empty() :: gb_trees:tree(EP :: pid(),
+				Assoc :: gen_sctp:assoc_ip()),
+		reqs = gb_trees:empty() :: gb_trees:tree(Ref :: reference(),
+				From :: pid())}).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
@@ -114,7 +117,7 @@ as_delete(RoutingKey) ->
 -spec register(EndPoint, Assoc, NA, Keys, Mode, AsName) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		NA :: pos_integer(),
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -134,7 +137,7 @@ register(EndPoint, Assoc, NA, Keys, Mode, AsName) ->
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Release an established SCTP association.
@@ -145,7 +148,7 @@ sctp_release(EndPoint, Assoc) ->
 -spec sctp_status(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Report the status of an SCTP association.
@@ -156,7 +159,7 @@ sctp_status(EndPoint, Assoc) ->
 -spec asp_status(EndPoint, Assoc) -> AspState
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		AspState :: down | inactive | active.
 %% @doc Report the status of local or remote ASP.
 %% @private
@@ -166,7 +169,7 @@ asp_status(EndPoint, Assoc) ->
 -spec asp_up(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP start its operation
@@ -178,7 +181,7 @@ asp_up(EndPoint, Assoc) ->
 -spec asp_down(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP stop its operation
@@ -190,7 +193,7 @@ asp_down(EndPoint, Assoc) ->
 -spec asp_active(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Active message to its peer.
@@ -201,7 +204,7 @@ asp_active(EndPoint, Assoc) ->
 -spec asp_inactive(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Requests that ASP send an ASP Inactive message to its peer.
@@ -212,7 +215,7 @@ asp_inactive(EndPoint, Assoc) ->
 -spec getstat(EndPoint, Assoc) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{stat_option(), Count}],
 		Count :: non_neg_integer().
@@ -224,7 +227,7 @@ getstat(EndPoint, Assoc)
 -spec getstat(EndPoint, Assoc, Options) -> Result
 	when
 		EndPoint :: pid(),
-		Assoc :: pos_integer(),
+		Assoc :: gen_sctp:assoc_id(),
 		Options :: [stat_option()],
 		Result :: {ok, OptionValues} | {error, inet:posix()},
 		OptionValues :: [{stat_option(), Count}],
