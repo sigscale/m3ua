@@ -52,5 +52,5 @@ init([] = _Args) ->
 supervisor(StartMod) ->
 	StartArgs = [StartMod],
 	StartFunc = {supervisor, start_link, StartArgs},
-	{StartMod, StartFunc, temporary, infinity, supervisor, [StartMod]}.
+	{StartMod, StartFunc, permanent, infinity, supervisor, [StartMod]}.
 
