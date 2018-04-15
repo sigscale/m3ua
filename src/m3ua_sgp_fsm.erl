@@ -613,15 +613,13 @@ handle_info({sctp, Socket, _, _,
 			peer_port = PeerPort},
 	{next_state, StateName, NewStateData};
 handle_info({sctp, Socket, _, _,
-		{[], #sctp_paddr_change{addr = {_PeerAddr, _PeerPort},
-		state = addr_unreachable}}}, _StateName,
-		#statedata{socket = Socket} = StateData) ->
-	{stop, addr_unreachable, StateData};
+		{[], #sctp_paddr_change{state = addr_unreachable}}}, _StateName,
+		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
+	{stop, {shutdown, {{EP, Assoc}, addr_unreachable}}, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_shutdown_event{assoc_id = AssocId}}},
-		_StateName, #statedata{socket = Socket, assoc = AssocId,
-		ep = EP} = StateData) ->
-	{stop, {shutdown, {{EP, AssocId}, shutdown}}, StateData};
+		{[], #sctp_shutdown_event{assoc_id = Assoc}}}, _StateName,
+		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
+	{stop, {shutdown, {{EP, Assoc}, shutdown}}, StateData};
 handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		{[], #sctp_send_failed{flags = Flags, error = Error,
 		info = Info, assoc_id = Assoc, data = Data}}},
