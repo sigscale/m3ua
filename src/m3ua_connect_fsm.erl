@@ -50,6 +50,8 @@
 		fsm :: pid(),
 		callback :: {Module :: atom(), State :: term()}}).
 
+-define(RETRY_WAIT, 8000).
+
 %%----------------------------------------------------------------------
 %%  The m3ua_connect_fsm gen_fsm callbacks
 %%----------------------------------------------------------------------
@@ -187,18 +189,30 @@ handle_event(_Event, _StateName, StateData) ->
 %% @see //stdlib/gen_fsm:handle_sync_event/4
 %% @private
 %%
-handle_sync_event(getassoc, _From, StateName,
+handle_sync_event(getassoc, _From, connecting,
 		#statedata{assoc = undefined} = StateData) ->
-	{reply, [], StateName, StateData};
-handle_sync_event(getassoc, _From, StateName,
+	{reply, [], connecting, StateData, ?RETRY_WAIT};
+handle_sync_event(getassoc, _From, connected,
+		#statedata{assoc = undefined} = StateData) ->
+	{reply, [], connected, StateData};
+handle_sync_event(getassoc, _From, connecting,
 		#statedata{assoc = Assoc} = StateData) ->
-	{reply, [Assoc], StateName, StateData};
-handle_sync_event({getstat, undefined}, _From, StateName,
+	{reply, [Assoc], connecting, StateData, ?RETRY_WAIT};
+handle_sync_event(getassoc, _From, connected,
+		#statedata{assoc = Assoc} = StateData) ->
+	{reply, [Assoc], connected, StateData};
+handle_sync_event({getstat, undefined}, _From, connecting,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket), StateName, StateData};
-handle_sync_event({getstat, Options}, _From, StateName,
+	{reply, inet:getstat(Socket), connecting, StateData, ?RETRY_WAIT};
+handle_sync_event({getstat, undefined}, _From, connected,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), StateName, StateData}.
+	{reply, inet:getstat(Socket), connected, StateData};
+handle_sync_event({getstat, Options}, _From, connecting,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket, Options), connecting, StateData, ?RETRY_WAIT};
+handle_sync_event({getstat, Options}, _From, connected,
+		#statedata{socket = Socket} = StateData) ->
+	{reply, inet:getstat(Socket, Options), connected, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
@@ -211,12 +225,19 @@ handle_sync_event({getstat, Options}, _From, StateName,
 %% @private
 %%
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_assoc_change{assoc_id = Assoc} = AssocChange}},
-		connecting, StateData) ->
+		{_AncData, #sctp_assoc_change{state = comm_up,
+		assoc_id = Assoc} = AssocChange}}, connecting,
+		#statedata{socket = Socket} = StateData) ->
 	NewStateData = StateData#statedata{socket = Socket, assoc = Assoc},
 	handle_connect(AssocChange, NewStateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
+		{_AncData, #sctp_assoc_change{state = _Reason}}}, connecting,
+		#statedata{socket = Socket} = StateData) ->
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, connecting, StateData, ?RETRY_WAIT};
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{_AncData, #sctp_paddr_change{}}},
+		StateName, #statedata{socket = Socket} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
 handle_info({'EXIT', Fsm, {shutdown, {{EP, _Assoc}, Reason}}},
