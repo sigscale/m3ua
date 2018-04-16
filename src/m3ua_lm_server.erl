@@ -744,22 +744,22 @@ handle_info({'EXIT', Pid, _Reason},
 			NewState = State#state{eps = gb_trees:delete(Pid, EPs)},
 			{noreply, NewState};
 		false ->
-			Fdel1 = fun Fdel1({Key, Fsm, _Iter}) when Fsm ==  Pid ->
-					Key;
-				    Fdel1({_Key, _Val, Iter}) ->
-					Fdel1(gb_trees:next(Iter));
-				    Fdel1(none) ->
+			Fdel1 = fun F({Key, Fsm, _Iter}) when Fsm ==  Pid ->
+						Key;
+					F({_Key, _Val, Iter}) ->
+						F(gb_trees:next(Iter));
+					F(none) ->
 						none
 			end,
 			Iter1 = gb_trees:iterator(Fsms),
 			case Fdel1(gb_trees:next(Iter1)) of
 				none ->
-					Fdel2 = fun Fdel2({Key, {P, _},  _Iter}) when P ==  Pid ->
-							Key;
-						    Fdel2({_Key, _Val, Iter}) ->
-							Fdel2(gb_trees:next(Iter));
-						    Fdel2(none) ->
-							none
+					Fdel2 = fun F({Key, {P, _},  _Iter}) when P ==  Pid ->
+								Key;
+							F({_Key, _Val, Iter}) ->
+								F(gb_trees:next(Iter));
+							F(none) ->
+								none
 					end,
 					Iter2 = gb_trees:iterator(Reqs),
 					case Fdel2(gb_trees:next(Iter2)) of
@@ -789,9 +789,9 @@ handle_info(timeout, #state{ep_sup_sup = undefined} = State) ->
 %%
 terminate(normal = _Reason, _State) ->
 	ok;
-terminate(shutdown, _State) ->
+terminate(shutdown = _Reason, _State) ->
 	ok;
-terminate({shutdown, _}, _State) ->
+terminate({shutdown, _} = _Reason, _State) ->
 	ok;
 terminate(Reason, State) ->
 	error_logger:error_report(["Shutdown",
