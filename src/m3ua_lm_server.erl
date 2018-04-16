@@ -315,7 +315,7 @@ handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc},
 					{reply, {error, Reason}, State}
 			end;
 		none ->
-			{reply, {error, invalid_assco}, State}
+			{reply, {error, invalid_assoc}, State}
 	end;
 handle_call({'M-SCTP_STATUS', request, EndPoint, Assoc},
 		From, #state{reqs = Reqs, fsms = Fsms} = State) ->
