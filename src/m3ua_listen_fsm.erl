@@ -203,7 +203,7 @@ handle_info({'EXIT', Pid, _Reason}, StateName,
 	end,
 	Iter = gb_trees:iterator(Fsms),
 	Key = Fdel(gb_trees:next(Iter)),
-	NewFsms = gb_trees:delete(Key, Fsms),
+	NewFsms = gb_trees:delete_any(Key, Fsms),
 	NewStateData = StateData#statedata{fsms = NewFsms},
 	{next_state, StateName, NewStateData}.
 
