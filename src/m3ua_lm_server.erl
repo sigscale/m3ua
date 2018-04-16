@@ -767,12 +767,12 @@ handle_info({'EXIT', Pid, _Reason},
 							{noreply, State};
 						Key2 ->
 							NewReqs = gb_trees:delete(Key2, Reqs),
-							NewState = State#state{eps = NewReqs},
+							NewState = State#state{reqs = NewReqs},
 							{noreply, NewState}
 					end;
 				Key ->
 					NewFsms = gb_trees:delete(Key, Fsms),
-					NewState = State#state{eps = NewFsms},
+					NewState = State#state{fsms = NewFsms},
 					{noreply, NewState}
 			end
 	end;
