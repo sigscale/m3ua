@@ -620,12 +620,12 @@ handle_event({'M-RK_REG', {RC, RK}}, StateName,
 	NewRKs = [#{rc => RC, rk => RK} | RKs],
 	NewStateData = StateData#statedata{rks = NewRKs},
 	{next_state, StateName, NewStateData};
-handle_event({'M-SCTP_RELEASE', request, Ref, From},
-		_StateName, #statedata{socket = Socket} = StateData) ->
+handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
+		#statedata{ep = EP, assoc = Assoc, socket = Socket} = StateData) ->
 	gen_server:cast(From,
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	NewStateData = StateData#statedata{socket = undefined},
-	{stop, shutdown, NewStateData};
+	{stop, {shutdown, {{EP, Assoc}, shutdown}}, NewStateData};
 handle_event({'M-SCTP_STATUS', request, Ref, From},
 		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
