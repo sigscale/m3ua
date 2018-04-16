@@ -50,7 +50,7 @@ init([Callback, Opts] = _Args) ->
 			{ok, {{one_for_all, 1, 5}, [ChildSpec1, ChildSpec2]}};
 		false ->
 			ChildSpec1 = fsm(m3ua_listen_fsm, [self(), Callback, Opts]),
-			{ok, {{one_for_all, 1, 5}, [ChildSpec1, ChildSpec2]}}
+			{ok, {{one_for_one, 1, 5}, [ChildSpec1, ChildSpec2]}}
 	end.
 
 %%----------------------------------------------------------------------
@@ -76,5 +76,5 @@ supervisor(StartMod, Args) ->
 fsm(StartMod, Args) ->
 	StartArgs = [StartMod, Args, []],
 	StartFunc = {gen_fsm, start_link, StartArgs},
-	{StartMod, StartFunc, permanent, 4000, worker, [StartMod]}.
+	{StartMod, StartFunc, transient, 4000, worker, [StartMod]}.
 
