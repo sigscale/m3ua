@@ -256,9 +256,9 @@ handle_info({'EXIT', Fsm, Reason},
 %%
 terminate(normal = _Reason, _StateName, _StateData) ->
 	ok;
-terminate(shutdown, _StateName, _StateData) ->
+terminate(shutdown = _Reason, _StateName, _StateData) ->
 	ok;
-terminate({shutdown, _}, _StateName, _StateData) ->
+terminate({shutdown, _} = _Reason, _StateName, _StateData) ->
 	ok;
 terminate(Reason, _StateName, StateData) ->
 	error_logger:error_report(["Shutdown",
