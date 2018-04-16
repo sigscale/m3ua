@@ -741,7 +741,7 @@ handle_info({'EXIT', Pid, _Reason},
 		#state{eps = EPs, fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:is_defined(Pid, EPs) of
 		true ->
-			NewState = #state{eps = gb_trees:delete(Pid, EPs)},
+			NewState = State#state{eps = gb_trees:delete(Pid, EPs)},
 			{noreply, NewState};
 		false ->
 			Fdel1 = fun Fdel1({Key, Fsm, _Iter}) when Fsm ==  Pid ->
