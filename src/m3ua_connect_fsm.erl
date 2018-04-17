@@ -235,16 +235,18 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		#statedata{socket = Socket} = StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, connecting, StateData, ?RETRY_WAIT};
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_paddr_change{}}},
-		StateName, #statedata{socket = Socket} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
+%handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+%		{_AncData, #sctp_paddr_change{}}},
+%		StateName, #statedata{socket = Socket} = StateData) ->
+%	inet:setopts(Socket, [{active, once}]),
+%	{next_state, StateName, StateData};
 handle_info({'EXIT', Fsm, {shutdown, {{EP, _Assoc}, Reason}}},
 		_StateName, #statedata{fsm = Fsm} = StateData) ->
+erlang:display({?MODULE, ?LINE, {'EXIT', Fsm, {shutdown, {{EP, _Assoc}, Reason}}}}),
 	{stop, {shutdown, {EP, Reason}}, StateData};
 handle_info({'EXIT', Fsm, Reason},
 		_StateName, #statedata{fsm = Fsm} = StateData) ->
+erlang:display({?MODULE, ?LINE, {'EXIT', Fsm, Reason}}),
 	{stop, Reason, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),

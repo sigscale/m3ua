@@ -183,10 +183,10 @@ handle_info({sctp, Socket, PeerAddr, PeerPort,
 		{_AncData, #sctp_assoc_change{state = comm_up} = AssocChange}},
 		listening, #statedata{fsm_sup = FsmSup, socket = Socket} = StateData) ->
 	accept(Socket, PeerAddr, PeerPort, AssocChange, FsmSup, StateData);
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
+%handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+%		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
+%	inet:setopts(Socket, [{active, once}]),
+%	{next_state, StateName, StateData};
 handle_info({'EXIT', _Pid, {shutdown, {{_EP, Assoc}, _Reason}}},
 		StateName, #statedata{fsms = Fsms} = StateData) ->
 	NewFsms = gb_trees:delete(Assoc, Fsms),

@@ -532,7 +532,7 @@ handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
 	gen_server:cast(From,
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	NewStateData = StateData#statedata{socket = undefined},
-	{stop, {shutdown, {{EP, Assoc}, shutdown}}, NewStateData};
+	{stop, {shutdown, {{EP, Assoc}, normal}}, NewStateData};
 handle_event({'M-SCTP_STATUS', request, Ref, From},
 		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
@@ -619,7 +619,7 @@ handle_info({sctp, Socket, _, _,
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_shutdown_event{assoc_id = Assoc}}}, _StateName,
 		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
-	{stop, {shutdown, {{EP, Assoc}, shutdown}}, StateData};
+	{stop, {shutdown, {{EP, Assoc}, closed}}, StateData};
 handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		{[], #sctp_send_failed{flags = Flags, error = Error,
 		info = Info, assoc_id = Assoc, data = Data}}},
