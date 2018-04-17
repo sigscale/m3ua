@@ -1,3 +1,7 @@
+2018-04-17  Vance Shipley <vances@sigscale.org>
+
+	* refactored supervision for client connections
+
 2018-03-15  Vance Shipley <vances@sigscale.org>
 
 	* terminate and notify callbacks
