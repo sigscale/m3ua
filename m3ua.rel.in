@@ -3,4 +3,6 @@
 	{stdlib, "@ERLANG_LIB_VER_stdlib@"},
 	{sasl, "@ERLANG_LIB_VER_sasl@"},
 	{mnesia, "@ERLANG_LIB_VER_mnesia@"},
+	{sccp, "@ERLANG_LIB_VER_sccp@"},
+	{gtt, "@ERLANG_LIB_VER_gtt@", load},
 	{@PACKAGE@, "@VERSION@"}]}.
