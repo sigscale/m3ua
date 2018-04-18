@@ -76,5 +76,5 @@ supervisor(StartMod, Args) ->
 fsm(StartMod, Args) ->
 	StartArgs = [StartMod, Args, []],
 	StartFunc = {gen_fsm, start_link, StartArgs},
-	{StartMod, StartFunc, transient, 4000, worker, [StartMod]}.
+	{StartMod, StartFunc, permanent, 4000, worker, [StartMod]}.
 
