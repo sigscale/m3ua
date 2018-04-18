@@ -47,10 +47,10 @@ init([Callback, Opts] = _Args) ->
 	case lists:keyfind(connect, 1, Opts) of
 		{connect, _, _, _} ->
 			ChildSpec1 = fsm(m3ua_connect_fsm, [self(), Callback, Opts]),
-			{ok, {{one_for_all, 1, 5}, [ChildSpec1, ChildSpec2]}};
+			{ok, {{one_for_all, 10, 60}, [ChildSpec1, ChildSpec2]}};
 		false ->
 			ChildSpec1 = fsm(m3ua_listen_fsm, [self(), Callback, Opts]),
-			{ok, {{one_for_one, 1, 5}, [ChildSpec1, ChildSpec2]}}
+			{ok, {{one_for_all, 10, 60}, [ChildSpec1, ChildSpec2]}}
 	end.
 
 %%----------------------------------------------------------------------

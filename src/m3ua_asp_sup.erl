@@ -40,5 +40,5 @@ init([] = _Args) ->
 	StartArgs = [StartMod],
 	StartFunc = {gen_fsm, start_link, StartArgs},
 	ChildSpec = {StartMod, StartFunc, permanent, 4000, worker, [StartMod]},
-	{ok, {{simple_one_for_one, 0, 1}, [ChildSpec]}}.
+	{ok, {{simple_one_for_one, 1, 5}, [ChildSpec]}}.
 
