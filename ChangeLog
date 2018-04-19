@@ -1,6 +1,7 @@
 2018-04-18  Vance Shipley <vances@sigscale.org>
 
 	* refactored supervision for client connections
+	* traffic maintenance callbacks
 
 2018-03-15  Vance Shipley <vances@sigscale.org>
 

@@ -4,7 +4,7 @@
 ##
 ## Boilerplate:  standard boilerplate code
 ##
-AC_INIT([m3ua], [1.1.1], [issues@sigscale.org])
+AC_INIT([m3ua], [1.1.2], [issues@sigscale.org])
 AC_COPYRIGHT([Copyright (c) 2015-2018 SigScale Global Inc.])
 AC_PREREQ(2.63)
 AC_LANG([Erlang])
