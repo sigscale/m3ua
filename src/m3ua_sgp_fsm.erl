@@ -385,9 +385,11 @@ init([Socket, Address, Port,
 %% 	gen_fsm:send_event/2} in the <b>down</b> state.
 %% @private
 %%
-down(timeout, #statedata{ep = EP, assoc = Assoc} = StateData) ->
+down(timeout, #statedata{ep = EP, assoc = Assoc,
+		callback = CbMod, cb_state = CbState} = StateData) ->
 	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', indication, self(), EP, Assoc}),
-	{next_state, down, StateData};
+	{ok, NewCbState} = m3ua_callback:cb(asp_down, CbMod, [CbState]),
+	{next_state, down, StateData#statedata{cb_state = NewCbState}};
 down({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
 		cb_state = UState} = StateData) ->

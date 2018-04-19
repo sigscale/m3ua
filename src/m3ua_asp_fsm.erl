@@ -389,9 +389,11 @@ down(timeout, #statedata{req = {asp_up, Ref, From}} = StateData) ->
 	gen_server:cast(From, {'M-ASP_UP', confirm, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-down(timeout, #statedata{ep = EP, assoc = Assoc} = StateData) ->
+down(timeout, #statedata{ep = EP, assoc = Assoc,
+		callback = CbMod, cb_state = CbState} = StateData) ->
 	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', indication, self(), EP, Assoc}),
-	{next_state, down, StateData};
+	{ok, NewCbState} = m3ua_callback:cb(asp_down, CbMod, [CbState]),
+	{next_state, down, StateData#statedata{cb_state = NewCbState}};
 down({'M-ASP_UP', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->
@@ -843,12 +845,13 @@ handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 		active, _Stream, #statedata{req = {'M-ASP_INACTIVE', request, Ref, From},
-		socket = Socket, callback = CbMod, cb_state = State, ep = EP,
+		socket = Socket, callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_INACTIVE', confirm, Ref,
-			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
+			{ok, CbMod, self(), EP, Assoc, CbState, undefined, undefined}}),
+	{ok, NewCbState} = m3ua_callback:cb(asp_inactive, CbMod, [CbState]),
 	inet:setopts(Socket, [{active, once}]),
-	NewStateData = StateData#statedata{req = undefined},
+	NewStateData = StateData#statedata{req = undefined, cb_state = NewCbState},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
 		active, _Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From},
