@@ -919,7 +919,7 @@ reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 		rc = RC, lrk_id = LRKId}) ->
 	SKeys = m3ua:sort(Keys),
 	RK = {NA, SKeys, Mode},
-	case mnesia:read(m3ua_as, RK,write) of
+	case mnesia:read(m3ua_as, RK, write) of
 		[] when RC == undefined ->
 			RC1 = erlang:phash2(rand:uniform(16#7FFFFFFF), 255),
 			M3UAAsp1 = #m3ua_as_asp{fsm = Sgp, state = inactive},
@@ -942,8 +942,8 @@ reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 							#registration_result{lrk_id = LRKId, status = registered, rc = RC}}],
 					{reg, inactive, RegRes};
 				RegAsps ->
-					case lists:keytake(RC, #m3ua_asp.rc, RegAsps) of
-						{value, #m3ua_asp{rk = ExRK} = ExASP, _} ->
+					case lists:keyfind(RC, #m3ua_asp.rc, RegAsps) of
+						#m3ua_asp{rk = ExRK} = ExASP ->
 							case mnesia:read(m3ua_as, ExRK, write) of
 								[] ->
 									M3UAAsp3 = #m3ua_as_asp{fsm = Sgp, state = inactive},
@@ -976,8 +976,8 @@ reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 					end
 			end;
 		[#m3ua_as{asp = Asps, min_asp = Min, max_asp = Max, state = AsState} = AS] ->
-			case lists:keytake(Sgp, #m3ua_as_asp.fsm, Asps) of
-				{value, #m3ua_as_asp{}, _} ->
+			case lists:keyfind(Sgp, #m3ua_as_asp.fsm, Asps) of
+				#m3ua_as_asp{} ->
 					AlreadyReg = #registration_result{lrk_id = LRKId,
 						status = rk_already_registered, rc = 0},
 					AlreadyRegMsg = [{?RegistrationResult, AlreadyReg}],
