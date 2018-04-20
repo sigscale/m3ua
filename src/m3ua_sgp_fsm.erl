@@ -214,7 +214,7 @@
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		rks = [] :: [#{rc => pos_integer(), rk => routing_key()}],
+		rks = [] :: [{RC :: pos_integer(), RK :: routing_key()}],
 		ual :: undefined | integer(),
 		stream :: undefined | integer(),
 		ep :: pid(),
@@ -526,7 +526,7 @@ handle_event({'M-NOTIFY', NotifyFor, RC}, StateName,
 	end;
 handle_event({'M-RK_REG', {RC, RK}}, StateName,
 		#statedata{rks = RKs} = StateData) ->
-	NewRKs = [#{rc => RC, rk => RK} | RKs],
+	NewRKs = [{RC, RK} | RKs],
 	NewStateData = StateData#statedata{rks = NewRKs},
 	{next_state, StateName, NewStateData};
 handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
@@ -675,7 +675,7 @@ terminate(Reason, StateName, #statedata{socket = Socket,
 %% @hidden
 terminate1(Reason, #statedata{rks = RKs} = StateData) ->
 	Fsm = self(),
-	Fdel = fun F([RK | T]) ->
+	Fdel = fun F([{_RC, RK} | T]) ->
 				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
 				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
 				mnesia:write(AS#m3ua_as{state = active, asp = L2}),
