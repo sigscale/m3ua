@@ -653,13 +653,13 @@ terminate(Reason, _StateName, #statedata{socket = undefined,
 		when CbMod /= undefined,
 		((Reason == normal) orelse (Reason == shutdown)
 		orelse ((element(1, Reason) == shutdown))) ->
-	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]);
+	terminate1(Reason, StateData);
 terminate(Reason, _StateName, #statedata{socket = Socket,
 		callback = CbMod, cb_state = CbState} = _StateData)
 		when ((Reason == normal) orelse (Reason == shutdown)
 		orelse ((element(1, Reason) == shutdown))) ->
 	gen_sctp:close(Socket),
-	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]);
+	terminate1(Reason, StateData);
 terminate(Reason, StateName, #statedata{socket = undefined,
 		callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
@@ -667,7 +667,7 @@ terminate(Reason, StateName, #statedata{socket = undefined,
 			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
 			{association, Assoc}, {reason, Reason},
 			{statename, StateName}, {statedata, StateData}]),
-	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]);
+	terminate1(Reason, StateData);
 terminate(Reason, StateName, #statedata{socket = Socket,
 		callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
@@ -676,6 +676,19 @@ terminate(Reason, StateName, #statedata{socket = Socket,
 			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
 			{association, Assoc}, {reason, Reason},
 			{statename, StateName}, {statedata, StateData}]),
+	terminate1(Reason, StateData).
+%% @hidden
+terminate1(Reason, #statedata{callback = CbMod, cb_state = CbState}) ->
+	Fdel = fun F([RK | T]) ->
+				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
+				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
+				mnesia:write(AS#m3ua_as{state = active, asp = L2}),
+				mnesia:delete(m3ua_asp, Fsm, write),
+				F(T);
+			F([]) ->
+				ok
+	end,
+	mnesia:transaction(Fdel, [RKs]),
 	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]).
 
 -spec code_change(OldVsn :: term() | {down, term()}, StateName :: atom(),
