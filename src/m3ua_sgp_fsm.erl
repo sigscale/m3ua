@@ -648,29 +648,24 @@ handle_info({'EXIT', Socket, Reason}, _StateName,
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
-terminate(Reason, _StateName, #statedata{socket = undefined,
-		callback = CbMod, cb_state = CbState} = _StateData)
-		when CbMod /= undefined,
-		((Reason == normal) orelse (Reason == shutdown)
+terminate(Reason, _StateName, #statedata{socket = undefined} = StateData)
+		when ((Reason == normal) orelse (Reason == shutdown)
 		orelse ((element(1, Reason) == shutdown))) ->
 	terminate1(Reason, StateData);
-terminate(Reason, _StateName, #statedata{socket = Socket,
-		callback = CbMod, cb_state = CbState} = _StateData)
+terminate(Reason, _StateName, #statedata{socket = Socket} = StateData)
 		when ((Reason == normal) orelse (Reason == shutdown)
 		orelse ((element(1, Reason) == shutdown))) ->
 	gen_sctp:close(Socket),
 	terminate1(Reason, StateData);
 terminate(Reason, StateName, #statedata{socket = undefined,
-		callback = CbMod, cb_state = CbState, ep = EP,
-		assoc = Assoc} = StateData) ->
+		ep = EP, assoc = Assoc} = StateData) ->
 	error_logger:error_report(["Shutdown",
 			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
 			{association, Assoc}, {reason, Reason},
 			{statename, StateName}, {statedata, StateData}]),
 	terminate1(Reason, StateData);
 terminate(Reason, StateName, #statedata{socket = Socket,
-		callback = CbMod, cb_state = CbState, ep = EP,
-		assoc = Assoc} = StateData) ->
+		ep = EP, assoc = Assoc} = StateData) ->
 	gen_sctp:close(Socket),
 	error_logger:error_report(["Shutdown",
 			{module, ?MODULE}, {pid, self()}, {endpoint, EP},
@@ -678,7 +673,8 @@ terminate(Reason, StateName, #statedata{socket = Socket,
 			{statename, StateName}, {statedata, StateData}]),
 	terminate1(Reason, StateData).
 %% @hidden
-terminate1(Reason, #statedata{callback = CbMod, cb_state = CbState}) ->
+terminate1(Reason, #statedata{rks = RKs} = StateData) ->
+	Fsm = self(),
 	Fdel = fun F([RK | T]) ->
 				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
 				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
@@ -689,6 +685,11 @@ terminate1(Reason, #statedata{callback = CbMod, cb_state = CbState}) ->
 				ok
 	end,
 	mnesia:transaction(Fdel, [RKs]),
+	terminate2(Reason, StateData).
+%% @hidden
+terminate2(_, #statedata{callback = undefined}) ->
+	ok;
+terminate2(Reason, #statedata{callback = CbMod, cb_state = CbState}) ->
 	m3ua_callback:cb(terminate, CbMod, [Reason, CbState]).
 
 -spec code_change(OldVsn :: term() | {down, term()}, StateName :: atom(),
