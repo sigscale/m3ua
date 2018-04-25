@@ -446,9 +446,11 @@ inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{registration = static, ep = EP,
 		assoc = Assoc, callback = CbMod,
 		cb_state = CbState} = StateData) ->
-	gen_server:cast(From,
-			{'M-RK_REG', confirm, Ref, self(),
-			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
+	% @todo need a better mechanism to generate routing contexts
+	RC = erlang:unique_integer([positive]),
+	RegResult = [#registration_result{status = registered, rc = RC}],
+	gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(),
+			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
 	{next_state, inactive, StateData};
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{req = undefined, socket = Socket,
@@ -534,9 +536,12 @@ active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{registration = static, ep = EP,
 		assoc = Assoc, callback = CbMod,
 		cb_state = CbState} = StateData) ->
+	% @todo need a better mechanism to generate routing contexts
+	RC = erlang:unique_integer([positive]),
+	RegResult = [#registration_result{status = registered, rc = RC}],
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
+			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
 	{next_state, active, StateData};
 active({'M-ASP_INACTIVE', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
@@ -834,15 +839,17 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
-handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP} = Msg,
+handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 		inactive, _Stream, #statedata{socket = Socket,
-		req ={'M-RK_REG', request, Ref, From,
+		req = {'M-RK_REG', request, Ref, From,
 		#m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}},
 		callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
+   Parameters = m3ua_codec:parameters(Params),
+   RegResult = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			Msg, NA, Keys, TMT, AS, EP, Assoc, CbMod, CbState}),
+			RegResult, NA, Keys, TMT, AS, EP, Assoc, CbMod, CbState}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
@@ -956,7 +963,7 @@ generate_lrk_id() ->
 %% @hidden
 inet_getopts(Socket, Options) ->
 	case catch inet:getopts(Socket, Options) of
-		{'EXIT', Reason} -> % fake dialyzer out 
+		{'EXIT', Reason} -> % fake dialyzer out
 			{error, Reason};
 		Result ->
 			Result
