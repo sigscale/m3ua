@@ -489,19 +489,9 @@ handle_cast({_AspOp, confirm, Ref, _ASP, {error, Reason}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({'M-RK_REG', confirm, Ref, Asp, undefined,
+handle_cast({'M-RK_REG', confirm, Ref, Asp, RegResult,
 		NA, Keys, TMT, AS, EP, Assoc, CbMod, CbState}, State) ->
-	% @todo need a better mechanism to generate routing contexts
-	RC = erlang:unique_integer([positive]),
-	gen_fsm:send_all_state_event(Asp, {'M-RK_REG', {RC, {NA, m3ua:sort(Keys), TMT}}}),
-	reg_result([#registration_result{status = registered, rc = RC}],
-			NA, Keys, TMT, AS, Asp, EP, Assoc, CbMod, CbState, Ref, State);
-handle_cast({'M-RK_REG', confirm, Ref, Asp,
-		#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
-		NA, Keys, TMT, AS, EP, Assoc, CbMod, CbState}, State) ->
-	Parameters = m3ua_codec:parameters(Params),
-	RegResults = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
-	reg_result(RegResults, NA, m3ua:sort(Keys), TMT,
+	reg_result(RegResult, NA, m3ua:sort(Keys), TMT,
 			AS, Asp, EP, Assoc, CbMod, CbState, Ref, State);
 handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, _EP, _Assoc,
 		CbState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
@@ -713,11 +703,8 @@ handle_cast({StateMaint, indication, CbMod, Sgp, _EP, _Assoc, CbState}, #state{}
 						StateMaint, {reason, Reason}, {module, ?MODULE}]),
 			{noreply, State}
 	end;
-handle_cast({'M-RK_REG', indication,
-		#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
+handle_cast({'M-RK_REG', indication, RKs,
 		Socket, EP, Assoc, Sgp, CbMod, CbState}, State) ->
-	Parameters = m3ua_codec:parameters(Params),
-	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
 	reg_request(RKs, Sgp, EP, Assoc, Socket, CbMod, CbState, State).
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->

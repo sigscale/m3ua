@@ -393,9 +393,12 @@ down(timeout, #statedata{ep = EP, assoc = Assoc,
 down({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
 		cb_state = UState} = StateData) ->
+	% @todo need a better mechanism to generate routing contexts
+	RC = erlang:unique_integer([positive]),
+	RegResult = [#registration_result{status = registered, rc = RC}],
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
+			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
 	{next_state, down, StateData}.
 
 -spec down(Event :: timeout | term(),
@@ -423,9 +426,12 @@ down({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
 		cb_state = UState} = StateData) ->
+	% @todo need a better mechanism to generate routing contexts
+	RC = erlang:unique_integer([positive]),
+	RegResult = [#registration_result{status = registered, rc = RC}],
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
+			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
 	{next_state, inactive, StateData}.
 
 -spec inactive(Event :: timeout | term(),
@@ -453,9 +459,12 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
 		cb_state = UState} = StateData) ->
+	% @todo need a better mechanism to generate routing contexts
+	RC = erlang:unique_integer([positive]),
+	RegResult = [#registration_result{status = registered, rc = RC}],
 	gen_server:cast(From,
 			{'M-RK_REG', confirm, Ref, self(),
-			undefined, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
+			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
 	{next_state, active, StateData}.
 
 -spec active(Event :: timeout | term(),
@@ -753,11 +762,13 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
+handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, ep = EP,
 		assoc = Assoc, callback = CbMod, cb_state = State} = StateData) ->
+	Parameters = m3ua_codec:parameters(Params),
+	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
 	gen_server:cast(m3ua, {'M-RK_REG', indication,
-			Msg, Socket, EP, Assoc, self(), CbMod, State}),
+			RKs, Socket, EP, Assoc, self(), CbMod, State}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
