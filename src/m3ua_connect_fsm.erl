@@ -249,16 +249,8 @@ handle_info({'EXIT', Fsm, Reason},
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
-terminate(normal = _Reason, _StateName, _StateData) ->
-	ok;
-terminate(shutdown = _Reason, _StateName, _StateData) ->
-	ok;
-terminate({shutdown, _} = _Reason, _StateName, _StateData) ->
-	ok;
-terminate(Reason, _StateName, StateData) ->
-	error_logger:error_report(["Shutdown",
-			{module, ?MODULE}, {pid, self()},
-			{reason, Reason}, {statedata, StateData}]).
+terminate(_Reason, _StateName, #statedata{socket = Socket}) ->
+	gen_sctp:close(Socket).
 
 -spec code_change(OldVsn :: term() | {down, term()}, StateName :: atom(),
 		StateData :: term(), Extra :: term()) ->
