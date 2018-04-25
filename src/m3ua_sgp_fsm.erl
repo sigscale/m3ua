@@ -756,8 +756,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ} = Msg,
 		inactive, _Stream, #statedata{socket = Socket, ep = EP,
 		assoc = Assoc, callback = CbMod, cb_state = State} = StateData) ->
-	gen_server:cast(m3ua,
-			{'M-RK_REG', Msg, Socket, EP, Assoc, self(), CbMod, State}),
+	gen_server:cast(m3ua, {'M-RK_REG', indication,
+			Msg, Socket, EP, Assoc, self(), CbMod, State}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},

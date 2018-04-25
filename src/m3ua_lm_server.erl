@@ -713,7 +713,8 @@ handle_cast({StateMaint, indication, CbMod, Sgp, _EP, _Assoc, CbState}, #state{}
 						StateMaint, {reason, Reason}, {module, ?MODULE}]),
 			{noreply, State}
 	end;
-handle_cast({'M-RK_REG', #m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
+handle_cast({'M-RK_REG', indication,
+		#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 		Socket, EP, Assoc, Sgp, CbMod, CbState}, State) ->
 	Parameters = m3ua_codec:parameters(Params),
 	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
