@@ -56,7 +56,8 @@ start(normal = _StartType, _Args) ->
 			start1();
 		{timeout, _} ->
 			error_logger:error_report(["m3ua application failed to start",
-						{reason, timeout}, {module, ?MODULE}]);
+						{reason, timeout}, {module, ?MODULE}]),
+			{error, timeout};
 		{error, Reason} ->
 			{error, Reason}
 	end.
