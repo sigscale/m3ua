@@ -596,10 +596,9 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		assoc = Assoc} = StateData) when is_binary(Data) ->
 	handle_sgp(Data, StateName, Stream, StateData);
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}},
-		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
+		{[], #sctp_assoc_change{state = comm_lost, assoc_id = Assoc}}}, _,
+		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
+	{stop, {shutdown, {{EP, Assoc}, comm_lost}}, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = Assoc}}},
 		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
