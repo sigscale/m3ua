@@ -94,29 +94,36 @@ init([Sup, Callback, Opts] = _Args) ->
 	end,
 	case lists:keytake(connect, 1, Opts4) of
 		{value, {connect, Raddr, Rport, Ropts}, O5} ->
-			Options = [{active, once},
+			Options = [{active, once}, {reuseaddr, true},
 					{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
 					{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
 					{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
 					| O5],
-			case gen_sctp:open(Options) of
-				{ok, Socket} ->
-					case inet:sockname(Socket) of
-						{ok, {_, Port}} ->
-							process_flag(trap_exit, true),
-							StateData = #statedata{sup = Sup, socket = Socket,
-									role = Role, registration = Registration,
-									use_rc = UseRC, options = Options, name = Name,
-									callback = Callback, remote_addr = Raddr,
-									remote_port = Rport, remote_opts = Ropts,
-									local_port = Port},
-							{ok, connecting, StateData, 0};
-						{error, Reason} ->
-							gen_sctp:close(Socket),
-							{stop, Reason}
-					end;
-				{error, Reason} ->
-					{stop, Reason}
+			try
+				case gen_sctp:open(Options) of
+					{ok, Socket} ->
+						case inet:sockname(Socket) of
+							{ok, {_, Port}} ->
+								process_flag(trap_exit, true),
+								StateData = #statedata{sup = Sup, socket = Socket,
+										role = Role, registration = Registration,
+										use_rc = UseRC, options = Options, name = Name,
+										callback = Callback, remote_addr = Raddr,
+										remote_port = Rport, remote_opts = Ropts,
+										local_port = Port},
+								{ok, connecting, StateData, 0};
+							{error, Reason} ->
+								gen_sctp:close(Socket),
+								throw(Reason)
+						end;
+					{error, Reason} ->
+						throw(Reason)
+				end
+			catch
+				Reason1 ->
+					error_logger:error_report(["Failed to open socket",
+							{module, ?MODULE}, {error, Reason1}, {options, Options}]),
+				{stop, Reason1}
 			end;
 		false ->
 			{stop, badarg}

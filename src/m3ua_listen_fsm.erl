@@ -87,34 +87,41 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{true, Opts3}
 	end,
-	Options = [{active, once},
+	Options = [{active, once}, {reuseaddr, true},
 			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
 			{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
 			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
 			| Opts4],
-	case gen_sctp:open(Options) of
-		{ok, Socket} ->
-			StateData = #statedata{sup = Sup, socket = Socket,
-					role = Role, registration = Registration,
-					use_rc = UseRC, options = Options,
-					name = Name, callback = Callback},
-			case gen_sctp:listen(Socket, true) of
-				ok ->
-					case inet:sockname(Socket) of
-						{ok, {_, Port}} ->
-							process_flag(trap_exit, true),
-							NewStateData = StateData#statedata{port = Port},
-							{ok, listening, NewStateData, 0};
-						{error, Reason} ->
-							gen_sctp:close(Socket),
-							{stop, Reason}
-					end;
-				{error, Reason} ->
-					gen_sctp:close(Socket),
-					{stop, Reason}
-			end;
-		{error, Reason} ->
-			{stop, Reason}
+	try
+		case gen_sctp:open(Options) of
+			{ok, Socket} ->
+				StateData = #statedata{sup = Sup, socket = Socket,
+						role = Role, registration = Registration,
+						use_rc = UseRC, options = Options,
+						name = Name, callback = Callback},
+				case gen_sctp:listen(Socket, true) of
+					ok ->
+						case inet:sockname(Socket) of
+							{ok, {_, Port}} ->
+								process_flag(trap_exit, true),
+								NewStateData = StateData#statedata{port = Port},
+								{ok, listening, NewStateData, 0};
+							{error, Reason} ->
+								gen_sctp:close(Socket),
+								throw(Reason)
+						end;
+					{error, Reason} ->
+						gen_sctp:close(Socket),
+						throw(Reason)
+				end;
+			{error, Reason} ->
+				throw(Reason)
+		end
+	catch
+		Reason1 ->
+			error_logger:error_report(["Failed to open socket",
+					{module, ?MODULE}, {error, Reason1}, {options, Options}]),
+			{stop, Reason1}
 	end.
 
 -spec listening(Event :: timeout | term(), StateData :: #statedata{}) ->
