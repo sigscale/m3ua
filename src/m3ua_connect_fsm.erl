@@ -51,6 +51,7 @@
 		callback :: {Module :: atom(), State :: term()}}).
 
 -define(RETRY_WAIT, 8000).
+-define(ERROR_WAIT, 60000).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_connect_fsm gen_fsm callbacks
@@ -99,32 +100,13 @@ init([Sup, Callback, Opts] = _Args) ->
 					{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
 					{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
 					| O5],
-			try
-				case gen_sctp:open(Options) of
-					{ok, Socket} ->
-						case inet:sockname(Socket) of
-							{ok, {_, Port}} ->
-								process_flag(trap_exit, true),
-								StateData = #statedata{sup = Sup, socket = Socket,
-										role = Role, registration = Registration,
-										use_rc = UseRC, options = Options, name = Name,
-										callback = Callback, remote_addr = Raddr,
-										remote_port = Rport, remote_opts = Ropts,
-										local_port = Port},
-								{ok, connecting, StateData, 0};
-							{error, Reason} ->
-								gen_sctp:close(Socket),
-								throw(Reason)
-						end;
-					{error, Reason} ->
-						throw(Reason)
-				end
-			catch
-				Reason1 ->
-					error_logger:error_report(["Failed to open socket",
-							{module, ?MODULE}, {error, Reason1}, {options, Options}]),
-				{stop, Reason1}
-			end;
+			process_flag(trap_exit, true),
+			StateData = #statedata{sup = Sup,
+					role = Role, registration = Registration,
+					use_rc = UseRC, options = Options, name = Name,
+					callback = Callback, remote_addr = Raddr,
+					remote_port = Rport, remote_opts = Ropts},
+			{ok, connecting, StateData, 0};
 		false ->
 			{stop, badarg}
 	end.
@@ -140,19 +122,45 @@ init([Sup, Callback, Opts] = _Args) ->
 %%
 connecting(timeout, #statedata{fsm_sup = undefined} = StateData) ->
    connecting(timeout, get_sup(StateData));
-connecting(timeout, #statedata{socket = Socket,
+connecting(timeout, #statedata{options = LocalOptions,
 		remote_addr = Address, remote_port = Port,
-		remote_opts = Options} = StateData) ->
-	case gen_sctp:connect_init(Socket, Address, Port, Options) of
-		ok ->
-			{next_state, connecting, StateData};
-		{error, Reason} ->
-			{stop, Reason, StateData}
+		remote_opts = ConnectOptions, name = Name} = StateData) ->
+	case gen_sctp:open(LocalOptions) of
+		{ok, Socket} ->
+			case inet:sockname(Socket) of
+				{ok, {_Address, ActualPort}} ->
+					case gen_sctp:connect_init(Socket,
+							Address, Port, ConnectOptions) of
+							ok ->
+								NewStateData = StateData#statedata{socket = Socket,
+										local_port = ActualPort},
+								{next_state, connecting, NewStateData};
+							{error, ReasonConnect} ->
+								error_logger:error_report(["Connect failed",
+										{error, ReasonConnect}, {name, Name},
+										{address, Address}, {port, Port},
+										{options, ConnectOptions}]),
+								gen_sctp:close(Socket),
+								NewStateData = StateData#statedata{socket = undefined,
+										local_port = undefined},
+								{next_state, connecting, NewStateData, ?ERROR_WAIT}
+					end;
+				{error, ReasonPort} ->
+					error_logger:error_report(["Failed to get port number",
+							{module, ?MODULE}, {error, ReasonPort},
+							{state, StateData}]),
+					gen_sctp:close(Socket),
+					{stop, ReasonPort}
+			end;
+		{error, ReasonOpen} ->
+			error_logger:error_report(["Failed to open socket",
+					{module, ?MODULE}, {error, ReasonOpen},
+					{options, LocalOptions}, {state, StateData}]),
+			{stop, ReasonOpen}
 	end;
 connecting({'M-SCTP_RELEASE', request, Ref, From},
 		#statedata{socket = Socket} = StateData) ->
-	gen_server:cast(From,
-			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
+	gen_server:cast(From, {'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	{stop, {shutdown, {self(), release}}, StateData}.
 
 -spec connected(Event :: timeout | term(), StateData :: #statedata{}) ->
@@ -256,6 +264,8 @@ handle_info({'EXIT', Fsm, Reason},
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
+terminate(_Reason, _StateName, #statedata{socket = undefined}) ->
+	ok;
 terminate(_Reason, _StateName, #statedata{socket = Socket} = StateData) ->
 	case gen_sctp:close(Socket) of
 		ok ->
