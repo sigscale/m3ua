@@ -659,7 +659,14 @@ handle_info({'EXIT', Socket, Reason}, _StateName,
 terminate(Reason, StateName, #statedata{socket = undefined} = StateData) ->
 	terminate1(Reason, StateName, StateData);
 terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
-	gen_sctp:close(Socket),
+	case gen_sctp:close(Socket) of
+		ok ->
+			ok;
+		{error, Reason1} ->
+			error_logger:error_report(["Failed to close socket",
+					{module, ?MODULE}, {socket, Socket},
+					{error, Reason1}, {state, StateData}])
+	end,
 	terminate1(Reason, StateName, StateData).
 %% @hidden
 terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData)

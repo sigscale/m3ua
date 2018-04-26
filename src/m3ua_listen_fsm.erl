@@ -221,8 +221,15 @@ handle_info({'EXIT', Pid, _Reason}, StateName,
 %% @see //stdlib/gen_fsm:terminate/3
 %% @private
 %%
-terminate(_Reason, _StateName, #statedata{socket = Socket}) ->
-	gen_sctp:close(Socket).
+terminate(_Reason, _StateName, #statedata{socket = Socket} = StateData) ->
+	case gen_sctp:close(Socket) of
+		ok ->
+			ok;
+		{error, Reason1} ->
+			error_logger:error_report(["Failed to close socket",
+					{module, ?MODULE}, {socket, Socket},
+					{error, Reason1}, {state, StateData}])
+	end.
 
 -spec code_change(OldVsn :: term() | {down, term()}, StateName :: atom(),
 		StateData :: term(), Extra :: term()) ->
