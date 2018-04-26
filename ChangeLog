@@ -1,3 +1,9 @@
+2018-04-26  Vance Shipley <vances@sigscale.org>
+
+	* handle connect errors within state machine
+	* log socket errors; reuseaddr flag
+	* leave exception logging for sasl
+
 2018-04-25  Vance Shipley <vances@sigscale.org>
 
 	* move registration decoding to asp/sgp
