@@ -861,9 +861,8 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_INACTIVE', confirm, Ref,
 			{ok, CbMod, self(), EP, Assoc, CbState, undefined, undefined}}),
-	{ok, NewCbState} = m3ua_callback:cb(asp_inactive, CbMod, [CbState]),
 	inet:setopts(Socket, [{active, once}]),
-	NewStateData = StateData#statedata{req = undefined, cb_state = NewCbState},
+	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
 		active, _Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From},
