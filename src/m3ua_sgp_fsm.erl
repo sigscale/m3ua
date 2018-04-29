@@ -767,8 +767,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		callback = CbMod, cb_state = State} = StateData) ->
 	AspActive = m3ua_codec:parameters(Params),
 	RCs = proplists:get_value(?RoutingContext, AspActive),
-	Message = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
-	Packet = m3ua_codec:m3ua(Message),
+	AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
+	Packet = m3ua_codec:m3ua(AspActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			gen_server:cast(m3ua, {'M-ASP_ACTIVE',
@@ -785,8 +785,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod,
 		cb_state = State, ep = EP} = StateData) when StateName == inactive;
 		StateName == active ->
-	AspActiveAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
-	Packet = m3ua_codec:m3ua(AspActiveAck),
+	AspDownAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
+	Packet = m3ua_codec:m3ua(AspDownAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			gen_server:cast(m3ua, {'M-ASP_DOWN',
@@ -804,8 +804,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		callback = CbMod, cb_state = State} = StateData) ->
 	AspInActive = m3ua_codec:parameters(Params),
 	RCs = proplists:get_value(?RoutingContext, AspInActive),
-	Message = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
-	Packet = m3ua_codec:m3ua(Message),
+	AspInActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
+	Packet = m3ua_codec:m3ua(AspInActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			gen_server:cast(m3ua, {'M-ASP_INACTIVE',
