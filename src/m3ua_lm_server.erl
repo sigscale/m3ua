@@ -497,9 +497,9 @@ handle_cast({'M-ASP_UP' = AspOp, confirm, Ref, {ok, CbMod, Asp, _EP, _Assoc,
 		CbState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			gen_server:reply(From, ok),
 			{ok, NewCbState} = m3ua_callback:cb(cb_func(AspOp), CbMod, [CbState]),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewCbState}),
+			gen_server:reply(From, ok),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
@@ -543,9 +543,9 @@ handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 	end,
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			gen_server:reply(From, Result),
 			{ok, NewCbState} = m3ua_callback:cb(cb_func(AspOp), CbMod, [CbState]),
 			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewCbState}),
+			gen_server:reply(From, Result),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
@@ -587,14 +587,13 @@ handle_cast({AspOp, confirm, Ref, {ok, CbMod, Asp, _EP, _Assoc, CbState, _Identi
 		{aborted, Reason} ->
 			{error, Reason}
 	end,
+	{ok, NewCbState} = m3ua_callback:cb(cb_func(AspOp), CbMod, [CbState]),
+	ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewCbState}),
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, Result),
-			{ok, NewCbState} = m3ua_callback:cb(cb_func(AspOp), CbMod, [CbState]),
-			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewCbState}),
 			NewReqs = gb_trees:delete(Ref, Reqs),
-			NewState = State#state{reqs = NewReqs},
-			{noreply, NewState};
+			{noreply, State#state{reqs = NewReqs}};
 		none ->
 			{noreply, State}
 	end;
@@ -1027,12 +1026,12 @@ reg_result([#registration_result{status = registered, rc = RC}],
 	end,
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
+			CbArgs = [NA, Keys, TMT, CbState],
+			{ok, NewCbState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
+			ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewCbState}),
 			gen_server:reply(From, Result),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
-			CbArgs =	[NA, Keys, TMT, CbState],
-			{ok, NewCbState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
-			ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewCbState}),
 			{noreply, NewState};
 		none ->
 			{noreply, State}
