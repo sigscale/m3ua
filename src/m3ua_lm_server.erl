@@ -511,7 +511,7 @@ handle_cast({'M-SCTP_ESTABLISH', indication, Fsm, EP, Assoc},
 	NewFsms = gb_trees:insert({EP, Assoc}, Fsm, Fsms),
 	link(Fsm),
 	{noreply, State#state{fsms = NewFsms}};
-handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
+handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, _EP, _Assoc,
 		CbState, _Identifier, _Info}}, #state{reqs = Reqs} = State) ->
 	F = fun() ->
 		case mnesia:read(m3ua_asp, Asp, write) of
