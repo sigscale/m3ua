@@ -824,13 +824,20 @@ handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
 		inactive, _Stream, #statedata{req = {'M-ASP_ACTIVE', request, Ref, From},
-		socket = Socket, callback = CbMod, cb_state = State, ep = EP,
+		socket = Socket, callback = CbMod, cb_state = CbState, ep = EP,
 		assoc = Assoc} = StateData) ->
 	gen_server:cast(From, {'M-ASP_ACTIVE', confirm, Ref,
-			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
+			{ok, CbMod, self(), EP, Assoc, CbState, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, active, NewStateData};
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
+		inactive, _Stream, #statedata{socket = Socket, callback = CbMod,
+		cb_state = CbState, ep = EP, assoc = Assoc} = StateData) ->
+	gen_server:cast(m3ua, {'M-ASP_ACTIVE', confirm, undefined,
+			{ok, CbMod, self(), EP, Assoc, CbState, undefined, undefined}}),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, active, StateData};
 handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 		inactive, _Stream, #statedata{socket = Socket,
 		req = {'M-RK_REG', request, Ref, From,
@@ -864,6 +871,13 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
+handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
+		active, _Stream, #statedata{socket = Socket, callback = CbMod,
+		cb_state = CbState, ep = EP, assoc = Assoc} = StateData) ->
+	gen_server:cast(m3ua, {'M-ASP_INACTIVE', confirm, undefined,
+			{ok, CbMod, self(), EP, Assoc, CbState, undefined, undefined}}),
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, inactive, StateData};
 handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPSMASPDNACK},
 		active, _Stream, #statedata{req = {'M-ASP_DOWN', request, Ref, From},
 		socket = Socket, callback = CbMod, cb_state = CbState, ep = EP,
