@@ -825,7 +825,7 @@ handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 		down, _Stream, #statedata{socket = Socket, callback = CbMod,
 		cb_state = State, ep = EP, assoc = Assoc} = StateData) ->
-	gen_server:cast(m3ua`, {'M-ASP_UP', confirm, undefined,
+	gen_server:cast(m3ua, {'M-ASP_UP', confirm, undefined,
 			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
@@ -840,7 +840,7 @@ handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
 handle_asp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
-		StateName, _Stream, #statedata{socket = Socket, callback = CbMod,
+		_StateName, _Stream, #statedata{socket = Socket, callback = CbMod,
 		cb_state = State, ep = EP, assoc = Assoc} = StateData) ->
 	gen_server:cast(m3ua, {'M-ASP_DOWN', confirm, undefined,
 			{ok, CbMod, self(), EP, Assoc, State, undefined, undefined}}),
