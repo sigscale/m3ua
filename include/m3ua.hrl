@@ -92,8 +92,8 @@
 -define(DeregistrationStatus,       531).
 
 -type tmt() :: override | loadshare | broadcast.
--type key() :: {DPC :: pos_integer(), [SI :: pos_integer()], [OPC :: pos_integer()]}.
--type routing_key() :: {NA :: pos_integer(), Keys :: [key()], TMT :: tmt()}.
+-type key() :: {DPC :: 0..4294967295, [SI :: byte()], [OPC :: 0..4294967295]}.
+-type routing_key() :: {NA :: 0..4294967295, Keys :: [key()], TMT :: tmt()}.
 
 %% M3UA Common Header -- RFC4666, Section-1.3.1
 -record(m3ua,
@@ -103,32 +103,32 @@
 		params = <<>> :: binary() | [tuple()]}).
 
 -record(protocol_data,
-		{opc :: integer(),
-		dpc :: integer(),
-		si :: integer(),
-		ni :: undefined | integer(),
-		mp :: undefined | integer(),
-		sls :: integer(),
+		{opc :: 0..4294967295,
+		dpc :: 0..4294967295,
+		si = 0 :: byte(),
+		ni = 0 :: byte(),
+		mp = 0 :: byte(),
+		sls = 0 :: byte(),
 		data :: binary()}).
 
 -record(m3ua_routing_key,
-		{rc :: undefined | pos_integer(),
-		na :: undefined | pos_integer(),
+		{rc :: undefined | 0..4294967295,
+		na :: undefined | 0..4294967295,
 		tmt :: undefined | tmt(),
 		status :: undefined | atom(),
 		as :: undefined | term(),
-		lrk_id :: undefined | pos_integer(),
+		lrk_id :: undefined | 0..4294967295,
 		key :: undefined | [key()]}).
 
 -record(registration_result,
-		{lrk_id :: undefined | pos_integer(),
+		{lrk_id :: undefined |0..4294967295,
 		status :: undefined | atom(),
-		rc :: undefined | integer()}).
+		rc :: undefined | 0..4294967295}).
 
 -record(m3ua_as_asp,
 		{id :: undefined | pos_integer(),
 		fsm :: pid(),
-		rc :: undefined | integer(),
+		rc :: undefined | 0..4294967295,
 		state :: down | inactive | active,
 		info :: undefined | string()}).
 
@@ -142,7 +142,7 @@
 
 -record(m3ua_asp,
 		{fsm :: pid(),
-		rc :: undefined | integer(),
+		rc :: undefined | 0..4294967295,
 		rk :: routing_key()}).
 
 -record(m3ua_fsm_cb,

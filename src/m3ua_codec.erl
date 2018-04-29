@@ -527,10 +527,6 @@ error_code(no_configure_as_for_asp) -> <<26:32>>.
 protocol_data(<<OPC:32, DPC:32, SI, NI, MP, SLS, UPD/binary>>) ->
 	#protocol_data{opc = OPC, dpc = DPC,
 			si = SI, ni = NI, mp = MP, sls = SLS, data = UPD};
-protocol_data(#protocol_data{ni = undefined} = PD) ->
-	protocol_data(PD#protocol_data{ni = 0});
-protocol_data(#protocol_data{mp = undefined} = PD) ->
-	protocol_data(PD#protocol_data{mp = 0});
 protocol_data(#protocol_data{opc = OPC, dpc = DPC,
 		si = SI, ni = NI, mp = MP, sls = SLS, data = UPD})
 		when is_integer(OPC), is_integer(DPC), is_integer(SI),
