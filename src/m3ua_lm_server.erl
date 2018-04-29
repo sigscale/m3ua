@@ -541,14 +541,13 @@ handle_cast({'M-ASP_DOWN' = AspOp, confirm, Ref, {ok, CbMod, Asp, EP, Assoc,
 		{aborted, Reason} ->
 			{error, Reason}
 	end,
+	{ok, NewCbState} = m3ua_callback:cb(cb_func(AspOp), CbMod, [CbState]),
+	ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewCbState}),
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			{ok, NewCbState} = m3ua_callback:cb(cb_func(AspOp), CbMod, [CbState]),
-			ok = gen_fsm:send_all_state_event(Asp, {AspOp, NewCbState}),
 			gen_server:reply(From, Result),
 			NewReqs = gb_trees:delete(Ref, Reqs),
-			NewState = State#state{reqs = NewReqs},
-			{noreply, NewState};
+			{noreply, State#state{reqs = NewReqs}};
 		none ->
 			{noreply, State}
 	end;
