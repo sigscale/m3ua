@@ -21,7 +21,7 @@
 
 -include("m3ua.hrl").
 
--export([init/5, transfer/8, pause/4, resume/4, status/4,
+-export([init/5, transfer/9, pause/4, resume/4, status/4,
 		register/4, terminate/2]).
 -export([asp_up/1, asp_down/1, asp_active/1, asp_inactive/1, notify/4]).
 
@@ -35,8 +35,8 @@
 init(_Module, _Asp, _EP, _EpName, _Assoc) ->
 	{ok, []}.
 
-transfer(Stream, _RK, OPC, DPC, SLS, SIO, Data, State) ->
-	Args = [Stream, DPC, OPC, SLS, SIO, Data],
+transfer(Stream, _RK, OPC, DPC, NI, SI, SLS, Data, State) ->
+	Args = [Stream, DPC, OPC, NI, SI, SLS, Data],
 	proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
 	{ok, State}.
 

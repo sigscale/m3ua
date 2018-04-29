@@ -43,17 +43,18 @@
 %%%  </div><p>Initialize SGP callback handler.</p>
 %%%  <p>Called when SGP is started.</p>
 %%%
-%%%  <h3 class="function"><a name="transfer-8">transfer/8</a></h3>
+%%%  <h3 class="function"><a name="transfer-9">transfer/9</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Stream, RC, OPC, DPC, SLS, SIO,
+%%%  <p><tt>transfer(Stream, RC, OPC, DPC, NI, SI, SLS,
 %%%         Data, State) -&gt; Result</tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
-%%%    <li><tt>OPC = pos_integer() </tt></li>
-%%%    <li><tt>DPC = pos_integer() </tt></li>
-%%%    <li><tt>SLS = non_neg_integer() </tt></li>
-%%%    <li><tt>SIO = non_neg_integer() </tt></li>
+%%%    <li><tt>RC = 0..4294967295 | undefined </tt></li>
+%%%    <li><tt>OPC = 0..4294967295 </tt></li>
+%%%    <li><tt>DPC = 0..4294967295 </tt></li>
+%%%    <li><tt>NI = byte() </tt></li>
+%%%    <li><tt>SI = byte() </tt></li>
+%%%    <li><tt>SLS = byte() </tt></li>
 %%%    <li><tt>Data = binary() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
@@ -195,7 +196,7 @@
 -behaviour(gen_fsm).
 
 %% export the m3ua_sgp_fsm public API
--export([transfer/7]).
+-export([transfer/8]).
 
 %% export the callbacks needed for gen_fsm behaviour
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3,
@@ -238,14 +239,15 @@
 		Result :: {ok, State} | {error, Reason},
 		State :: term(),
 		Reason :: term().
--callback transfer(Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
+-callback transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
 		Stream :: pos_integer(),
-		RC :: pos_integer() | undefined,
-		OPC :: pos_integer(),
-		DPC :: pos_integer(),
-		SLS :: non_neg_integer(),
-		SIO :: non_neg_integer(),
+		RC :: 0..4294967295 | undefined,
+		OPC :: 0..4294967295,
+		DPC :: 0..4294967295,
+		NI :: byte(),
+		SI :: byte(),
+		SLS :: byte(),
 		Data :: binary(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -324,25 +326,26 @@
 %%  The m3ua_sgp_fsm public API
 %%----------------------------------------------------------------------
 
--spec transfer(SGP, Stream, OPC, DPC, SLS, SIO, Data) -> Result
+-spec transfer(SGP, Stream, OPC, DPC, NI, SI, SLS, Data) -> Result
 	when
 		SGP :: pid(),
 		Stream :: pos_integer(),
-		OPC :: pos_integer(),
-		DPC :: pos_integer(),
-		SLS :: non_neg_integer(),
-		SIO :: non_neg_integer(),
+		OPC :: 0..4294967295,
+		DPC :: 0..4294967295,
+		NI :: byte(),
+		SI :: byte(),
+		SLS :: byte(),
 		Data :: binary(),
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc MTP-TRANSFER request.
 %%
 %% Called by an MTP user to transfer data using the MTP service.
-transfer(SGP, Stream, OPC, DPC, SLS, SIO, Data)
+transfer(SGP, Stream, OPC, DPC, NI, SI, SLS, Data)
 		when is_pid(SGP), is_integer(Stream), Stream =/= 0,
-		is_integer(OPC), is_integer(DPC), is_integer(SLS),
-		is_integer(SIO), is_binary(Data) ->
-	Params = {Stream, OPC, DPC, SLS, SIO, Data},
+		is_integer(OPC), is_integer(DPC), is_integer(NI),
+		is_integer(SI), is_integer(SLS), is_binary(Data) ->
+	Params = {Stream, OPC, DPC, NI, SI, SLS, Data},
 	gen_fsm:sync_send_event(SGP, {'MTP-TRANSFER', request, Params}).
 
 %%----------------------------------------------------------------------
@@ -477,10 +480,10 @@ active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
 %% @private
 %%
-active({'MTP-TRANSFER', request, {Stream, OPC, DPC, SLS, SIO, Data}}, _From,
+active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}}, _From,
 		#statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
-			si = SIO, sls = SLS, data = Data},
+			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
 	TransferMsg = #m3ua{class = ?TransferMessage,
 			type = ?TransferMessageData, params = P0},
@@ -825,9 +828,9 @@ handle_sgp(#m3ua{class = ?TransferMessage,
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
-	#protocol_data{opc = OPC, dpc = DPC, si = SIO, sls = SLS,
+	#protocol_data{opc = OPC, dpc = DPC, ni = NI, si = SI, sls = SLS,
 			data = Data} = m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
-	CbArgs = [Stream, RC, OPC, DPC, SLS, SIO, Data, CbState],
+	CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(transfer, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),

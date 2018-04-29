@@ -21,7 +21,7 @@
 
 -include("m3ua.hrl").
 
--export([init/5, transfer/8, pause/4, resume/4, status/4,
+-export([init/5, transfer/9, pause/4, resume/4, status/4,
 		register/4, terminate/2]).
 -export([asp_up/1, asp_down/1, asp_active/1, asp_inactive/1, notify/4]).
 
@@ -36,7 +36,7 @@
 init(_Module, _Asp, _EP, _EpName, _Assoc) ->
 	{ok, []}.
 
-transfer(_Stream, _RK, _OPC, _DPC, _SLS, _SIO, _Data, State) ->
+transfer(_Stream, _RK, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
 	{ok, State}.
 
 pause(_Stream, _RK, _DPCs, State) ->
