@@ -124,8 +124,8 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>Called when Registration Response message with a
-%%%   registration status of successful from its peer</p>
+%%%  </div><p>Called when Registration response from peer is success,
+%%% 	or local static registration is complete.</p>
 %%%
 %%%  <h3 class="function"><a name="asp_up-1">asp_up/1</a></h3>
 %%%  <div class="spec">

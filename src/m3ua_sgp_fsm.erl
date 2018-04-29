@@ -123,8 +123,8 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>Called when successfully processed an
-%%%   incoming Registration Request message </p>
+%%%  </div><p>Called after successfully processing an
+%%%   incoming Registration request or static registration completes.</p>
 %%%
 %%%  <h3 class="function"><a name="asp_up-1">asp_up/1</a></h3>
 %%%  <div class="spec">
