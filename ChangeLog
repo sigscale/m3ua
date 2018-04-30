@@ -1,3 +1,10 @@
+2018-04-30  Vance Shipley <vances@sigscale.org>
+
+	* static routing key registration as start option
+	* transfer api to include network indicator
+	* handle asp state maintenance
+	* handle ipsp asp traffic maintenance
+
 2018-04-26  Vance Shipley <vances@sigscale.org>
 
 	* handle connect errors within state machine
