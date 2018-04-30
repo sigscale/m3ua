@@ -213,7 +213,6 @@
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		registration :: dynamic | static,
 		use_rc :: boolean(),
 		rks = [] :: [{RC :: pos_integer(), RK :: routing_key()}],
 		ual :: undefined | integer(),
@@ -364,16 +363,24 @@ transfer(ASP, Stream, OPC, DPC, NI, SI, SLS, Data)
 init([Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
-		EP, EpName, Cb, Reg, UseRC]) ->
+		EP, EpName, Cb, StaticKeys, UseRC]) ->
 	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
+			Freg = fun({RC, {NA, Keys, Mode}, AsName}) ->
+						RegResult = [#registration_result{rc = RC,
+								status = registered}],
+						gen_server:cast(m3ua, {'M-RK_REG', confirm, undefined,
+								self(), RegResult, NA, Keys, Mode, AsName,
+								EP, Assoc, Cb, CbState})
+			end,
+			lists:foreach(Freg, StaticKeys),
 			process_flag(trap_exit, true),
 			Statedata = #statedata{socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
-					ep = EP, ep_name = EpName, callback = Cb,
-					cb_state = CbState, registration = Reg, use_rc = UseRC},
+					ep = EP, ep_name = EpName,
+					callback = Cb, cb_state = CbState, use_rc = UseRC},
 			{ok, down, Statedata, 0};
 		{error, Reason} ->
 			{stop, Reason}
@@ -445,16 +452,6 @@ inactive(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
-		#statedata{registration = static, ep = EP,
-		assoc = Assoc, callback = CbMod,
-		cb_state = CbState} = StateData) ->
-	% @todo need a better mechanism to generate routing contexts
-	RC = erlang:unique_integer([positive]),
-	RegResult = [#registration_result{status = registered, rc = RC}],
-	gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
-	{next_state, inactive, StateData};
 inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
 		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData)  ->
@@ -535,17 +532,6 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	gen_server:cast(From, {AspOp, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
-		#statedata{registration = static, ep = EP,
-		assoc = Assoc, callback = CbMod,
-		cb_state = CbState} = StateData) ->
-	% @todo need a better mechanism to generate routing contexts
-	RC = erlang:unique_integer([positive]),
-	RegResult = [#registration_result{status = registered, rc = RC}],
-	gen_server:cast(From,
-			{'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
-	{next_state, active, StateData};
 active({'M-ASP_INACTIVE', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData) ->

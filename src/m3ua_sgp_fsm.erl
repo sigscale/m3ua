@@ -220,7 +220,6 @@
 		stream :: undefined | integer(),
 		ep :: pid(),
 		ep_name :: term(),
-		registration :: dynamic | static,
 		use_rc :: boolean(),
 		callback :: atom() | #m3ua_fsm_cb{},
 		cb_state :: term()}).
@@ -364,16 +363,24 @@ transfer(SGP, Stream, OPC, DPC, NI, SI, SLS, Data)
 init([Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
-		EP, EpName, Cb, Reg, UseRC]) ->
+		EP, EpName, Cb, StaticKeys, UseRC]) ->
 	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
+			Freg = fun({RC, {NA, Keys, Mode}, AsName}) ->
+						RegResult = [#registration_result{rc = RC,
+								status = registered}],
+						gen_server:cast(m3ua, {'M-RK_REG', confirm, undefined,
+								self(), RegResult, NA, Keys, Mode, AsName,
+								EP, Assoc, Cb, CbState})
+			end,
+			lists:foreach(Freg, StaticKeys),
 			process_flag(trap_exit, true),
 			Statedata = #statedata{socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
-					callback = Cb, cb_state = CbState, ep = EP,
-					ep_name = EpName, registration = Reg, use_rc = UseRC},
+					callback = Cb, cb_state = CbState,
+					ep = EP, ep_name = EpName, use_rc = UseRC},
 			{ok, down, Statedata, 0};
 		{error, Reason} ->
 			{stop, Reason}
@@ -392,17 +399,7 @@ down(timeout, #statedata{ep = EP, assoc = Assoc,
 		callback = CbMod, cb_state = CbState} = StateData) ->
 	gen_server:cast(m3ua, {'M-SCTP_ESTABLISH', indication, self(), EP, Assoc}),
 	{ok, NewCbState} = m3ua_callback:cb(asp_down, CbMod, [CbState]),
-	{next_state, down, StateData#statedata{cb_state = NewCbState}};
-down({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
-		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
-		cb_state = UState} = StateData) ->
-	% @todo need a better mechanism to generate routing contexts
-	RC = erlang:unique_integer([positive]),
-	RegResult = [#registration_result{status = registered, rc = RC}],
-	gen_server:cast(From,
-			{'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
-	{next_state, down, StateData}.
+	{next_state, down, StateData#statedata{cb_state = NewCbState}}.
 
 -spec down(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
@@ -426,16 +423,8 @@ down({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
-inactive({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
-		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
-		cb_state = UState} = StateData) ->
-	% @todo need a better mechanism to generate routing contexts
-	RC = erlang:unique_integer([positive]),
-	RegResult = [#registration_result{status = registered, rc = RC}],
-	gen_server:cast(From,
-			{'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
-	{next_state, inactive, StateData}.
+inactive(_Event, StateData) ->
+	{stop, unexpected_message, StateData}.
 
 -spec inactive(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
@@ -459,16 +448,8 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
 %% @private
 %%
-active({'M-RK_REG', request, Ref, From, NA, Keys, Mode, AS},
-		#statedata{ep = EP, assoc = Assoc, callback = CbMod,
-		cb_state = UState} = StateData) ->
-	% @todo need a better mechanism to generate routing contexts
-	RC = erlang:unique_integer([positive]),
-	RegResult = [#registration_result{status = registered, rc = RC}],
-	gen_server:cast(From,
-			{'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, UState}),
-	{next_state, active, StateData}.
+active(_Event, StateData) ->
+	{reply, {error, unexpected_message}, down, StateData}.
 
 -spec active(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->

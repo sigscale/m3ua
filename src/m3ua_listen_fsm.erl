@@ -30,6 +30,7 @@
 %% export the gen_fsm state callbacks
 -export([listening/2]).
 
+-include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
 -record(statedata,
@@ -40,7 +41,7 @@
 		port :: undefined | inet:port_number(),
 		options :: [tuple()],
 		role :: sgp | asp,
-		registration :: dynamic | static,
+		static_keys :: [{RC :: 0..4294967295, RK :: routing_key(), AS :: term()}],
 		use_rc :: boolean(),
 		local_port :: inet:port_number(),
 		fsms = gb_trees:empty() :: gb_trees:tree(Assoc :: gen_sctp:assoc_id(),
@@ -75,11 +76,11 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{sgp, Opts1}
 	end,
-	{Registration, Opts3} = case lists:keytake(registration, 1, Opts2) of
-		{value, {registration, R3}, O3} ->
+	{StaticKeys, Opts3} = case lists:keytake(static_keys, 1, Opts2) of
+		{value, {static_keys, R3}, O3} ->
 			{R3, O3};
 		false ->
-			{dynamic, Opts2}
+			{[], Opts2}
 	end,
 	{UseRC, Opts4} = case lists:keytake(use_rc, 1, Opts3) of
 		{value, {use_rc, R4}, O4} ->
@@ -95,10 +96,9 @@ init([Sup, Callback, Opts] = _Args) ->
 	try
 		case gen_sctp:open(Options) of
 			{ok, Socket} ->
-				StateData = #statedata{sup = Sup, socket = Socket,
-						role = Role, registration = Registration,
-						use_rc = UseRC, options = Options,
-						name = Name, callback = Callback},
+				StateData = #statedata{socket = Socket, sup = Sup, role = Role,
+						name = Name, static_keys = StaticKeys, use_rc = UseRC,
+						options = Options, callback = Callback},
 				case gen_sctp:listen(Socket, true) of
 					ok ->
 						case inet:sockname(Socket) of
@@ -259,11 +259,11 @@ get_sup(#statedata{role = sgp, sup = Sup} = StateData) ->
 accept(Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc} = AssocChange,
 		Sup, #statedata{fsms = Fsms, name = Name, callback = Cb,
-		registration = Reg, use_rc = UseRC} = StateData) ->
+		static_keys = StaticKeys, use_rc = UseRC} = StateData) ->
 	case gen_sctp:peeloff(Socket, Assoc) of
 		{ok, NewSocket} ->
 			case supervisor:start_child(Sup, [[NewSocket, Address, Port,
-					AssocChange, self(), Name, Cb, Reg, UseRC], []]) of
+					AssocChange, self(), Name, Cb, StaticKeys, UseRC], []]) of
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(NewSocket, Fsm) of
 						ok ->

@@ -60,7 +60,7 @@
 -spec start(Callback, Options) -> Result
 	when
 		Callback :: atom() | #m3ua_fsm_cb{},
-		Options :: [term()],
+		Options :: [m3ua:option()],
 		Result :: {ok, EP} | {error, Reason},
 		EP :: pid(),
 		Reason :: term().
