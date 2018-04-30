@@ -449,7 +449,7 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% @private
 %%
 active(_Event, StateData) ->
-	{reply, {error, unexpected_message}, down, StateData}.
+	{stop, unexpected_message, StateData}.
 
 -spec active(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
