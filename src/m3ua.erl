@@ -36,7 +36,7 @@
 -type option() :: {name, term()}
 		| {connect, inet:ip_address(), inet:port_number(), [gen_sctp:option()]}
 		| {role, sgp | asp}
-		| {register, [{RC :: 0..4294967295, RK :: routing_key(), AS :: term()}]}
+		| {static_keys, [{RC :: 0..4294967295, RK :: routing_key(), AS :: term()}]}
 		| {use_rc, boolean()}
 		| gen_sctp:option().
 %% Options used to configure SCTP endpoint and M3UA process behaviour.
