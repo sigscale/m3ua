@@ -141,9 +141,9 @@
 		asp = [] :: [#m3ua_as_asp{}]}).
 
 -record(m3ua_asp,
-		{fsm :: pid(),
-		rc :: undefined | 0..4294967295,
-		rk :: routing_key()}).
+		{fsm :: pid() | '$1',
+		rc :: undefined | 0..4294967295 | '_',
+		rk :: routing_key() | '_'}).
 
 -record(m3ua_fsm_cb,
 		{init = false :: fun() | false,

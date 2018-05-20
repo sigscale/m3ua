@@ -63,6 +63,50 @@ start(normal = _StartType, _Args) ->
 	end.
 %% @hidden
 start1() ->
+	Fclean = fun() ->
+			MatchHead = #m3ua_asp{fsm = '$1',  _ = '_'},
+			MatchCond = [{'==', {node}, {node, '$1'}}],
+			MatchBody = ['$1'],
+			MatchSpec = [{MatchHead, MatchCond, MatchBody}],
+			LocalPids = mnesia:select(m3ua_asp, MatchSpec, write),
+			Fdel = fun(Pid) ->
+						mnesia:delete(m3ua, Pid, write)
+			end,
+			lists:foreach(Fdel, LocalPids)
+	end,
+	case mnesia:transaction(Fclean) of
+		{atomic, ok} ->
+			start2();
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start2() ->
+	Node = node(),
+	Filter = fun(#m3ua_as_asp{fsm = Pid}) when node(Pid) /= Node ->
+				true;
+			(#m3ua_as_asp{fsm = Pid}) ->
+				is_process_alive(Pid)
+	end,
+	Fold = fun(#m3ua_as{asp = ASPs} = R, Acc) ->
+			case lists:filter(Filter, ASPs) of
+				ASPs ->
+					Acc;
+				NewASPs ->
+					mnesia:write(R#m3ua_as{asp = NewASPs})
+			end
+	end,
+	Fclean = fun() ->
+			mnesia:foldl(Fold, ok, m3ua_as)
+	end,
+	case mnesia:transaction(Fclean) of
+		{atomic, ok} ->
+			start3();
+		{aborted, Reason} ->
+			{error, Reason}
+	end.
+%% @hidden
+start3() ->
 	case supervisor:start_link({local, m3ua_sup}, m3ua_sup, []) of
 		{ok, Sup} ->
 			{ok, Sup};
