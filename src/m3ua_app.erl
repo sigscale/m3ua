@@ -83,10 +83,10 @@ start1() ->
 %% @hidden
 start2() ->
 	Node = node(),
-	Filter = fun(#m3ua_as_asp{fsm = Pid}) when node(Pid) /= Node ->
-				true;
-			(#m3ua_as_asp{fsm = Pid}) ->
-				is_process_alive(Pid)
+	Filter = fun(#m3ua_as_asp{fsm = Pid}) when node(Pid) == Node ->
+				false;
+			(_) ->
+				true
 	end,
 	Fold = fun(#m3ua_as{asp = ASPs} = R, Acc) ->
 			case lists:filter(Filter, ASPs) of
