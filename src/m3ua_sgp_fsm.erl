@@ -653,9 +653,7 @@ terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
 	end,
 	terminate1(Reason, StateName, StateData).
 %% @hidden
-terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData)
-		when ((Reason == normal) orelse (Reason == shutdown)
-		orelse ((element(1, Reason) == shutdown))) ->
+terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData) ->
 	Fsm = self(),
 	Fdel = fun F([{_RC, RK} | T]) ->
 				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
