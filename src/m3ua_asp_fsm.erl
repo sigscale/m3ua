@@ -882,14 +882,14 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, inactive, NewStateData};
 handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
-		active, _Stream, #statedata{req = {AspOp, request, Ref, From},
+		StateName, _Stream, #statedata{req = {AspOp, request, Ref, From},
 		socket = Socket} = StateData) ->
 	Parameters = m3ua_codec:parameters(Params),
 	{ok, Reason} = m3ua_codec:find_parameter(?ErrorCode, Parameters),
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, Reason}}),
 	inet:setopts(Socket, [{active, once}]),
 	NewStateData = StateData#statedata{req = undefined},
-	{next_state, down, NewStateData};
+	{next_state, StateName, NewStateData};
 handle_asp(#m3ua{class = ?TransferMessage,
 		type = ?TransferMessageData, params = Params}, active, Stream,
 		#statedata{callback = CbMod, cb_state = CbState,
