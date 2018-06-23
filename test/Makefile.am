@@ -16,10 +16,14 @@ check_DATA = .dialyzer_ok .common_test_ok
 %.beam:$(top_srcdir)/test/%.erl $(top_srcdir)/include/m3ua.hrl
 	$(ERLC) -pa $(top_builddir)/ebin $(ERLCFLAGS) -I $(top_srcdir)/include $<
 
-.common_test_ok:	$(addsuffix .beam, $(testmods))
+test.spec:	$(top_srcdir)/test/test.spec
+	cp $< $@
+
+ct.cfg:	$(top_srcdir)/test/ct.cfg
+	cp $< $@
+
+.common_test_ok:	$(addsuffix .beam, $(testmods)) sys.config ct.cfg test.spec
 	@if [ ! -d log ]; then mkdir log; fi
-	@if [ ! -f ct.cfg ]; then cp $(top_srcdir)/test/ct.cfg .; fi
-	@if [ ! -f test.spec ]; then cp $(top_srcdir)/test/test.spec .; fi
 	ct_run -no_auto_compile -pa $(top_builddir)/ebin -logdir log -config ct.cfg -spec test.spec -dir . -erl_args -noshell -sname $(LOGNAME)-ct
 
 clean-local:
