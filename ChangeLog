@@ -1,3 +1,10 @@
+2018-07-08  Vance Shipley <vances@sigscale.org>
+
+	* garbage collect as on asp/sgp termination for any reason
+	* handle management errors in all states
+	* correct table record type, no alive check
+	* garbage collect old fsms from tables at startup
+
 2018-04-30  Vance Shipley <vances@sigscale.org>
 
 	* static routing key registration as start option
