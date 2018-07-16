@@ -115,7 +115,7 @@ m3uaTrInitValue OBJECT-TYPE
 		DESCRIPTION
 			"Initial value of the Failover timer Tr. Tr set with value 0
 			 disables buffering."
-		DEFVAL {3000}  -- 3000 milliseconds it∆s the recommended value
+		DEFVAL {3000}  -- 3000 milliseconds is the recommended value
 	::= { m3uaConfig 4 }
 
 m3uaTPAudInitValue OBJECT-TYPE
@@ -125,7 +125,7 @@ m3uaTPAudInitValue OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"Initial value of the Periodic Audit timer TPAud."
-		DEFVAL {5000}  -- 5000 milliseconds it∆s the recommended value
+		DEFVAL {5000}  -- 5000 milliseconds is the recommended value
 	::= { m3uaConfig 5 }
 
 m3uaHeartBeat OBJECT-TYPE
