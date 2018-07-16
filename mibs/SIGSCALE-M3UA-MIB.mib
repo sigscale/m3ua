@@ -484,7 +484,7 @@ m3uaAspAssocMaxInStreams OBJECT-TYPE
 
 
 m3uaAspRcTable OBJECT-TYPE
-		SYNTAX      SEQUENCE OF M3uaAspAssocEntry
+		SYNTAX      SEQUENCE OF M3uaAspRcEntry
 		MAX-ACCESS  not-accessible
 		STATUS      current
 		DESCRIPTION
