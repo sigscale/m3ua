@@ -37,46 +37,22 @@ m3uaMIB MODULE-IDENTITY
 
 -- Top-level structure of the MIB
 
-m3uaManagement              OBJECT IDENTIFIER ::= { m3uaMIB 1 }
-m3uaConformance             OBJECT IDENTIFIER ::= { m3uaMIB 2 }
+m3uaManagement  OBJECT IDENTIFIER ::= { m3uaMIB 1 }
+m3uaConformance OBJECT IDENTIFIER ::= { m3uaMIB 2 }
+m3uaAttributes  OBJECT IDENTIFIER ::= { m3uaManagement 1 }
+m3uaConfig      OBJECT IDENTIFIER ::= { m3uaAttributes 1 }
+m3uaStatistics  OBJECT IDENTIFIER ::= { m3uaAttributes 2 }
+m3uaTables      OBJECT IDENTIFIER ::= { m3uaManagement 2 }
+m3uaAsp         OBJECT IDENTIFIER ::= { m3uaTables 1 }
+m3uaAspCfg      OBJECT IDENTIFIER ::= { m3uaAsp 1 }
+m3uaAspStat     OBJECT IDENTIFIER ::= { m3uaAsp 2 }
+m3uaSgpIpsp     OBJECT IDENTIFIER ::= { m3uaTables 2 }
+m3uaSgpIpspCfg  OBJECT IDENTIFIER ::= { m3uaSgpIpsp 1 }
+m3uaSgpIpspStat OBJECT IDENTIFIER ::= { m3uaSgpIpsp 2 }
+m3uaGen         OBJECT IDENTIFIER ::= { m3uaTables 3 }
+m3uaGenCfg      OBJECT IDENTIFIER ::= { m3uaGen 1 }
+m3uaGenStat     OBJECT IDENTIFIER ::= { m3uaGen 2 }
 
-  m3uaAttributes            OBJECT IDENTIFIER ::= { m3uaManagement 1 }
-    m3uaConfig              OBJECT IDENTIFIER ::= { m3uaAttributes 1 }
-    m3uaStatistics          OBJECT IDENTIFIER ::= { m3uaAttributes 2 }
-
-  m3uaTables                OBJECT IDENTIFIER ::= { m3uaManagement 2 }
-
-    m3uaAsp                 OBJECT IDENTIFIER ::= { m3uaTables 1 }
-      m3uaAspCfg            OBJECT IDENTIFIER ::= { m3uaAsp 1 }
- --     m3uaAspDestTable    OBJECT IDENTIFIER ::= { m3uaAspCfg 1 }
- --     m3uaAspSgpTable     OBJECT IDENTIFIER ::= { m3uaAspCfg 2 }
- --     m3uaAspAssocTable   OBJECT IDENTIFIER ::= { m3uaAspCfg 3 }
- --     m3uaAspRcTable      OBJECT IDENTIFIER ::= { m3uaAspCfg 4 }
-      m3uaAspStat           OBJECT IDENTIFIER ::= { m3uaAsp 2 }
- --     m3uaAspStatTable    OBJECT IDENTIFIER ::= { m3uaAspStat 1 }
-
-    m3uaSgpIpsp             OBJECT IDENTIFIER ::= { m3uaTables 2 }
-      m3uaSgpIpspCfg        OBJECT IDENTIFIER ::= { m3uaSgpIpsp 1 }
- --     m3uaSgpIpspRtgTable OBJECT IDENTIFIER ::= { m3uaSgpIpspCfg 1 }
- --     m3uaSgpIpspAsTable  OBJECT IDENTIFIER ::= { m3uaSgpIpspCfg 2 }
- --     m3uaSgpIpspAspTable OBJECT IDENTIFIER ::= { m3uaSgpIpspCfg 3 }
- --     m3uaSgpIpspAssocTable OBJECT IDENTIFIER ::= {m3uaSgpIpspCfg 4}
-      m3uaSgpIpspStat       OBJECT IDENTIFIER ::= { m3uaSgpIpsp 2 }
- --     m3uaSgIpspStatTable OBJECT IDENTIFIER ::= { m3uaSgpIpspStat 1 }
-
-    m3uaGen                OBJECT IDENTIFIER ::= { m3uaTables 3 }
-      m3uaGenCfg           OBJECT IDENTIFIER ::= { m3uaGen 1 }
- --     m3uaGenNaTable     OBJECT IDENTIFIER ::= { m3uaGenCfg 1 }
-
-      m3uaGenStat          OBJECT IDENTIFIER ::= { m3uaGen 2 }
- --     m3uaGenStatTable   OBJECT IDENTIFIER ::= { m3uaGenStat 1 }
-
------------------------------------------------------------------------
--- M3UA MANAGEMENT
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ATTRIBUTES - CONFIGURATION
------------------------------------------------------------------------
 
 m3uaVersion OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -178,10 +154,6 @@ m3uaFailOverBuffSize OBJECT-TYPE
 		DEFVAL {65535}  -- Recommended value is 64 Kbytes
 	::= { m3uaConfig 12 }
 
------------------------------------------------------------------------
--- ATTRIBUTES-STATISTICS
------------------------------------------------------------------------
-
 m3uaRoutingFailures OBJECT-TYPE
 		SYNTAX      Counter64
 		MAX-ACCESS  read-only
@@ -192,23 +164,6 @@ m3uaRoutingFailures OBJECT-TYPE
 			 the routing operation. That is the reason why this is a
 			 general statistic instead a per association statistic."
 	::= { m3uaStatistics 1 }
-
-
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ASP TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- DESTINATION TABLE
------------------------------------------------------------------------
-
--- The Destination Table contains information about each destination
--- that can be reached from the ASP where it is located.
 
 m3uaAspDestTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaAspDestEntry
@@ -295,24 +250,6 @@ m3uaAspDestState OBJECT-TYPE
 			 object."
 	::= { m3uaAspDestEntry 5 }
 
-
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ASP TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- SIGNALING GATEWAY PROCESS TABLE
------------------------------------------------------------------------
-
--- The SGP Table contains information about the SGPs per SG that can be
--- reached from this ASP. It shows the state of each AS at each remote
--- SGP.
-
 m3uaAspSgpTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaAspSgpEntry
 		MAX-ACCESS  not-accessible
@@ -382,24 +319,6 @@ m3uaAspSgpState OBJECT-TYPE
 			"AS state through each SGP in the SG."
 	::= { m3uaAspSgpEntry 4 }
 
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ASP TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ASSOCIATION TABLE
------------------------------------------------------------------------
-
--- The Association Table contains information about the association
--- towards each SGP that can be reached from this ASP when serving to any
--- of its ASes. Limits of the streams that are data for the lower layer
--- (SCTP) are also included.
-
 m3uaAspAssocTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaAspAssocEntry
 		MAX-ACCESS  not-accessible
@@ -467,24 +386,6 @@ m3uaAspAssocMaxInStreams OBJECT-TYPE
 			 establishment phase."
 	::= { m3uaAspAssocEntry 4 }
 
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ASP TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ROUTING CONTEXT TABLE
------------------------------------------------------------------------
-
--- The Routing Context (RC) Table contains information about the
--- association towards each SGP that can be reached from this ASP when
--- serving to any of its ASes.
-
-
 m3uaAspRcTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaAspRcEntry
 		MAX-ACCESS  not-accessible
@@ -539,26 +440,6 @@ m3uaAspRcValue OBJECT-TYPE
 			 m3uaAspRcAsId object."
 	::= { m3uaAspRcEntry 3 }
 
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ASP TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- STATISTICS
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ASP STATISTICS TABLE
------------------------------------------------------------------------
-
--- It defines statistics specific to an Application Server Process.
--- Statistics applicable to SGP, ASP and IPSP are covered in the generic
--- statistics table.
-
--- The table contains statistics data related to the M3UA messages
--- exchanged through each association at the ASP.
-
 m3uaAspStatTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaAspStatEntry
 		MAX-ACCESS  not-accessible
@@ -593,10 +474,6 @@ M3uaAspStatEntry ::= SEQUENCE {
 		m3uaAspStatDavaIn             Counter32,
 		m3uaAspStatDupuIn             Counter32
 	}
-
--- Association Statistics
-
--- ASPM Statistics per Association
 
 m3uaAspStatAssocId OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -679,11 +556,6 @@ m3uaAspStatAspiaAckIn OBJECT-TYPE
 			 association."
 	::= { m3uaAspStatEntry 9 }
 
--- End of ASPM Statistics per Association
-
-
--- MGMT Statistics per Association
-
 m3uaAspStatNotifyIn OBJECT-TYPE
 		SYNTAX      Counter32
 		MAX-ACCESS  read-only
@@ -692,10 +564,6 @@ m3uaAspStatNotifyIn OBJECT-TYPE
 			"Number of NOTIFY messages received through the
 			 association."
 	::= { m3uaAspStatEntry 10 }
-
--- End of MGMT Statistics per Association
-
--- SSNM Statistics per Association
 
 m3uaAspStatDaudOut OBJECT-TYPE
 		SYNTAX      Counter32
@@ -728,29 +596,6 @@ m3uaAspStatDupuIn OBJECT-TYPE
 		DESCRIPTION
 			"Number of DUPU messages received through the association."
 	::= { m3uaAspStatEntry 14 }
-
--- End of SSNM Statistics per Association
-
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- TABLES AT SGP/IPSP
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- ROUTING TABLE
------------------------------------------------------------------------
-
--- The Routing table contains a list of routing keys, which translate to
--- an Application Server ID and a corresponding Routing Context.
-
--- As a Routing Key may be composed of any combination of basic SS7
--- routing elements, if an element is not included in the routing key,
--- a default value is assigned. This default value can continue being
--- considered as an indexing value itself.
 
 m3uaSgpIpspRtgTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaSgpIpspRtgEntry
@@ -837,23 +682,6 @@ m3uaSgpIpspRtgRc OBJECT-TYPE
 			"Routing Context for that routing key."
 	::= { m3uaSgpIpspRtgEntry 6 }
 
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- TABLES AT SGP/IPSP
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- APPLICATION SERVER (AS) TABLE
------------------------------------------------------------------------
-
--- The Application Server table contains information on the state and
--- traffic mode of each Application for which one or more routing keys
--- can exist in the Signalling Gateway or IPSP routing table.
-
 m3uaSgpIpspAsTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaSgpIpspAsEntry
 		MAX-ACCESS  not-accessible
@@ -910,23 +738,6 @@ m3uaSgpIpspAsTmt OBJECT-TYPE
 		DESCRIPTION
 			"Current Application Server Traffic Mode Type."
 	::= { m3uaSgpIpspAsEntry 3 }
-
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- TABLES AT SGP/IPSP
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- APPLICATION SERVER PROCESS TABLE
------------------------------------------------------------------------
-
--- This table shows the State of the Application Server Process or IPSP
--- for each Application Server, and the role of the ASP in the AS traffic
--- distribution, according to each AS traffic mode.
 
 m3uaSgpIpspAspTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaSgpIpspAspEntry
@@ -996,24 +807,6 @@ m3uaSgpIpspAspRole OBJECT-TYPE
 			 traffic mode for each AS."
 	::= { m3uaSgpIpspAspEntry 4 }
 
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- TABLES AT SGP/IPSP
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- APPLICATION SERVER PROCESS (ASP) ASSOCIATION TABLE
------------------------------------------------------------------------
-
--- Defines data related to the SCTP Association for an Application Server
--- Process or IPSP.
--- Further Association data can be obtained from the SCTP MIB.
-
-
 m3uaSgpIpspAssocTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaSgpIpspAssocEntry
 		MAX-ACCESS  not-accessible
@@ -1057,7 +850,6 @@ m3uaSgpIpspAssocId  OBJECT-TYPE
 			 association is established to that endpoint."
 	::= { m3uaSgpIpspAssocEntry 2 }
 
-
 m3uaSgpIpspAssocMinOutStreams OBJECT-TYPE
 		SYNTAX      Unsigned32
 		MAX-ACCESS  read-only
@@ -1077,30 +869,6 @@ m3uaSgpIpspAssocMaxInStreams OBJECT-TYPE
 			 application can support. It is used during the Association
 			 establishment phase."
 	::= { m3uaSgpIpspAssocEntry 4 }
-
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- TABLES AT SGP/IPSP
------------------------------------------------------------------------
------------------------------------------------------------------------
--- STATISTICS
------------------------------------------------------------------------
------------------------------------------------------------------------
--- SGP / IPSP STATISTICS TABLE
------------------------------------------------------------------------
-
--- It defines statistics specific to a Signaling Gateway Process or IP
--- Signaling Process.
-
--- Statistics applicable to SGP, ASP and IPSP are covered in the generic
--- statistics table.
-
--- For the IPSP, the ASP Statistics table also applies.
-
--- The table contains statistics data related to the M3UA messages
--- exchanged through each association at the SGP or IPSP.
 
 m3uaSgpIpspStatTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaSgpIpspStatEntry
@@ -1136,10 +904,6 @@ M3uaSgpIpspStatEntry ::= SEQUENCE {
 		m3uaSgpIpspStatDupuOut            Counter32,
 		m3uaSgpIpspStatDaudIn             Counter32
 	}
-
--- Association Statistics
-
--- ASPM Statistics per Association
 
 m3uaSgpIpspStatAssocId OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -1218,11 +982,6 @@ m3uaSgpIpspStatAspiaIn OBJECT-TYPE
 			"Number of ASPIA messages received through the association."
 	::= { m3uaSgpIpspStatEntry 9 }
 
--- End of ASPM Statistics per Association
-
-
--- MGMT Statistics per Association
-
 m3uaSgpIpspStatNotifyOut OBJECT-TYPE
 		SYNTAX      Counter32
 		MAX-ACCESS  read-only
@@ -1230,12 +989,6 @@ m3uaSgpIpspStatNotifyOut OBJECT-TYPE
 		DESCRIPTION
 			"Number of NOTIFY messages sent through the association."
 	::= { m3uaSgpIpspStatEntry 10 }
-
-
--- End of MGMT Statistics per Association
-
-
--- SSNM Statistics per Association
 
 m3uaSgpIpspStatDunaOut OBJECT-TYPE
 		SYNTAX      Counter32
@@ -1268,21 +1021,6 @@ m3uaSgpIpspStatDaudIn OBJECT-TYPE
 		DESCRIPTION
 			"Number of DAUD messages received through the association."
 	::= { m3uaSgpIpspStatEntry 14 }
-
--- End of SSNM Statistics per Association
-
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- GENERIC
------------------------------------------------------------------------
------------------------------------------------------------------------
--- CONFIG
------------------------------------------------------------------------
------------------------------------------------------------------------
--- NETWORK APPEARANCE TABLE
------------------------------------------------------------------------
 
 m3uaGenNaTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaGenNaEntry
@@ -1356,26 +1094,6 @@ m3uaGenNaMtp3ProtVersion OBJECT-TYPE
 			"The MTP3 protocol version for this NA."
 	::= { m3uaGenNaEntry  5 }
 
-
------------------------------------------------------------------------
--- M3UA TABLES
------------------------------------------------------------------------
------------------------------------------------------------------------
--- GENERIC
------------------------------------------------------------------------
------------------------------------------------------------------------
--- STATISTICS
------------------------------------------------------------------------
------------------------------------------------------------------------
--- GENERIC STATISTICS TABLE
------------------------------------------------------------------------
-
--- Defines statistics common to Application Server Processes,
--- Signaling Gateway Processes and IP Signaling Processes.
-
--- The table contains statistics data related to the M3UA messages
--- exchanged through each association at the Signaling Process.
-
 m3uaGenStatTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaGenStatEntry
 		MAX-ACCESS  not-accessible
@@ -1403,10 +1121,6 @@ M3uaGenStatEntry ::= SEQUENCE {
 		m3uaGenStatSconOut            Counter32,
 		m3uaGenStatSconIn             Counter32
 	}
-
--- Association Statistics
-
--- DATA Statistics per Association
 
 m3uaGenStatAssocId OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -1437,10 +1151,6 @@ m3uaGenStatDataIn OBJECT-TYPE
 			"Number of DATA messages received through the association."
 	::= { m3uaGenStatEntry 3 }
 
--- End of DATA Statistics per Association
-
--- MGMT Statistics per Association
-
 m3uaGenStatErrorOut OBJECT-TYPE
 		SYNTAX      Counter32
 		MAX-ACCESS  read-only
@@ -1456,10 +1166,6 @@ m3uaGenStatErrorIn OBJECT-TYPE
 		DESCRIPTION
 			"Number of ERROR messages received through the association."
 	::= { m3uaGenStatEntry 5 }
-
--- End of MGMT Statistics per Association
-
--- SSNM Statistics per Association
 
 m3uaGenStatSconOut OBJECT-TYPE
 		SYNTAX      Counter32
@@ -1477,14 +1183,8 @@ m3uaGenStatSconIn OBJECT-TYPE
 			"Number of SCON messages received through the association."
 	::= { m3uaGenStatEntry 7 }
 
--- End of SSNM Statistics per Association
-
--- 4.1 Conformance Information
-
 m3uaCompliances OBJECT IDENTIFIER ::= { m3uaConformance 1 }
 m3uaGroups      OBJECT IDENTIFIER ::= { m3uaConformance 2 }
-
--- 4.1.1 Units of conformance
 
 m3uaAttributesGroup OBJECT-GROUP
 		OBJECTS   {
@@ -1614,8 +1314,6 @@ m3uaGenStatsGroup OBJECT-GROUP
 			 are implemented in all kind of signaling processes: ASPs,
 			 SGPs and IPSPs."
 	::= { m3uaGroups 7 }
-
--- 4.1.2 Compliance Statements
 
 m3uaAspCompliance MODULE-COMPLIANCE
 		STATUS  current
