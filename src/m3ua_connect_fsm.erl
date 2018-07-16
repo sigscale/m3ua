@@ -37,19 +37,19 @@
 		{sup :: undefined | pid(),
 		name :: term(),
 		fsm_sup :: undefined | pid(),
-		socket :: gen_sctp:sctp_socket(),
+		socket :: undefined | gen_sctp:sctp_socket(),
 		port :: undefined | inet:port_number(),
 		options :: [tuple()],
 		role :: sgp | asp,
 		static_keys :: [{RC :: 0..4294967295,
 				RK :: routing_key(), AS :: term()}],
 		use_rc :: boolean(),
-		local_port :: inet:port_number(),
+		local_port :: undefined | inet:port_number(),
 		remote_addr :: inet:ip_address(),
 		remote_port :: inet:port_number(),
 		remote_opts :: [gen_sctp:option()],
 		assoc :: gen_sctp:assoc_id(),
-		fsm :: pid(),
+		fsm :: undefined | pid(),
 		callback :: {Module :: atom(), State :: term()}}).
 
 -define(RETRY_WAIT, 8000).
