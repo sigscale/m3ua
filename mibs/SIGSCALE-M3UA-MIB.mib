@@ -43,16 +43,68 @@ m3uaAttributes  OBJECT IDENTIFIER ::= { m3uaManagement 1 }
 m3uaConfig      OBJECT IDENTIFIER ::= { m3uaAttributes 1 }
 m3uaStatistics  OBJECT IDENTIFIER ::= { m3uaAttributes 2 }
 m3uaTables      OBJECT IDENTIFIER ::= { m3uaManagement 2 }
-m3uaAsp         OBJECT IDENTIFIER ::= { m3uaTables 1 }
+m3uaEp          OBJECT IDENTIFIER ::= { m3uaTables 1 }
+m3uaEpCfg       OBJECT IDENTIFIER ::= { m3uaEp 1 }
+m3uaEpStat      OBJECT IDENTIFIER ::= { m3uaEp 2 }
+m3uaAsp         OBJECT IDENTIFIER ::= { m3uaTables 2 }
 m3uaAspCfg      OBJECT IDENTIFIER ::= { m3uaAsp 1 }
 m3uaAspStat     OBJECT IDENTIFIER ::= { m3uaAsp 2 }
-m3uaSgpIpsp     OBJECT IDENTIFIER ::= { m3uaTables 2 }
+m3uaSgpIpsp     OBJECT IDENTIFIER ::= { m3uaTables 3 }
 m3uaSgpIpspCfg  OBJECT IDENTIFIER ::= { m3uaSgpIpsp 1 }
 m3uaSgpIpspStat OBJECT IDENTIFIER ::= { m3uaSgpIpsp 2 }
-m3uaGen         OBJECT IDENTIFIER ::= { m3uaTables 3 }
+m3uaGen         OBJECT IDENTIFIER ::= { m3uaTables 4 }
 m3uaGenCfg      OBJECT IDENTIFIER ::= { m3uaGen 1 }
 m3uaGenStat     OBJECT IDENTIFIER ::= { m3uaGen 2 }
 
+
+m3uaRoutingFailures OBJECT-TYPE
+		SYNTAX      Counter64
+		MAX-ACCESS  read-only
+		STATUS      current
+		DESCRIPTION
+			"The number of times a routing operation against Routing
+			 Table fails. No final SCTP Association ID is obtained from
+			 the routing operation. That is the reason why this is a
+			 general statistic instead a per association statistic."
+	::= { m3uaStatistics 1 }
+
+m3uaEndPointTable OBJECT-TYPE
+		SYNTAX      SEQUENCE OF M3uaEndPointEntry
+		MAX-ACCESS  not-accessible
+		STATUS      current
+		DESCRIPTION
+			"A table describing SCTP endpoints."
+	::= { m3uaEpCfg 1 }
+
+m3uaEndPointEntry OBJECT-TYPE
+		SYNTAX      M3uaEndPointEntry
+		MAX-ACCESS  not-accessible
+		STATUS      current
+		DESCRIPTION
+			"SCTP endpoint configuration."
+		INDEX   { m3uaEpIndex }
+	::= { m3uaEndPointTable 1 }
+
+M3uaEndPointEntry ::= SEQUENCE {
+		m3uaEpIndex         Unsigned32,
+		m3uaVersion         Unsigned32,
+		m3uaProcType        INTEGER,
+		m3uaLocalPort   Unsigned32,
+		m3uaTrInitValue     Unsigned32,
+		m3uaTPAudInitValue  Unsigned32,
+		m3uaHeartBeat       TruthValue,
+		m3uaTBeatInitValue  Unsigned32,
+		m3uaTAckInitValue   Unsigned32
+	}
+
+m3uaEpIndex OBJECT-TYPE
+		SYNTAX      Unsigned32
+		MAX-ACCESS  not-accessible
+		STATUS      current
+		DESCRIPTION
+			"A number uniquely identifying an endpoint.
+			 Upon reload values may be changed."
+	::= { m3uaEndPointEntry 1 }
 
 m3uaVersion OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -60,7 +112,7 @@ m3uaVersion OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"Identifies the current version of the M3UA."
-	::= { m3uaConfig 1 }
+	::= { m3uaEndPointEntry 2 }
 
 m3uaProcType OBJECT-TYPE
 		SYNTAX      INTEGER {
@@ -73,7 +125,7 @@ m3uaProcType OBJECT-TYPE
 		DESCRIPTION
 			"This variable indicates the type of the process where the
 			 M3UA layer is located."
-	::= { m3uaConfig 2 }
+	::= { m3uaEndPointEntry 3 }
 
 m3uaLocalPort OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -83,7 +135,7 @@ m3uaLocalPort OBJECT-TYPE
 			"Identifies the port of the M3UA service. Well-known Port for
 			 M3UA is 2905."
 		DEFVAL {2905}  -- well-known port assigned by IANA to M3UA
-	::= { m3uaConfig 3 }
+	::= { m3uaEndPointEntry 4 }
 
 m3uaTrInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -94,7 +146,7 @@ m3uaTrInitValue OBJECT-TYPE
 			"Initial value of the Failover timer Tr. Tr set with value 0
 			 disables buffering."
 		DEFVAL {3000}  -- 3000 milliseconds is the recommended value
-	::= { m3uaConfig 4 }
+	::= { m3uaEndPointEntry 5 }
 
 m3uaTPAudInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -104,7 +156,7 @@ m3uaTPAudInitValue OBJECT-TYPE
 		DESCRIPTION
 			"Initial value of the Periodic Audit timer TPAud."
 		DEFVAL {5000}  -- 5000 milliseconds is the recommended value
-	::= { m3uaConfig 5 }
+	::= { m3uaEndPointEntry 6 }
 
 m3uaHeartBeat OBJECT-TYPE
 		SYNTAX      TruthValue
@@ -120,7 +172,7 @@ m3uaHeartBeat OBJECT-TYPE
 			 When the object is set to 'false' (2), Heartbeat is disabled.
 			 No BEAT messages are sent but the BEAT messages received are
 			 responded."
-	::= { m3uaConfig 6 }
+	::= { m3uaEndPointEntry 7 }
 
 m3uaTBeatInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -130,7 +182,7 @@ m3uaTBeatInitValue OBJECT-TYPE
 		DESCRIPTION
 			"Initial value of the HeartBeat timer TBeat."
 		DEFVAL {1000}  -- 1000 milliseconds is the recommended value
-	::= { m3uaConfig 7 }
+	::= { m3uaEndPointEntry 8 }
 
 m3uaTAckInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -140,30 +192,7 @@ m3uaTAckInitValue OBJECT-TYPE
 		DESCRIPTION
 			"Initial value of the Retransmission timer TAck."
 		DEFVAL {2000}  -- 2000 milliseconds is the recommended value
-	::= { m3uaConfig 8 }
-
-m3uaFailOverBuffSize OBJECT-TYPE
-		SYNTAX      Unsigned32
-		UNITS       "bytes"
-		MAX-ACCESS  read-only
-		STATUS      current
-		DESCRIPTION
-			"Size of the failover retransmission buffer. Recommended
-			 value is 64 Kbytes. Only valid if failover buffer
-			 option has been set to ON."
-		DEFVAL {65535}  -- Recommended value is 64 Kbytes
-	::= { m3uaConfig 12 }
-
-m3uaRoutingFailures OBJECT-TYPE
-		SYNTAX      Counter64
-		MAX-ACCESS  read-only
-		STATUS      current
-		DESCRIPTION
-			"The number of times a routing operation against Routing
-			 Table fails. No final SCTP Association ID is obtained from
-			 the routing operation. That is the reason why this is a
-			 general statistic instead a per association statistic."
-	::= { m3uaStatistics 1 }
+	::= { m3uaEndPointEntry 9 }
 
 m3uaAspDestTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaAspDestEntry
