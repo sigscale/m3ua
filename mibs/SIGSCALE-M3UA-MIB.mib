@@ -4,6 +4,8 @@ IMPORTS
 		MODULE-IDENTITY, OBJECT-TYPE,
 		Unsigned32, Counter32, Counter64, mib-2
 			FROM SNMPv2-SMI
+		sigscaleExperiment
+			FROM SIGSCALE-SMI
 		TruthValue
 			FROM SNMPv2-TC
 		MODULE-COMPLIANCE, OBJECT-GROUP
