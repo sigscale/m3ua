@@ -1313,7 +1313,7 @@ m3uaGenNaValue OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"Network Appearance Value."
-	::= { m3uaGenNaEntry  2 }
+	::= { m3uaGenNaEntry  1 }
 
 m3uaGenNaNi OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -1322,7 +1322,7 @@ m3uaGenNaNi OBJECT-TYPE
 		DESCRIPTION
 			"Identifies the Network Indicator of the SG Node in the
 			 SS7 Network."
-	::= { m3uaGenNaEntry  3 }
+	::= { m3uaGenNaEntry  2 }
 
 m3uaGenNaMtp3ProtType OBJECT-TYPE
 		SYNTAX      INTEGER {
@@ -1336,7 +1336,7 @@ m3uaGenNaMtp3ProtType OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"The MTP3 protocol type for this NA."
-	::= { m3uaGenNaEntry  4 }
+	::= { m3uaGenNaEntry  3 }
 
 m3uaGenNaMtp3ProtVariant OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -1344,7 +1344,7 @@ m3uaGenNaMtp3ProtVariant OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"The MTP3 protocol variant for this NA."
-	::= { m3uaGenNaEntry  5 }
+	::= { m3uaGenNaEntry  4 }
 
 m3uaGenNaMtp3ProtVersion OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -1352,7 +1352,7 @@ m3uaGenNaMtp3ProtVersion OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"The MTP3 protocol version for this NA."
-	::= { m3uaGenNaEntry  6 }
+	::= { m3uaGenNaEntry  5 }
 
 
 -----------------------------------------------------------------------
