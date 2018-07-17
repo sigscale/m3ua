@@ -10,6 +10,19 @@
 The Signaling Transport (SIGTRAN) protocol suite provides for transport
 of telephony signaling protocol messages over Internet Protocol (IP) networks.
 
+==Installation==
+Before starting the application for the first time, {@link //mnesia/mnesia. mnesia}
+should be initialized. Create a schema and start mnesia on all nodes
+where the application {@link //m3ua. m3ua} application will run.
+
+The following command will initialize {@link //m3ua. m3ua} on the current node.
+
+e.g &#058;
+	```
+	(m3ua@host)1> m3ua_app:install().
+	{ok, [m3ua_as, m3ua_asp]}
+	'''
+
 ==Operation==
 
 Start an M3UA Signaling Gateway Process (ASP) endpoint:
@@ -23,21 +36,28 @@ Create an M3UA Application Server Process (ASP) endpoint:
 ```
 	1> application:start(m3ua).
 	ok
-	2> {ok, EP} = m3ua:start(Module, 0, [{connect, {127,0,0,1}, 2905, []}, {role, asp}]).  
+	2> {ok, EP} = m3ua:start(Module, 0, [{connect, {127,0,0,1}, 2905, []}, {role, asp}]).
 	{ok,<0.51.0>}
 '''
 
 ==Database Schema==
-Describe the layout of any mnesia tables used in the application....
-
-==Configuration==
-Document all application environment variables which exist...
-
-The application is configured using the following environment variables:
-<dl>
-  <dt>foo</dt>
-    <dd>Describe the effect of the foo variable.</dd>
-  <dt>bar</dt>
-    <dd>Describe the effect of the bar variable.</dd>
-</dl>
+<table id="mt">
+	<caption id="mt">There are two persistent {@link //mnesia. mnesia} tables:</caption>
+	<thead>
+		<tr id="mt">
+			<th id="mt">Table Name</th>
+			<th id="mt">Description</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr id="mt">
+			<td id="mt">m3ua_as</td>
+			<td id="mt">Application Server (AS)</td>
+		</tr>
+		<tr id="mt">
+			<td id="mt">m3ua_asp</td>
+			<td id="mt">AS Process (ASP)</td>
+		</tr>
+	</tbody>
+</table>
 
