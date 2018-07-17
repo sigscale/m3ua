@@ -38,12 +38,12 @@
 		name :: term(),
 		fsm_sup :: undefined | pid(),
 		socket :: undefined | gen_sctp:sctp_socket(),
-		port :: undefined | inet:port_number(),
 		options :: [tuple()],
 		role :: sgp | asp,
 		static_keys :: [{RC :: 0..4294967295,
 				RK :: routing_key(), AS :: term()}],
 		use_rc :: boolean(),
+		local_addr :: undefined | inet:ip_address(),
 		local_port :: undefined | inet:port_number(),
 		remote_addr :: inet:ip_address(),
 		remote_port :: inet:port_number(),
@@ -125,25 +125,27 @@ init([Sup, Callback, Opts] = _Args) ->
 connecting(timeout, #statedata{fsm_sup = undefined} = StateData) ->
    connecting(timeout, get_sup(StateData));
 connecting(timeout, #statedata{options = LocalOptions,
-		remote_addr = Address, remote_port = Port,
+		remote_addr = RemoteAddress, remote_port = RemotePort,
 		remote_opts = ConnectOptions, name = Name} = StateData) ->
 	case gen_sctp:open(LocalOptions) of
 		{ok, Socket} ->
 			case inet:sockname(Socket) of
-				{ok, {_Address, ActualPort}} ->
+				{ok, {LocalAddress, LocalPort}} ->
 					case gen_sctp:connect_init(Socket,
-							Address, Port, ConnectOptions) of
+							RemoteAddress, RemotePort, ConnectOptions) of
 							ok ->
 								NewStateData = StateData#statedata{socket = Socket,
-										local_port = ActualPort},
+										local_addr = LocalAddress,
+										local_port = LocalPort},
 								{next_state, connecting, NewStateData};
 							{error, ReasonConnect} ->
 								error_logger:error_report(["Connect failed",
 										{error, ReasonConnect}, {name, Name},
-										{address, Address}, {port, Port},
+										{address, RemoteAddress}, {port, RemotePort},
 										{options, ConnectOptions}]),
 								gen_sctp:close(Socket),
 								NewStateData = StateData#statedata{socket = undefined,
+										local_addr = undefined,
 										local_port = undefined},
 								{next_state, connecting, NewStateData, ?ERROR_WAIT}
 					end;
