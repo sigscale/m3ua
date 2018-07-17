@@ -764,8 +764,6 @@ terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData) ->
 				ok
 	end,
 	mnesia:transaction(Fdel, [RKs]),
-	terminate2(Reason, StateData);
-terminate1(Reason, _StateName, StateData) ->
 	terminate2(Reason, StateData).
 %% @hidden
 terminate2(_, #statedata{callback = undefined}) ->

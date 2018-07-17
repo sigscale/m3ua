@@ -18,7 +18,8 @@ beam_DATA = m3ua.beam m3ua_app.beam \
 		m3ua_asp_fsm.beam \
 		m3ua_lm_server.beam \
 		m3ua_codec.beam \
-		m3ua_callback.beam
+		m3ua_callback.beam \
+		m3ua_mib.beam
 
 %.beam:$(top_srcdir)/src/%.erl
 	$(ERLC) $(ERLCFLAGS) -I $(top_srcdir)/include $<

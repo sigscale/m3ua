@@ -43,7 +43,7 @@
 		role :: sgp | asp,
 		static_keys :: [{RC :: 0..4294967295, RK :: routing_key(), AS :: term()}],
 		use_rc :: boolean(),
-		local_port :: inet:port_number(),
+		local_port :: undefined | inet:port_number(),
 		fsms = gb_trees:empty() :: gb_trees:tree(Assoc :: gen_sctp:assoc_id(),
 				Fsm :: pid()),
 		callback :: {Module :: atom(), State :: term()}}).

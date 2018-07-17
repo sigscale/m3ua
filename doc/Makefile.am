@@ -14,7 +14,8 @@ modhtml = m3ua.html m3ua_app.html \
 		m3ua_asp_fsm.html \
 		m3ua_lm_server.html \
 		m3ua_codec.html \
-		m3ua_callback.html
+		m3ua_callback.html \
+		m3ua_mib.html
 
 doc_DATA = overview.edoc $(modhtml) \
 		modules-frame.html overview-summary.html \
