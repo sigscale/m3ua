@@ -39,7 +39,7 @@
 		Reason :: term().
 %% @doc Loads the SigScale M3UA MIB.
 load() ->
-	case code:priv_dir(ocs) of
+	case code:priv_dir(m3ua) of
 		PrivDir when is_list(PrivDir) ->
 			MibDir = PrivDir ++ "/mibs/",
 			Mibs = [MibDir ++ MIB || MIB <- mibs()],
@@ -55,7 +55,7 @@ load() ->
 		Reason :: term().
 %% @doc Loads the SigScale M3UA MIB.
 load(Agent) ->
-	case code:priv_dir(ocs) of
+	case code:priv_dir(m3ua) of
 		PrivDir when is_list(PrivDir) ->
 			MibDir = PrivDir ++ "/mibs/",
 			Mibs = [MibDir ++ MIB || MIB <- mibs()],
