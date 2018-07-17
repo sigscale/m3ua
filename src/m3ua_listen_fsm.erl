@@ -38,11 +38,11 @@
 		name :: term(),
 		fsm_sup :: undefined | pid(),
 		socket :: gen_sctp:sctp_socket(),
-		port :: undefined | inet:port_number(),
 		options :: [tuple()],
 		role :: sgp | asp,
 		static_keys :: [{RC :: 0..4294967295, RK :: routing_key(), AS :: term()}],
 		use_rc :: boolean(),
+		local_addr :: undefined | inet:ip_address(),
 		local_port :: undefined | inet:port_number(),
 		fsms = gb_trees:empty() :: gb_trees:tree(Assoc :: gen_sctp:assoc_id(),
 				Fsm :: pid()),
@@ -102,9 +102,11 @@ init([Sup, Callback, Opts] = _Args) ->
 				case gen_sctp:listen(Socket, true) of
 					ok ->
 						case inet:sockname(Socket) of
-							{ok, {_, Port}} ->
+							{ok, {LocalAddress, LocalPort}} ->
 								process_flag(trap_exit, true),
-								NewStateData = StateData#statedata{port = Port},
+								NewStateData = StateData#statedata{
+										local_addr = LocalAddress,
+										local_port = LocalPort},
 								{ok, listening, NewStateData, 0};
 							{error, Reason} ->
 								gen_sctp:close(Socket),

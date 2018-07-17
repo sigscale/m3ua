@@ -110,7 +110,7 @@ m3uaLocalAddressType OBJECT-TYPE
 		MAX-ACCESS   read-only
 		STATUS       current
 		DESCRIPTION
-			"The local IP address type of the endpoint."
+			"The primary local IP address type of the endpoint."
 	::= {m3uaEndPointEntry 1}
 
 m3uaLocalAddress  OBJECT-TYPE
@@ -118,7 +118,7 @@ m3uaLocalAddress  OBJECT-TYPE
 		MAX-ACCESS   read-only
 		STATUS       current
 		DESCRIPTION
-			"The local IP address of the endpoint."
+			"The primary local IP address of the endpoint."
 	::= {m3uaEndPointEntry 2}
 
 m3uaLocalPort OBJECT-TYPE
@@ -126,7 +126,7 @@ m3uaLocalPort OBJECT-TYPE
 		MAX-ACCESS   read-only
 		STATUS       current
 		DESCRIPTION
-			"The local IP port of the endpoint."
+			"The primary local IP port of the endpoint."
 	::= {m3uaEndPointEntry 3}
 
 m3uaRemoteAddressType OBJECT-TYPE
@@ -134,7 +134,7 @@ m3uaRemoteAddressType OBJECT-TYPE
 		MAX-ACCESS   read-only
 		STATUS       current
 		DESCRIPTION
-			"The remote IP address type of the endpoint."
+			"The primary remote IP address type of the endpoint."
 	::= {m3uaEndPointEntry 4}
 
 m3uaRemoteAddress  OBJECT-TYPE
@@ -142,7 +142,7 @@ m3uaRemoteAddress  OBJECT-TYPE
 		MAX-ACCESS   read-only
 		STATUS       current
 		DESCRIPTION
-			"The remote IP address of the endpoint."
+			"The primary remote IP address of the endpoint."
 	::= {m3uaEndPointEntry 5}
 
 m3uaRemotePort OBJECT-TYPE
@@ -150,7 +150,7 @@ m3uaRemotePort OBJECT-TYPE
 		MAX-ACCESS   read-only
 		STATUS       current
 		DESCRIPTION
-			"The remote IP port of the endpoint."
+			"The primary remote IP port of the endpoint."
 	::= {m3uaEndPointEntry 6}
 
 m3uaVersion OBJECT-TYPE
