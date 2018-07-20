@@ -97,8 +97,10 @@ unload(Agent) ->
 		Value :: atom() | integer() | string() | [integer()].
 %% @doc Handle SNMP requests for the endpoint table.
 %% @private
-ep_table(get, _RowIndex, Columns) ->
-	{genErr, 0}.
+ep_table(get_next, [] = _RowIndex, Columns) ->
+	ep_table_get_next(catch m3ua:get_ep(), 1, Columns);
+ep_table(get_next, [N], Columns) ->
+	ep_table_get_next(catch m3ua:get_ep(), N + 1, Columns).
 
 %%----------------------------------------------------------------------
 %% internal functions
@@ -107,4 +109,70 @@ ep_table(get, _RowIndex, Columns) ->
 %% @hidden
 mibs() ->
 	["SIGSCALE-M3UA-MIB"].
+
+%% @hidden
+ep_table_get_next(EPs, Index, Columns) when length(EPs) >= Index ->
+	EP = lists:nth(Index, EPs),
+	ep_table_get_next(EPs, catch m3ua:get_ep(EP), Index, Columns, []);
+ep_table_get_next(EPs, _Index, Columns) when is_list(EPs) ->
+	F = fun(N) -> N + 1 end,
+	NextColumns = lists:map(F, Columns),
+	ep_table_get_next(EPs, 1, NextColumns);
+ep_table_get_next({'EXIT', _Reason}, _, _) ->
+	{genErr, 0}.
+%% @hidden
+ep_table_get_next(EPs, EP, Index, [0 | T], Acc) when is_tuple(EP) ->
+	ep_table_get_next(EPs, EP, Index, T, [{[1, Index], Index} | Acc]);
+ep_table_get_next(EPs, EP, Index, [1 | T], Acc) when is_tuple(EP) ->
+	ep_table_get_next(EPs, EP, Index, T, [{[1, Index], Index} | Acc]);
+ep_table_get_next(EPs, {server, _, _} = EP, Index, [2 | T], Acc) ->
+	ep_table_get_next(EPs, EP, Index, T, [{[2, Index], 1} | Acc]);
+ep_table_get_next(EPs, {client, _, _, _} = EP, Index, [2 | T], Acc) ->
+	ep_table_get_next(EPs, EP, Index, T, [{[2, Index], 2} | Acc]);
+ep_table_get_next(EPs, EP, Index, [3 | T], Acc) ->
+	case element(3, EP) of
+		{Address, _} when size(Address) == 4 ->
+			ep_table_get_next(EPs, EP, Index, T, [{[3, Index], ipv4} | Acc]);
+		{Address, _} when size(Address) == 8 ->
+			ep_table_get_next(EPs, EP, Index, T, [{[3, Index], ipv6} | Acc])
+	end;
+ep_table_get_next(EPs, EP, Index, [4 | T], Acc) ->
+	{Address, _} = element(3, EP),
+	Value = tuple_to_list(Address),
+	ep_table_get_next(EPs, EP, Index, T, [{[4, Index], Value} | Acc]);
+ep_table_get_next(EPs, EP, Index, [5 | T], Acc) ->
+	{_, Port} = element(3, EP),
+	ep_table_get_next(EPs, EP, Index, T, [{[5, Index], Port} | Acc]);
+ep_table_get_next(EPs, {client, _, _, {Address, _}} = EP,
+		Index, [6 | T], Acc) when size(Address) == 4 ->
+	ep_table_get_next(EPs, EP, Index, T, [{[6, Index], ipv4} | Acc]);
+ep_table_get_next(EPs, {client, _, _, {Address, _}} = EP,
+		Index, [6 | T], Acc) when size(Address) == 8 ->
+	ep_table_get_next(EPs, EP, Index, T, [{[6, Index], ipv6} | Acc]);
+ep_table_get_next(EPs, {client, _, _, {Address, _}} = EP,
+		Index, [7 | T], Acc) ->
+	Value = tuple_to_list(Address),
+	ep_table_get_next(EPs, EP, Index, T, [{[7, Index], Value} | Acc]);
+ep_table_get_next(EPs, {client, _, _, {_, Port}} = EP, Index, [8 | T], Acc) ->
+	ep_table_get_next(EPs, EP, Index, T, [{[8, Index], Port} | Acc]);
+ep_table_get_next(EPs, {server, _, _} = EP, Index, [N | T], Acc)
+		when N >= 6, N =< 8 ->
+	case ep_table_get_next(EPs, Index + 1, [N]) of
+		[NextResult] ->
+			ep_table_get_next(EPs, EP, Index, T, [NextResult | Acc]);
+		{genErr, C} ->
+			{genErr, C}
+	end;
+ep_table_get_next(EPs, EP, Index, [9 | T], Acc) when element(2, EP) == sgp ->
+	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], sgp} | Acc]);
+ep_table_get_next(EPs, EP, Index, [9 | T], Acc) when element(2, EP) == asp ->
+	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], asp} | Acc]);
+ep_table_get_next(EPs, EP, Index, [9 | T], Acc) when element(2, EP) == ipsp ->
+	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], ipsp} | Acc]);
+ep_table_get_next(EPs, EP, Index, [N | T], Acc) when N > 9 ->
+	ep_table_get_next(EPs, EP, Index, T, [endOfTable | Acc]);
+ep_table_get_next(_, _, _, [], Acc) ->
+	lists:reverse(Acc);
+ep_table_get_next(_, {'EXIT', _Reason}, _, _, _) ->
+	{genErr, 0}.
 
