@@ -231,7 +231,16 @@ handle_sync_event({getstat, Options}, _From, connecting,
 	{reply, inet:getstat(Socket, Options), connecting, StateData, ?RETRY_WAIT};
 handle_sync_event({getstat, Options}, _From, connected,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), connected, StateData}.
+	{reply, inet:getstat(Socket, Options), connected, StateData};
+handle_sync_event(getep, _From, StateName,
+		#statedata{role = Role, options = Options,
+		local_addr = LocalAddr, local_port = LocalPort,
+		remote_addr = RemoteAddr, remote_port = RemotePort} = StateData) ->
+	EP = #m3ua_ep{type = client, role = Role,
+			local_addr = LocalAddr, local_port = LocalPort,
+			remote_addr = RemoteAddr, remote_port = RemotePort,
+			options = Options},
+	{reply, EP, StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->

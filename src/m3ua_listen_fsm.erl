@@ -102,10 +102,10 @@ init([Sup, Callback, Opts] = _Args) ->
 				case gen_sctp:listen(Socket, true) of
 					ok ->
 						case inet:sockname(Socket) of
-							{ok, {LocalAddress, LocalPort}} ->
+							{ok, {LocalAddr, LocalPort}} ->
 								process_flag(trap_exit, true),
 								NewStateData = StateData#statedata{
-										local_addr = LocalAddress,
+										local_addr = LocalAddr,
 										local_port = LocalPort},
 								{ok, listening, NewStateData, 0};
 							{error, Reason} ->
@@ -177,7 +177,14 @@ handle_sync_event({getstat, undefined}, _From, StateName,
 	{reply, inet:getstat(Socket), StateName, StateData};
 handle_sync_event({getstat, Options}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), StateName, StateData}.
+	{reply, inet:getstat(Socket, Options), StateName, StateData};
+handle_sync_event(getep, _From, StateName,
+		#statedata{role = Role, local_addr = LocalAddr,
+		local_port = LocalPort, options = Options} = StateData) ->
+	EP = #m3ua_ep{type = server, role = Role,
+			local_addr = LocalAddr, local_port = LocalPort,
+			options = Options},
+	{reply, EP, StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->

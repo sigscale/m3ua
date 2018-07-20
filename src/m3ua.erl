@@ -25,7 +25,7 @@
 -export([sctp_release/2, sctp_status/2]).
 -export([getstat/1, getstat/2, getstat/3]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
--export([get_ep/0, get_as/0, get_assoc/0, get_assoc/1]).
+-export([get_ep/0, get_ep/1, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/8]).
@@ -357,6 +357,28 @@ get_ep([H | T], Acc) ->
 	get_ep(T, [EP | Acc]);
 get_ep([], Acc) ->
 	lists:reverse(Acc).
+
+-spec get_ep(EP) -> Result
+	when
+		EP :: pid(),
+		Result :: {server, Role, Local} | {client, Role, Local, Remote},
+		Role :: asp | sgp,
+		Local :: {Address, Port},
+		Remote :: {Address, Port},
+		Address :: inet:ip_address(),
+		Port :: inet:port_number().
+%% @doc Get SCTP endpoint details.
+%%
+get_ep(EP) when is_pid(EP) ->
+	case gen_fsm:sync_send_all_state_event(EP, getep) of
+		#m3ua_ep{type = server, role = Role,
+				local_addr = Laddr, local_port = Lport} ->
+			{server, Role, {Laddr, Lport}};
+		#m3ua_ep{type = client, role = Role,
+				local_addr = Laddr, local_port = Lport,
+				remote_addr = Raddr, remote_port = Rport} ->
+			{client, Role, {Laddr, Lport}, {Raddr, Rport}}
+	end.
 
 -spec get_assoc() -> Result
 	when

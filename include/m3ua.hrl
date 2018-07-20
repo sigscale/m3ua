@@ -160,3 +160,17 @@
 		terminate = false :: fun() | false,
 		extra = [] :: [Args :: term()]}).
 
+-record(m3ua_ep,
+		{type :: client | server,
+		local_addr :: inet:ip_address(),
+		local_port :: inet:port_number(),
+		remote_addr :: inet:ip_address(),
+		remote_port :: inet:port_number(),
+		options :: [m3ua:option()],
+		m3ua_version :: pos_integer(),
+		role :: asp | sgp,
+		tack_init :: non_neg_integer(),
+		taud_init :: non_neg_integer(),
+		heartbeat :: boolean(),
+		tbeat_init :: non_neg_integer()}).
+

@@ -89,7 +89,7 @@ all() ->
 	[start, stop, listen, connect, release, getstat_ep, getstat_assoc,
 			asp_up, asp_down, register, asp_active, asp_inactive_to_down,
 			asp_active_to_down, asp_active_to_inactive, get_sctp_status,
-			mtp_transfer, asp_up_indication, asp_active_indication,
+			get_ep, mtp_transfer, asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
 			as_state_change_traffic_maintenance, as_state_active,
 			as_state_inactive, as_side_state_changes_1, as_side_state_changes_2].
@@ -306,6 +306,23 @@ get_sctp_status(_Config) ->
 	wait(Ref),
 	[Assoc] = m3ua:get_assoc(ClientEP),
 	{ok, #sctp_status{assoc_id = Assoc}} = m3ua:sctp_status(ClientEP, Assoc).
+
+get_ep() ->
+	[{userdata, [{doc, "Get SCTP endpoints."}]}].
+
+get_ep(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	{ok, ServerEP} = m3ua:start(#m3ua_fsm_cb{}, Port, []),
+	{ok, ClientEP} = m3ua:start(#m3ua_fsm_cb{}, 0,
+			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
+	EndPoints = m3ua:get_ep(),
+	true = lists:member(ServerEP, EndPoints),
+	true = lists:member(ClientEP, EndPoints),
+	{server, sgp, {{0,0,0,0}, Port}} = m3ua:get_ep(ServerEP),
+	{client, asp, {{0,0,0,0}, _},
+			{{127,0,0,1}, Port}} = m3ua:get_ep(ClientEP),
+	m3ua:stop(ClientEP),
+	m3ua:stop(ServerEP).
 
 mtp_transfer() ->
 	[{userdata, [{doc, "Send MTP Transfer Message"}]}].
