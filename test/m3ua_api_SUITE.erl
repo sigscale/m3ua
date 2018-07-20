@@ -26,7 +26,7 @@
 
 -compile(export_all).
 
--include_lib("m3ua.hrl").
+-include("m3ua.hrl").
 -include_lib("common_test/include/ct.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
@@ -44,6 +44,9 @@ suite() ->
 %% Initiation before the whole suite.
 %%
 init_per_suite(Config) ->
+	PrivDir = ?config(priv_dir, Config),
+	application:load(mnesia),
+	ok = application:set_env(mnesia, dir, PrivDir),
 	{ok, [m3ua_asp, m3ua_as]} = m3ua_app:install(),
 	ok = application:start(m3ua),
 	Config.
@@ -51,9 +54,8 @@ init_per_suite(Config) ->
 -spec end_per_suite(Config :: [tuple()]) -> any().
 %% Cleanup after the whole suite.
 %%
-end_per_suite(Config) ->
-	ok = application:stop(m3ua),
-	Config.
+end_per_suite(_Config) ->
+	ok = application:stop(m3ua).
 
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
 %% Initiation before each test case.
