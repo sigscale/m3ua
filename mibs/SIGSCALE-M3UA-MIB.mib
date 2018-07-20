@@ -84,20 +84,20 @@ m3uaEndPointEntry OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"SCTP endpoint configuration."
-		INDEX   { m3uaLocalAddressType, m3uaLocalAddress,
-				m3uaLocalPort, m3uaRemoteAddressType,
-				m3uaRemoteAddress, m3uaRemotePort }
+		INDEX   { m3uaEpIndex }
 	::= { m3uaEndPointTable 1 }
 
 M3uaEndPointEntry ::= SEQUENCE {
+		m3uaEpIndex           Unsigned32,
+		m3uaEpType            INTEGER,
 		m3uaLocalAddressType  InetAddressType,
 		m3uaLocalAddress      InetAddress,
 		m3uaLocalPort         INTEGER,
 		m3uaRemoteAddressType InetAddressType,
 		m3uaRemoteAddress     InetAddress,
 		m3uaRemotePort        INTEGER,
-		m3uaVersion           Unsigned32,
 		m3uaProcType          INTEGER,
+		m3uaVersion           Unsigned32,
 		m3uaTrInitValue       Unsigned32,
 		m3uaTPAudInitValue    Unsigned32,
 		m3uaHeartBeat         TruthValue,
@@ -105,13 +105,33 @@ M3uaEndPointEntry ::= SEQUENCE {
 		m3uaTAckInitValue     Unsigned32
 	}
 
+m3uaEpIndex OBJECT-TYPE
+		SYNTAX       Unsigned32 (1..4294967295)
+		MAX-ACCESS   not-accessible
+		STATUS       current
+		DESCRIPTION
+			"A number uniquely identifying each SCTP endpoint."
+	::= { m3uaEndPointEntry 1 }
+
+m3uaEpType OBJECT-TYPE
+		SYNTAX       INTEGER {
+			client(1),
+			server(2)
+		}
+		MAX-ACCESS   read-only
+		STATUS       current
+		DESCRIPTION
+			"The endpoint type is either accepting incoming connections
+			 (server) or establishing outgoing connections (client)."
+	::= { m3uaEndPointEntry 2 }
+
 m3uaLocalAddressType OBJECT-TYPE
 		SYNTAX       InetAddressType
 		MAX-ACCESS   read-only
 		STATUS       current
 		DESCRIPTION
 			"The primary local IP address type of the endpoint."
-	::= {m3uaEndPointEntry 1}
+	::= { m3uaEndPointEntry 3 }
 
 m3uaLocalAddress  OBJECT-TYPE
 		SYNTAX       InetAddress
@@ -119,7 +139,7 @@ m3uaLocalAddress  OBJECT-TYPE
 		STATUS       current
 		DESCRIPTION
 			"The primary local IP address of the endpoint."
-	::= {m3uaEndPointEntry 2}
+	::= { m3uaEndPointEntry 4 }
 
 m3uaLocalPort OBJECT-TYPE
 		SYNTAX       INTEGER (0..65535)
@@ -127,7 +147,7 @@ m3uaLocalPort OBJECT-TYPE
 		STATUS       current
 		DESCRIPTION
 			"The primary local IP port of the endpoint."
-	::= {m3uaEndPointEntry 3}
+	::= { m3uaEndPointEntry 5 }
 
 m3uaRemoteAddressType OBJECT-TYPE
 		SYNTAX       InetAddressType
@@ -135,7 +155,7 @@ m3uaRemoteAddressType OBJECT-TYPE
 		STATUS       current
 		DESCRIPTION
 			"The primary remote IP address type of the endpoint."
-	::= {m3uaEndPointEntry 4}
+	::= { m3uaEndPointEntry 6 }
 
 m3uaRemoteAddress  OBJECT-TYPE
 		SYNTAX       InetAddress
@@ -143,7 +163,7 @@ m3uaRemoteAddress  OBJECT-TYPE
 		STATUS       current
 		DESCRIPTION
 			"The primary remote IP address of the endpoint."
-	::= {m3uaEndPointEntry 5}
+	::= { m3uaEndPointEntry 7 }
 
 m3uaRemotePort OBJECT-TYPE
 		SYNTAX       INTEGER (0..65535)
@@ -151,15 +171,7 @@ m3uaRemotePort OBJECT-TYPE
 		STATUS       current
 		DESCRIPTION
 			"The primary remote IP port of the endpoint."
-	::= {m3uaEndPointEntry 6}
-
-m3uaVersion OBJECT-TYPE
-		SYNTAX      Unsigned32
-		MAX-ACCESS  read-only
-		STATUS      current
-		DESCRIPTION
-			"Identifies the current version of the M3UA."
-	::= { m3uaEndPointEntry 7 }
+	::= { m3uaEndPointEntry 8 }
 
 m3uaProcType OBJECT-TYPE
 		SYNTAX      INTEGER {
@@ -172,7 +184,15 @@ m3uaProcType OBJECT-TYPE
 		DESCRIPTION
 			"This variable indicates the type of the process where the
 			 M3UA layer is located."
-	::= { m3uaEndPointEntry 8 }
+	::= { m3uaEndPointEntry 9 }
+
+m3uaVersion OBJECT-TYPE
+		SYNTAX      Unsigned32
+		MAX-ACCESS  read-only
+		STATUS      current
+		DESCRIPTION
+			"Identifies the current version of the M3UA."
+	::= { m3uaEndPointEntry 10 }
 
 m3uaTrInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -183,7 +203,7 @@ m3uaTrInitValue OBJECT-TYPE
 			"Initial value of the Failover timer Tr. Tr set with value 0
 			 disables buffering."
 		DEFVAL {3000}  -- 3000 milliseconds is the recommended value
-	::= { m3uaEndPointEntry 9 }
+	::= { m3uaEndPointEntry 11 }
 
 m3uaTPAudInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -193,7 +213,7 @@ m3uaTPAudInitValue OBJECT-TYPE
 		DESCRIPTION
 			"Initial value of the Periodic Audit timer TPAud."
 		DEFVAL {5000}  -- 5000 milliseconds is the recommended value
-	::= { m3uaEndPointEntry 10 }
+	::= { m3uaEndPointEntry 12 }
 
 m3uaHeartBeat OBJECT-TYPE
 		SYNTAX      TruthValue
@@ -209,7 +229,7 @@ m3uaHeartBeat OBJECT-TYPE
 			 When the object is set to 'false' (2), Heartbeat is disabled.
 			 No BEAT messages are sent but the BEAT messages received are
 			 responded."
-	::= { m3uaEndPointEntry 11 }
+	::= { m3uaEndPointEntry 13 }
 
 m3uaTBeatInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -219,7 +239,7 @@ m3uaTBeatInitValue OBJECT-TYPE
 		DESCRIPTION
 			"Initial value of the HeartBeat timer TBeat."
 		DEFVAL {1000}  -- 1000 milliseconds is the recommended value
-	::= { m3uaEndPointEntry 12 }
+	::= { m3uaEndPointEntry 14 }
 
 m3uaTAckInitValue OBJECT-TYPE
 		SYNTAX      Unsigned32
@@ -229,7 +249,7 @@ m3uaTAckInitValue OBJECT-TYPE
 		DESCRIPTION
 			"Initial value of the Retransmission timer TAck."
 		DEFVAL {2000}  -- 2000 milliseconds is the recommended value
-	::= { m3uaEndPointEntry 13 }
+	::= { m3uaEndPointEntry 15 }
 
 m3uaAspDestTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaAspDestEntry
