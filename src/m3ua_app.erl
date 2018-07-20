@@ -70,7 +70,7 @@ start1() ->
 			MatchSpec = [{MatchHead, MatchCond, MatchBody}],
 			LocalPids = mnesia:select(m3ua_asp, MatchSpec, write),
 			Fdel = fun(Pid) ->
-						mnesia:delete(m3ua, Pid, write)
+						mnesia:delete(m3ua_asp, Pid, write)
 			end,
 			lists:foreach(Fdel, LocalPids)
 	end,
