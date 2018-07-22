@@ -8,7 +8,7 @@ IMPORTS
 			FROM INET-ADDRESS-MIB
 		sigscaleExperiment
 			FROM SIGSCALE-SMI
-		TruthValue
+		TruthValue, DisplayString
 			FROM SNMPv2-TC
 		MODULE-COMPLIANCE, OBJECT-GROUP
 			FROM SNMPv2-CONF;
@@ -350,7 +350,7 @@ m3uaAspSgpEntry OBJECT-TYPE
 		MAX-ACCESS  not-accessible
 		STATUS      current
 		DESCRIPTION
-			" SGP related parameters. There are SGPs available depending
+			"SGP related parameters. There are SGPs available depending
 			 on the AS the ASP is serving and the SG it wants to send the
 			 messages. It may be one or more SGP for each AS-SG pair."
 		INDEX   { m3uaAspSgpAsId, m3uaAspSgpSgId, m3uaAspSgpId }
@@ -788,7 +788,8 @@ m3uaSgpIpspAsEntry OBJECT-TYPE
 M3uaSgpIpspAsEntry ::= SEQUENCE {
 		m3uaSgpIpspAsId                     Unsigned32,
 		m3uaSgpIpspAsState                  INTEGER,
-		m3uaSgpIpspAsTmt                    INTEGER
+		m3uaSgpIpspAsTmt                    INTEGER,
+		m3uaSgpIpspAsName                   DisplayString
 	}
 
 m3uaSgpIpspAsId OBJECT-TYPE
@@ -824,6 +825,14 @@ m3uaSgpIpspAsTmt OBJECT-TYPE
 		DESCRIPTION
 			"Current Application Server Traffic Mode Type."
 	::= { m3uaSgpIpspAsEntry 3 }
+
+m3uaSgpIpspAsName OBJECT-TYPE
+		SYNTAX      DisplayString
+		MAX-ACCESS  read-only
+		STATUS      current
+		DESCRIPTION
+			"Application Server local name."
+	::= { m3uaSgpIpspAsEntry 4 }
 
 m3uaSgpIpspAspTable OBJECT-TYPE
 		SYNTAX      SEQUENCE OF M3uaSgpIpspAspEntry
