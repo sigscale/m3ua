@@ -353,14 +353,14 @@ m3uaAspSgpEntry OBJECT-TYPE
 			"SGP related parameters. There are SGPs available depending
 			 on the AS the ASP is serving and the SG it wants to send the
 			 messages. It may be one or more SGP for each AS-SG pair."
-		INDEX   { m3uaAspSgpAsId, m3uaAspSgpSgId, m3uaAspSgpId }
+		INDEX   { m3uaAspSgpAsId, m3uaAspSgpId }
 	::= { m3uaAspSgpTable 1 }
 
 M3uaAspSgpEntry ::= SEQUENCE {
 		m3uaAspSgpAsId                Unsigned32,
-		m3uaAspSgpSgId                Unsigned32,
 		m3uaAspSgpId                  Unsigned32,
-		m3uaAspSgpState               INTEGER
+		m3uaAspSgpState               INTEGER,
+		m3uaAspSgpAsName              DisplayString
 	}
 
 m3uaAspSgpAsId OBJECT-TYPE
@@ -372,15 +372,6 @@ m3uaAspSgpAsId OBJECT-TYPE
 			 is being served by the ASP."
 	::= { m3uaAspSgpEntry 1 }
 
-m3uaAspSgpSgId OBJECT-TYPE
-		SYNTAX      Unsigned32
-		MAX-ACCESS  not-accessible
-		STATUS      current
-		DESCRIPTION
-			"Signaling Gateway (SG) Identifier. It represents an SG
-			 composed of the SGPs identified by m3uaAspSgpId."
-	::= { m3uaAspSgpEntry 2 }
-
 m3uaAspSgpId OBJECT-TYPE
 		SYNTAX      Unsigned32
 		MAX-ACCESS  not-accessible
@@ -389,8 +380,7 @@ m3uaAspSgpId OBJECT-TYPE
 			"Signaling Gateway Process (SGP) Identifier. It represents an
 			 SGP that is serving the Signaling Gateway (SG) identified by
 			 the m3uaAspSgpSgId object."
-	::= { m3uaAspSgpEntry 3 }
-
+	::= { m3uaAspSgpEntry 2 }
 
 m3uaAspSgpState OBJECT-TYPE
 		SYNTAX      INTEGER {
@@ -403,6 +393,14 @@ m3uaAspSgpState OBJECT-TYPE
 		STATUS      current
 		DESCRIPTION
 			"AS state through each SGP in the SG."
+	::= { m3uaAspSgpEntry 3 }
+
+m3uaAspSgpAsName OBJECT-TYPE
+		SYNTAX      DisplayString
+		MAX-ACCESS  read-only
+		STATUS      current
+		DESCRIPTION
+			"Application Server local name."
 	::= { m3uaAspSgpEntry 4 }
 
 m3uaAspAssocTable OBJECT-TYPE
