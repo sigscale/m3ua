@@ -86,7 +86,7 @@ stop(EP) ->
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
+		Mode :: override | loadshare | broadcast,
 		Result :: {ok, AS} | {error, Reason},
 		AS :: #m3ua_as{},
 		Reason :: term().
@@ -107,7 +107,7 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
+		Mode :: override | loadshare | broadcast,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Delete an Application Server (AS).
@@ -124,7 +124,7 @@ as_delete(RoutingKey) ->
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
+		Mode :: override | loadshare | broadcast,
 		AsName :: term(),
 		Result :: {ok, RoutingContext} | {error, Reason},
 		RoutingContext :: pos_integer(),

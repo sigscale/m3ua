@@ -96,7 +96,7 @@ stop(EP) when is_pid(EP) ->
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
+		Mode :: override | loadshare | broadcast,
 		Result :: {ok, AS} | {error, Reason},
 		AS :: #m3ua_as{},
 		Reason :: term().
@@ -116,7 +116,7 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
+		Mode :: override | loadshare | broadcast,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Delete an Application Server (AS).
@@ -178,7 +178,7 @@ getstat(EndPoint, Assoc, Options)
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
+		Mode :: override | loadshare | broadcast,
 		Result :: {ok, RoutingContext} | {error, Reason},
 		RoutingContext :: pos_integer(),
 		Reason :: term().
@@ -186,7 +186,7 @@ getstat(EndPoint, Assoc, Options)
 register(EndPoint, Assoc, NA, Keys, Mode)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Keys),
 		((NA == undefined) or is_integer(NA)),
-		((Mode == overide) orelse (Mode == loadshare)
+		((Mode == override) orelse (Mode == loadshare)
 		orelse (Mode == broadcast)) ->
 	register(EndPoint, Assoc, NA, Keys, Mode, undefined).
 
@@ -200,7 +200,7 @@ register(EndPoint, Assoc, NA, Keys, Mode)
 		DPC :: pos_integer(),
 		SI :: pos_integer(),
 		OPC :: pos_integer(),
-		Mode :: overide | loadshare | broadcast,
+		Mode :: override | loadshare | broadcast,
 		AsName :: term(),
 		Result :: {ok, RoutingContext} | {error, Reason},
 		RoutingContext :: pos_integer(),
@@ -209,7 +209,7 @@ register(EndPoint, Assoc, NA, Keys, Mode)
 register(EndPoint, Assoc, NA, Keys, Mode, AsName)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Keys),
 		((NA == undefined) or is_integer(NA)),
-		((Mode == overide) orelse (Mode == loadshare)
+		((Mode == override) orelse (Mode == loadshare)
 		orelse (Mode == broadcast)) ->
 	m3ua_lm_server:register(EndPoint, Assoc, NA, Keys, Mode, AsName).
 
