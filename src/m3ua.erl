@@ -322,7 +322,7 @@ transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data)
 		Result :: {ok, [AS]} | {error, Reason},
 		AS :: {Name, NA, Keys, TMT, MinASP, MaxASP, State},
 		Name :: string(),
-		NA :: pos_integer(),
+		NA :: undefined | pos_integer(),
 		Keys :: [key()],
 		TMT :: tmt(),
 		MinASP :: pos_integer(),
