@@ -127,6 +127,16 @@ as_table(get_next, [N], Columns) ->
 mibs() ->
 	["SIGSCALE-M3UA-MIB"].
 
+-spec ep_table_get_next(EPs, Index, Columns) -> Result
+	when
+		EPs :: [pid()],
+		Index :: pos_integer(),
+		Columns :: [Column],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {genErr, Column},
+		Element :: {value, Value} | {ObjectId, Value},
+		ObjectId :: [integer()],
+		Value :: atom() | integer() | string() | [integer()].
 %% @hidden
 ep_table_get_next(EPs, Index, Columns) when length(EPs) >= Index ->
 	EP = lists:nth(Index, EPs),
@@ -193,6 +203,24 @@ ep_table_get_next(_, _, _, [], Acc) ->
 ep_table_get_next(_, {'EXIT', _Reason}, _, _, _) ->
 	{genErr, 0}.
 
+-spec as_table_get_next(GetAsResult, Index, Columns) -> Result
+	when
+		GetAsResult :: {ok, [AS]} | {error, Reason :: term()},
+		AS :: {Name, NA, Keys, TMT, MinASP, MaxASP, State},
+		Name :: term(),
+		NA :: undefined | pos_integer(),
+		Keys :: [tuple()],
+		TMT :: override | loadshare | broadcast,
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
+		State :: down | inactive | active | pending,
+		Index :: pos_integer(),
+		Columns :: [Column],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {genErr, Column},
+		Element :: {value, Value} | {ObjectId, Value},
+		ObjectId :: [integer()],
+		Value :: atom() | integer() | string() | [integer()].
 %% @hidden
 as_table_get_next({ok, ASs}, Index, Columns) when length(ASs) >= Index ->
 	as_table_get_next(ASs, lists:nth(Index, ASs), Index, Columns, []);
