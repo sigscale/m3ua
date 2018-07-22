@@ -1,2 +1,3 @@
 {m3uaEndPointTable, {m3ua_mib, ep_table, []}}.
 {m3uaSgpIpspAsTable, {m3ua_mib, as_table, []}}.
+{m3uaAspSgpTable, {m3ua_mib, asp_sgp_table, []}}.

@@ -114,7 +114,7 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[get_ep, get_next_ep, get_as, get_next_as].
+	[get_ep, get_next_ep, get_as, get_next_as, get_asp_sgp, get_next_asp_sgp].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -179,6 +179,26 @@ get_next_as(_Config) ->
 	{value, AsIdOID} = snmpa:name_to_oid(m3uaSgpIpspAsId),
 	AsIdOID1 = AsIdOID ++ [1],
 	[{varbind, AsIdOID1, 'Unsigned32', _, _}] = Varbinds1.
+
+get_asp_sgp() ->
+	[{userdata, [{doc, "Get an ASP/SGP table entry"}]}].
+
+get_asp_sgp(_Config) ->
+	Name = "as_" ++ integer_to_list(rand:uniform(255)),
+	Keys = [{rand:uniform(16383), [], []}],
+	{ok, _AS} = m3ua:as_add(Name, undefined, Keys, loadshare, 1, 4),
+	{value, OID} = snmpa:name_to_oid(m3uaAspSgpState),
+	OID1 = OID ++ [1, 1],
+	{noError, _, _Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
+			[OID1], snmp_mgr_agent).
+
+get_next_asp_sgp() ->
+	[{userdata, [{doc, "Get next on ASP/SGP table"}]}].
+
+get_next_asp_sgp(_Config) ->
+	{value, AsTableOID} = snmpa:name_to_oid(m3uaAspSgpTable),
+	{noError, _, Varbinds1} = ct_snmp:get_next_values(m3ua_mibs_test,
+			[AsTableOID], snmp_mgr_agent).
 
 %%---------------------------------------------------------------------
 %%  Internal functions

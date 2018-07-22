@@ -25,7 +25,7 @@
 -export([load/0, load/1, unload/0, unload/1]).
 
 %% export the m3ua_mib snmp agent callbacks
--export([ep_table/3, as_table/3]).
+-export([ep_table/3, as_table/3, asp_sgp_table/3]).
 
 -include("m3ua.hrl").
 
@@ -118,6 +118,31 @@ as_table(get_next, [] = _RowIndex, Columns) ->
 	as_table_get_next(m3ua:get_as(), 1, Columns);
 as_table(get_next, [N], Columns) ->
 	as_table_get_next(m3ua:get_as(), N + 1, Columns).
+
+-spec asp_sgp_table(Operation, RowIndex, Columns) -> Result
+	when
+		Operation :: get | get_next,
+		RowIndex :: ObjectId,
+		ObjectId :: [integer()],
+		Columns :: [Column],
+		Column :: integer(),
+		Result :: [Element] | {genErr, Column},
+		Element :: {value, Value} | {ObjectId, Value},
+		Value :: atom() | integer() | string() | [integer()].
+%% @doc Handle SNMP requests for the ASP/SGP table.
+%% @private
+asp_sgp_table(get_next, [] = _RowIndex, Columns) ->
+	asp_sgp_table(get_next, [1, 1], Columns);
+asp_sgp_table(get_next, [AsIndex, AspIndex], Columns) ->
+	F = fun() ->
+		mnesia:all_keys(m3ua_as)
+	end,
+	case mnesia:transaction(F) of
+		{atomic, Keys} ->
+			asp_sgp_table_get_next(Keys, AsIndex, AspIndex, Columns);
+		{aborted, _Reason} ->
+			{genErr, hd(Columns)}
+	end.
 
 %%----------------------------------------------------------------------
 %% internal functions
@@ -272,5 +297,109 @@ as_table_get_next(ASs, AS, Index, [4 | T], Acc) ->
 as_table_get_next(ASs, AS, Index, [N | T], Acc) when N > 4 ->
 	as_table_get_next(ASs, AS, Index, T, [endOfTable | Acc]);
 as_table_get_next(_, _, _, [], Acc) ->
+	lists:reverse(Acc).
+
+-spec asp_sgp_table_get_next(AsKeys, AsIndex, AspIndex, Columns) -> Result
+	when
+		AsKeys :: [term()],
+		AsIndex :: pos_integer(),
+		AspIndex :: pos_integer(),
+		Columns :: [Column],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {genErr, Column},
+		Element :: {value, Value} | {ObjectId, Value},
+		ObjectId :: [integer()],
+		Value :: atom() | integer() | string() | [integer()].
+%% @hidden
+asp_sgp_table_get_next([], _AsIndex, _AspIndex, Columns) ->
+	[endOfTable || _ <- Columns];
+asp_sgp_table_get_next(AsKeys, 0, AspIndex, Columns) ->
+	asp_sgp_table_get_next(AsKeys, 1, AspIndex, Columns);
+asp_sgp_table_get_next(AsKeys, AsIndex, 0, Columns) ->
+	asp_sgp_table_get_next(AsKeys, AsIndex, 1, Columns);
+asp_sgp_table_get_next(AsKeys, AsIndex, AspIndex, Columns)
+		when length(AsKeys) >= AsIndex ->
+	F = fun() ->
+		[#m3ua_as{name = Name, asp = ASPs}] = mnesia:read(m3ua_as,
+				lists:nth(AsIndex, AsKeys)),
+		{Name, [ASP#m3ua_as_asp.state || ASP <- ASPs]} 
+	end,
+	case mnesia:transaction(F) of
+		{atomic, {_, []} = _AS} ->
+			asp_sgp_table_get_next(AsKeys, AsIndex + 1, 1, Columns);
+		{atomic, AS} ->
+			asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, Columns, []);
+		{aborted, _Reason} ->
+			{genErr, hd(Columns)}
+	end;
+asp_sgp_table_get_next(AsKeys, _AsIndex, _AspIndex, [N | _] = Columns)
+		when N =< 3 ->
+	F = fun(C) -> C + 1 end,
+	NextColumns = lists:map(F, Columns),
+	asp_sgp_table_get_next(AsKeys, 1, 1, NextColumns);
+asp_sgp_table_get_next(_, _, _, Columns) ->
+	[endOfTable || _ <- Columns].
+%% @hidden
+asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, [N | T], Acc)
+		when N == 0; N == 1 ->
+	asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, [2 | T], Acc);
+asp_sgp_table_get_next(AsKeys, {_, States} = AS, AsIndex, AspIndex, [2 | T], Acc)
+		when AspIndex =< length(States) ->
+	asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+			T, [{[2, AsIndex, AspIndex], lists:nth(AspIndex, States)}, Acc]);
+asp_sgp_table_get_next(AsKeys, {Name, States} = AS, AsIndex, AspIndex, [3 | T], Acc)
+		when AspIndex =< length(States), is_atom(Name) ->
+	Value = atom_to_list(Name),
+	asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+			T, [{[3, AsIndex, AspIndex], Value}, Acc]);
+asp_sgp_table_get_next(AsKeys, {Name, States} = AS, AsIndex, AspIndex, [3 | T], Acc)
+		when AspIndex =< length(States), is_list(Name) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Value when is_list(Value) ->
+			asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+					T, [{[3, AsIndex, AspIndex], Value} | Acc]);
+		_ when length(States) < AspIndex ->
+			case asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex + 1, [3], []) of
+				[NextResult] ->
+					asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+							T, [NextResult | Acc]);
+				{genErr, C} ->
+					{genErr, C}
+			end;
+		_ ->
+			case asp_sgp_table_get_next(AsKeys, AsIndex + 1, 1, [3]) of
+				[NextResult] ->
+					asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+							T, [NextResult | Acc]);
+				{genErr, C} ->
+					{genErr, C}
+			end
+	end;
+asp_sgp_table_get_next(AsKeys, {Name, States} = AS, AsIndex, AspIndex, [3 | T], Acc)
+		when AspIndex =< length(States), is_integer(Name) ->
+	Value = integer_to_list(Name),
+	asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+			T, [{[3, AsIndex, AspIndex], Value}, Acc]);
+asp_sgp_table_get_next(AsKeys, {_, States} = AS, AsIndex, AspIndex, [3 | T], Acc)
+	when length(States) < AspIndex ->
+	case asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex + 1, [3], []) of
+		[NextResult] ->
+			asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+					T, [NextResult | Acc]);
+		{genErr, C} ->
+			{genErr, C}
+	end;
+asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, [3 | T], Acc) ->
+	case asp_sgp_table_get_next(AsKeys, AsIndex + 1, 1, [3]) of
+		[NextResult] ->
+			asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+					T, [NextResult | Acc]);
+		{genErr, C} ->
+			{genErr, C}
+	end;
+asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, [N | T], Acc)
+		when N > 3 ->
+	asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, T, [endOfTable | Acc]);
+asp_sgp_table_get_next(_, _, _, _, [], Acc) ->
 	lists:reverse(Acc).
 
