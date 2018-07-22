@@ -25,7 +25,7 @@
 -export([load/0, load/1, unload/0, unload/1]).
 
 %% export the m3ua_mib snmp agent callbacks
--export([ep_table/3]).
+-export([ep_table/3, as_table/3]).
 
 -include("m3ua.hrl").
 
@@ -95,12 +95,29 @@ unload(Agent) ->
 		Result :: [Element] | {genErr, Column},
 		Element :: {value, Value} | {ObjectId, Value},
 		Value :: atom() | integer() | string() | [integer()].
-%% @doc Handle SNMP requests for the endpoint table.
+%% @doc Handle SNMP requests for the endpoint (EP) table.
 %% @private
 ep_table(get_next, [] = _RowIndex, Columns) ->
 	ep_table_get_next(catch m3ua:get_ep(), 1, Columns);
 ep_table(get_next, [N], Columns) ->
 	ep_table_get_next(catch m3ua:get_ep(), N + 1, Columns).
+
+-spec as_table(Operation, RowIndex, Columns) -> Result
+	when
+		Operation :: get | get_next,
+		RowIndex :: ObjectId,
+		ObjectId :: [integer()],
+		Columns :: [Column],
+		Column :: integer(),
+		Result :: [Element] | {genErr, Column},
+		Element :: {value, Value} | {ObjectId, Value},
+		Value :: atom() | integer() | string() | [integer()].
+%% @doc Handle SNMP requests for the application server (AS) table.
+%% @private
+as_table(get_next, [] = _RowIndex, Columns) ->
+	as_table_get_next(m3ua:get_as(), 1, Columns);
+as_table(get_next, [N], Columns) ->
+	as_table_get_next(m3ua:get_as(), N + 1, Columns).
 
 %%----------------------------------------------------------------------
 %% internal functions
@@ -175,4 +192,53 @@ ep_table_get_next(_, _, _, [], Acc) ->
 	lists:reverse(Acc);
 ep_table_get_next(_, {'EXIT', _Reason}, _, _, _) ->
 	{genErr, 0}.
+
+%% @hidden
+as_table_get_next({ok, ASs}, Index, Columns) when length(ASs) >= Index ->
+	as_table_get_next(ASs, lists:nth(Index, ASs), Index, Columns, []);
+as_table_get_next({ok, ASs}, _Index, Columns) ->
+	F = fun(N) -> N + 1 end,
+	NextColumns = lists:map(F, Columns),
+	as_table_get_next({ok, ASs}, 1, NextColumns);
+as_table_get_next({error, _Reason}, _, _) ->
+	{genErr, 0}.
+%% @hidden
+as_table_get_next(ASs, AS, Index, [N | T], Acc) when N == 0; N == 1 ->
+	as_table_get_next(ASs, AS, Index, T, [{[1, Index], Index} | Acc]);
+as_table_get_next(ASs, AS, Index, [2 | T], Acc) ->
+	as_table_get_next(ASs, AS, Index, T, [{[2, Index], element(7, AS)} | Acc]);
+as_table_get_next(ASs, AS, Index, [3 | T], Acc) ->
+	as_table_get_next(ASs, AS, Index, T, [{[3, Index], element(4, AS)} | Acc]);
+as_table_get_next(ASs, {Name, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
+		when is_atom(Name) ->
+	Value = atom_to_list(Name),
+	as_table_get_next(ASs, AS, Index, T, [{[4, Index], Value} | Acc]);
+as_table_get_next(ASs, {Name, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
+		when is_list(Name) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Value when is_list(Value) ->
+			as_table_get_next(ASs, AS, Index, T, [{[4, Index], Value} | Acc]);
+		_ ->
+			case as_table_get_next({ok, ASs}, Index + 1, [4]) of
+				[NextResult] ->
+					as_table_get_next(ASs, AS, Index, T, [NextResult | Acc]);
+				{genErr, C} ->
+					{genErr, C}
+			end
+	end;
+as_table_get_next(ASs, {Name, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
+		when is_integer(Name) ->
+	Value = integer_to_list(Name),
+	as_table_get_next(ASs, AS, Index, T, [{[4, Index], Value} | Acc]);
+as_table_get_next(ASs, AS, Index, [4 | T], Acc) ->
+	case as_table_get_next({ok, ASs}, Index + 1, [4]) of
+		[NextResult] ->
+			as_table_get_next(ASs, AS, Index, T, [NextResult | Acc]);
+		{genErr, C} ->
+			{genErr, C}
+	end;
+as_table_get_next(ASs, AS, Index, [N | T], Acc) when N > 4 ->
+	as_table_get_next(ASs, AS, Index, T, [endOfTable | Acc]);
+as_table_get_next(_, _, _, [], Acc) ->
+	lists:reverse(Acc).
 

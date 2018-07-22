@@ -114,14 +114,14 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[get_ep, get_next_ep].
+	[get_ep, get_next_ep, get_as, get_next_as].
 
 %%---------------------------------------------------------------------
 %%  Test cases
 %%---------------------------------------------------------------------
 
 get_ep() ->
-	[{userdata, [{doc, "Get an endpoint table entry"}]}].
+	[{userdata, [{doc, "Get an endpoint (EP) table entry"}]}].
 
 get_ep(_Config) ->
 	{ok, _EP} = m3ua:start(#m3ua_fsm_cb{}, 0, [{ip, {127,0,0,1}}]),
@@ -131,7 +131,7 @@ get_ep(_Config) ->
 			[OID1], snmp_mgr_agent).
 
 get_next_ep() ->
-	[{userdata, [{doc, "Get next on endpoint table"}]}].
+	[{userdata, [{doc, "Get next on endpoint (EP) table"}]}].
 
 get_next_ep(_Config) ->
 	Port = rand:uniform(64511) + 1024,
@@ -147,6 +147,38 @@ get_next_ep(_Config) ->
 	{value, EpIndexOID} = snmpa:name_to_oid(m3uaEpIndex),
 	EpIndexOID1 = EpIndexOID ++ [1],
 	[{varbind, EpIndexOID1, 'Unsigned32', _, _}] = Varbinds1.
+
+get_as() ->
+	[{userdata, [{doc, "Get an application server (AS) table entry"}]}].
+
+get_as(_Config) ->
+	Name = "as_" ++ integer_to_list(rand:uniform(255)),
+	Keys = [{rand:uniform(16383), [], []}],
+	{ok, _AS} = m3ua:as_add(Name, undefined, Keys, loadshare, 1, 4),
+	{value, OID} = snmpa:name_to_oid(m3uaSgpIpspAsId),
+	OID1 = OID ++ [1],
+	{noError, _, _Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
+			[OID1], snmp_mgr_agent).
+
+get_next_as() ->
+	[{userdata, [{doc, "Get next on application server (AS) table"}]}].
+
+get_next_as(_Config) ->
+	Name1 = "as_" ++ integer_to_list(rand:uniform(255)),
+	Keys1 = [{rand:uniform(16383), [], []}],
+	Name2 = "as_" ++ integer_to_list(rand:uniform(255)),
+	Keys2 = [{rand:uniform(16383), [], []}],
+	Name3 = "as_" ++ integer_to_list(rand:uniform(255)),
+	Keys3 = [{rand:uniform(16383), [], []}],
+	{ok, _AS1} = m3ua:as_add(Name1, undefined, Keys1, loadshare, 1, 4),
+	{ok, _AS2} = m3ua:as_add(Name2, 1, Keys2, override, 1, 2),
+	{ok, _AS3} = m3ua:as_add(Name3, 1, Keys3, broadcast, 1, 2),
+	{value, AsTableOID} = snmpa:name_to_oid(m3uaSgpIpspAsTable),
+	{noError, _, Varbinds1} = ct_snmp:get_next_values(m3ua_mibs_test,
+			[AsTableOID], snmp_mgr_agent),
+	{value, AsIdOID} = snmpa:name_to_oid(m3uaSgpIpspAsId),
+	AsIdOID1 = AsIdOID ++ [1],
+	[{varbind, AsIdOID1, 'Unsigned32', _, _}] = Varbinds1.
 
 %%---------------------------------------------------------------------
 %%  Internal functions
