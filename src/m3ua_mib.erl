@@ -138,6 +138,8 @@ mibs() ->
 		ObjectId :: [integer()],
 		Value :: atom() | integer() | string() | [integer()].
 %% @hidden
+ep_table_get_next([], _Index, Columns) ->
+	[endOfTable || _ <- Columns];
 ep_table_get_next(EPs, Index, Columns) when length(EPs) >= Index ->
 	EP = lists:nth(Index, EPs),
 	ep_table_get_next(EPs, catch m3ua:get_ep(EP), Index, Columns, []);
@@ -222,6 +224,8 @@ ep_table_get_next(_, {'EXIT', _Reason}, _, _, _) ->
 		ObjectId :: [integer()],
 		Value :: atom() | integer() | string() | [integer()].
 %% @hidden
+as_table_get_next({ok, []}, _Index, Columns) ->
+	[endOfTable || _ <- Columns];
 as_table_get_next({ok, ASs}, Index, Columns) when length(ASs) >= Index ->
 	as_table_get_next(ASs, lists:nth(Index, ASs), Index, Columns, []);
 as_table_get_next({ok, ASs}, _Index, Columns) ->
