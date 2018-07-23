@@ -238,10 +238,9 @@ ep_table_get_next(EPs, _Index, Columns) when is_list(EPs) ->
 ep_table_get_next({'EXIT', _Reason}, _, _) ->
 	{genErr, 0}.
 %% @hidden
-ep_table_get_next(EPs, EP, Index, [0 | T], Acc) when is_tuple(EP) ->
-	ep_table_get_next(EPs, EP, Index, T, [{[1, Index], Index} | Acc]);
-ep_table_get_next(EPs, EP, Index, [1 | T], Acc) when is_tuple(EP) ->
-	ep_table_get_next(EPs, EP, Index, T, [{[1, Index], Index} | Acc]);
+ep_table_get_next(EPs, EP, Index, [N | T], Acc)
+		when is_tuple(EP), N < 2 ->
+	ep_table_get_next(EPs, EP, Index, T, [{[2, Index], Index} | Acc]);
 ep_table_get_next(EPs, {server, _, _} = EP, Index, [2 | T], Acc) ->
 	ep_table_get_next(EPs, EP, Index, T, [{[2, Index], 1} | Acc]);
 ep_table_get_next(EPs, {client, _, _, _} = EP, Index, [2 | T], Acc) ->
