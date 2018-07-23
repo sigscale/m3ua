@@ -97,6 +97,8 @@ unload(Agent) ->
 		Value :: atom() | integer() | string() | [integer()].
 %% @doc Handle SNMP requests for the endpoint (EP) table.
 %% @private
+ep_table(get, RowIndex, Columns) ->
+	ep_table_get(catch m3ua:get_ep(), RowIndex, Columns);
 ep_table(get_next, [] = _RowIndex, Columns) ->
 	ep_table_get_next(catch m3ua:get_ep(), 1, Columns);
 ep_table(get_next, [N], Columns) ->
@@ -151,6 +153,67 @@ asp_sgp_table(get_next, [AsIndex, AspIndex], Columns) ->
 %% @hidden
 mibs() ->
 	["SIGSCALE-M3UA-MIB"].
+
+-spec ep_table_get(EPs, Index, Columns) -> Result
+	when
+		EPs :: [pid()],
+		Index :: pos_integer(),
+		Columns :: [Column],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {noValue, noSuchInstance} | genErr,
+		Element :: {value, Value} | {noValue, noSuchInstance},
+		Value :: atom() | integer() | string() | [integer()].
+%% @hidden
+ep_table_get(EPs, Index, Columns) when length(EPs) >= Index ->
+	EP = lists:nth(Index, EPs),
+	ep_table_get1(catch m3ua:get_ep(EP), Columns, []);
+ep_table_get(EPs, _Index, _Columns) when is_list(EPs) ->
+	{noValue, noSuchInstance};
+ep_table_get({'EXIT', _Reason}, _, _) ->
+	genErr.
+%% @hidden
+ep_table_get1({server, _, _} = EP, [2 | T], Acc) ->
+	ep_table_get1(EP, T, [{value, 1} | Acc]);
+ep_table_get1({client, _, _} = EP, [2 | T], Acc) ->
+	ep_table_get1(EP, T, [{value, 2} | Acc]);
+ep_table_get1(EP, [3 | T], Acc) when is_tuple(EP) ->
+	case element(3, EP) of
+		{Address, _} when size(Address) == 4 ->
+			ep_table_get1(EP, T, [{value, ipv4} | Acc]);
+		{Address, _} when size(Address) == 8 ->
+			ep_table_get1(EP, T, [{value, ipv6} | Acc])
+	end;
+ep_table_get1(EP, [4 | T], Acc) when is_tuple(EP) ->
+	{Address, _} = element(3, EP),
+	Value = tuple_to_list(Address),
+	ep_table_get1(EP, T, [{value, Value} | Acc]);
+ep_table_get1(EP, [5 | T], Acc) when is_tuple(EP) ->
+	{_, Port} = element(3, EP),
+	ep_table_get1(EP, T, [{value, Port} | Acc]);
+ep_table_get1({client, _, _, {Address, _}} = EP,
+		[6 | T], Acc) when size(Address) == 4 ->
+	ep_table_get1(EP, T, [{value, ipv4} | Acc]);
+ep_table_get1({client, _, _, {Address, _}} = EP,
+		[6 | T], Acc) when size(Address) == 8 ->
+	ep_table_get1(EP, T, [{value, ipv6} | Acc]);
+ep_table_get1({client, _, _, {Address, _}} = EP,
+		[7 | T], Acc) ->
+	Value = tuple_to_list(Address),
+	ep_table_get1(EP, T, [{value, Value} | Acc]);
+ep_table_get1({client, _, _, {_, Port}} = EP,
+		[8 | T], Acc) ->
+	ep_table_get1(EP, T, [{value, Port} | Acc]);
+ep_table_get1({server, _, _} = EP, [N | T], Acc)
+		when N >= 6, N =< 8 ->
+	ep_table_get1(EP, T, [{noValue, noSuchInstance} | Acc]);
+ep_table_get1(EP, [9 | T], Acc) when is_tuple(EP) ->
+	ep_table_get1(EP, T, [{value, element(2, EP)} | Acc]);
+ep_table_get1(EP, [_ | T], Acc) when is_tuple(EP) ->
+	ep_table_get1(EP, T, [{noValue, noSuchInstance} | Acc]);
+ep_table_get1(EP, [], Acc) when is_tuple(EP) ->
+	lists:reverse(Acc);
+ep_table_get1({'EXIT', _Reason}, _, _) ->
+	genErr.
 
 -spec ep_table_get_next(EPs, Index, Columns) -> Result
 	when
@@ -217,12 +280,8 @@ ep_table_get_next(EPs, {server, _, _} = EP, Index, [N | T], Acc)
 		{genErr, C} ->
 			{genErr, C}
 	end;
-ep_table_get_next(EPs, EP, Index, [9 | T], Acc) when element(2, EP) == sgp ->
-	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], sgp} | Acc]);
-ep_table_get_next(EPs, EP, Index, [9 | T], Acc) when element(2, EP) == asp ->
-	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], asp} | Acc]);
-ep_table_get_next(EPs, EP, Index, [9 | T], Acc) when element(2, EP) == ipsp ->
-	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], ipsp} | Acc]);
+ep_table_get_next(EPs, EP, Index, [9 | T], Acc) ->
+	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], element(2, EP)} | Acc]);
 ep_table_get_next(EPs, EP, Index, [N | T], Acc) when N > 9 ->
 	ep_table_get_next(EPs, EP, Index, T, [endOfTable | Acc]);
 ep_table_get_next(_, _, _, [], Acc) ->
@@ -306,6 +365,7 @@ as_table_get_next(_, _, _, [], Acc) ->
 		AspIndex :: pos_integer(),
 		Columns :: [Column],
 		Column :: non_neg_integer(),
+		Result :: [Element] | {genErr, Column},
 		Element :: {NextOid, NextValue} | endOfTable,
 		NextOid :: [integer()],
 		NextValue :: atom() | integer() | string() | [integer()].
