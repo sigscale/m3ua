@@ -193,7 +193,7 @@ get_asp_sgp(_Config) ->
 	AspStateOID1 = AspStateOID ++ [1, 1],
 	{noError, _, Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
 			[AspStateOID1], snmp_mgr_agent),
-	[{varbind, AspStateOID1, 'INTEGER', _, _}] = Varbinds.
+	[{varbind, AspStateOID1, 'NULL', noSuchInstance, _}] = Varbinds.
 
 get_next_asp_sgp() ->
 	[{userdata, [{doc, "Get next on ASP/SGP table"}]}].

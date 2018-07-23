@@ -135,6 +135,24 @@ as_table(get_next, [N], Columns) ->
 		Value :: atom() | integer() | string() | [integer()].
 %% @doc Handle SNMP requests for the ASP/SGP table.
 %% @private
+asp_sgp_table(get, [AsIndex, AspIndex] = _RowIndex, Columns) ->
+	F = fun() ->
+		case mnesia:all_keys(m3ua_as) of
+			Keys when length(Keys) >= AsIndex, AsIndex > 0 ->
+				mnesia:read(m3ua_as, lists:nth(AsIndex, Keys));
+			_Keys ->
+				mnesia:abort(noSuchInstance)
+		end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, [#m3ua_as{name = Name, asp = ASPs}]} ->
+         States = [State || #m3ua_as_asp{state = State} <- ASPs],
+			asp_sgp_table_get({Name, States}, AspIndex, Columns, []);
+		{aborted, noSuchInstance} ->
+			{noValue, noSuchInstance};
+		{aborted, _Reason} ->
+			genErr
+	end;
 asp_sgp_table(get_next, [] = _RowIndex, Columns) ->
 	asp_sgp_table(get_next, [1, 0], Columns);
 asp_sgp_table(get_next, [AsIndex, AspIndex], Columns) ->
@@ -411,6 +429,38 @@ as_table_get_next(ASs, AS, Index, [4 | T], Acc) ->
 as_table_get_next(ASs, AS, Index, [N | T], Acc) when N > 4 ->
 	as_table_get_next(ASs, AS, Index, T, [endOfTable | Acc]);
 as_table_get_next(_, _, _, [], Acc) ->
+	lists:reverse(Acc).
+
+-spec asp_sgp_table_get(AS, Index, Columns, Acc) -> Result
+	when
+		AS :: {Name, [State]},
+		Name :: term(),
+		State :: down | inactive | active,
+		Index :: pos_integer(),
+		Columns :: [Column],
+		Acc :: [Element],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {noValue, noSuchInstance} | genErr,
+		Element :: {value, Value} | {noValue, noSuchInstance},
+		Value :: atom() | integer() | string() | [integer()].
+%% @hidden
+asp_sgp_table_get({_, States} = AS, Index, [3 | T], Acc)
+		when length(States) >= Index, Index > 0 ->
+	asp_sgp_table_get(AS, Index, T, [{value, lists:nth(Index, States)} | Acc]);
+asp_sgp_table_get({Name, _} = AS, Index, [4 | T], Acc) when is_atom(Name) ->
+	asp_sgp_table_get(AS, Index, T, [{value, atom_to_list(Name)} | Acc]);
+asp_sgp_table_get({Name, _} = AS, Index, [4 | T], Acc) when is_list(Name) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Value when is_list(Value) ->
+			asp_sgp_table_get(AS, Index, T, [{value, Value} | Acc]);
+		_ ->
+			asp_sgp_table_get(AS, Index, T, [{noValue, noSuchInstance} | Acc])
+	end;
+asp_sgp_table_get({Name, _} = AS, Index, [4 | T], Acc) when is_integer(Name) ->
+	asp_sgp_table_get(AS, Index, T, [{value, integer_to_list(Name)} | Acc]);
+asp_sgp_table_get(AS, Index, [_ | T], Acc) ->
+	asp_sgp_table_get(AS, Index, T, [{noValue, noSuchInstance} | Acc]);
+asp_sgp_table_get(_, _, [], Acc) ->
 	lists:reverse(Acc).
 
 -spec asp_sgp_table_get_next(AsKeys, AsIndex, AspIndex, Columns) -> Result
