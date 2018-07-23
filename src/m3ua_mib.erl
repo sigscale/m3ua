@@ -159,9 +159,9 @@ mibs() ->
 		Columns :: [Column],
 		Column :: non_neg_integer(),
 		Result :: [Element] | {genErr, Column},
-		Element :: {value, Value} | {ObjectId, Value},
-		ObjectId :: [integer()],
-		Value :: atom() | integer() | string() | [integer()].
+		Element :: {NextOid, NextValue} | endOfTable,
+		NextOid :: [integer()],
+		NextValue :: atom() | integer() | string() | [integer()].
 %% @hidden
 ep_table_get_next([], _Index, Columns) ->
 	[endOfTable || _ <- Columns];
@@ -245,9 +245,9 @@ ep_table_get_next(_, {'EXIT', _Reason}, _, _, _) ->
 		Columns :: [Column],
 		Column :: non_neg_integer(),
 		Result :: [Element] | {genErr, Column},
-		Element :: {value, Value} | {ObjectId, Value},
-		ObjectId :: [integer()],
-		Value :: atom() | integer() | string() | [integer()].
+		Element :: {NextOid, NextValue} | endOfTable,
+		NextOid :: [integer()],
+		NextValue :: atom() | integer() | string() | [integer()].
 %% @hidden
 as_table_get_next({ok, []}, _Index, Columns) ->
 	[endOfTable || _ <- Columns];
@@ -306,10 +306,9 @@ as_table_get_next(_, _, _, [], Acc) ->
 		AspIndex :: pos_integer(),
 		Columns :: [Column],
 		Column :: non_neg_integer(),
-		Result :: [Element] | {genErr, Column},
-		Element :: {value, Value} | {ObjectId, Value},
-		ObjectId :: [integer()],
-		Value :: atom() | integer() | string() | [integer()].
+		Element :: {NextOid, NextValue} | endOfTable,
+		NextOid :: [integer()],
+		NextValue :: atom() | integer() | string() | [integer()].
 %% @hidden
 asp_sgp_table_get_next([], _AsIndex, _AspIndex, Columns) ->
 	[endOfTable || _ <- Columns];
