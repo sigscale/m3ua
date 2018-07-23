@@ -164,7 +164,7 @@ mibs() ->
 		Element :: {value, Value} | {noValue, noSuchInstance},
 		Value :: atom() | integer() | string() | [integer()].
 %% @hidden
-ep_table_get(EPs, Index, Columns) when length(EPs) >= Index ->
+ep_table_get(EPs, [Index], Columns) when length(EPs) >= Index ->
 	EP = lists:nth(Index, EPs),
 	ep_table_get1(catch m3ua:get_ep(EP), Columns, []);
 ep_table_get(EPs, _Index, _Columns) when is_list(EPs) ->
@@ -174,7 +174,7 @@ ep_table_get({'EXIT', _Reason}, _, _) ->
 %% @hidden
 ep_table_get1({server, _, _} = EP, [2 | T], Acc) ->
 	ep_table_get1(EP, T, [{value, 1} | Acc]);
-ep_table_get1({client, _, _} = EP, [2 | T], Acc) ->
+ep_table_get1({client, _, _, _} = EP, [2 | T], Acc) ->
 	ep_table_get1(EP, T, [{value, 2} | Acc]);
 ep_table_get1(EP, [3 | T], Acc) when is_tuple(EP) ->
 	case element(3, EP) of
@@ -208,7 +208,7 @@ ep_table_get1({server, _, _} = EP, [N | T], Acc)
 	ep_table_get1(EP, T, [{noValue, noSuchInstance} | Acc]);
 ep_table_get1(EP, [9 | T], Acc) when is_tuple(EP) ->
 	ep_table_get1(EP, T, [{value, element(2, EP)} | Acc]);
-ep_table_get1(EP, [_ | T], Acc) when is_tuple(EP) ->
+ep_table_get1(EP, [_N | T], Acc) when is_tuple(EP) ->
 	ep_table_get1(EP, T, [{noValue, noSuchInstance} | Acc]);
 ep_table_get1(EP, [], Acc) when is_tuple(EP) ->
 	lists:reverse(Acc);
@@ -318,8 +318,8 @@ as_table_get_next({ok, ASs}, _Index, Columns) ->
 as_table_get_next({error, _Reason}, _, _) ->
 	{genErr, 0}.
 %% @hidden
-as_table_get_next(ASs, AS, Index, [N | T], Acc) when N == 0; N == 1 ->
-	as_table_get_next(ASs, AS, Index, T, [{[1, Index], Index} | Acc]);
+as_table_get_next(ASs, AS, Index, [N | T], Acc) when N < 2 ->
+	as_table_get_next(ASs, AS, Index, [2 | T], Acc);
 as_table_get_next(ASs, AS, Index, [2 | T], Acc) ->
 	as_table_get_next(ASs, AS, Index, T, [{[2, Index], element(7, AS)} | Acc]);
 as_table_get_next(ASs, AS, Index, [3 | T], Acc) ->
@@ -391,7 +391,7 @@ asp_sgp_table_get_next(AsKeys, AsIndex, AspIndex, Columns)
 			{genErr, hd(Columns)}
 	end;
 asp_sgp_table_get_next(AsKeys, _AsIndex, _AspIndex, [N | _] = Columns)
-		when N =< 3 ->
+		when N < 4 ->
 	F = fun(C) -> C + 1 end,
 	NextColumns = lists:map(F, Columns),
 	asp_sgp_table_get_next(AsKeys, 1, 1, NextColumns);
@@ -442,7 +442,7 @@ asp_sgp_table_get_next(AsKeys, {Name, States} = AS, AsIndex, AspIndex, [4 | T], 
 	asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
 			T, [{[4, AsIndex, AspIndex], Value} | Acc]);
 asp_sgp_table_get_next(AsKeys, {_, States} = AS, AsIndex, AspIndex, [N | T], Acc)
-	when length(States) < AspIndex ->
+	when length(AsKeys) < AsIndex, length(States) < AspIndex ->
 	case asp_sgp_table_get_next(AsKeys, AsIndex + 1, 1, [N]) of
 		[NextResult] ->
 			asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
@@ -450,6 +450,9 @@ asp_sgp_table_get_next(AsKeys, {_, States} = AS, AsIndex, AspIndex, [N | T], Acc
 		{genErr, C} ->
 			{genErr, C}
 	end;
+asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, [_N | T], Acc) ->
+	asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex,
+			T, [endOfTable | Acc]);
 asp_sgp_table_get_next(_, _, _, _, [], Acc) ->
 	lists:reverse(Acc).
 
