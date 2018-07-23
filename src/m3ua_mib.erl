@@ -116,6 +116,8 @@ ep_table(get_next, [N], Columns) ->
 		Value :: atom() | integer() | string() | [integer()].
 %% @doc Handle SNMP requests for the application server (AS) table.
 %% @private
+as_table(get, RowIndex, Columns) ->
+	as_table_get(m3ua:get_as(), RowIndex, Columns);
 as_table(get_next, [] = _RowIndex, Columns) ->
 	as_table_get_next(m3ua:get_as(), 1, Columns);
 as_table(get_next, [N], Columns) ->
@@ -164,7 +166,8 @@ mibs() ->
 		Element :: {value, Value} | {noValue, noSuchInstance},
 		Value :: atom() | integer() | string() | [integer()].
 %% @hidden
-ep_table_get(EPs, [Index], Columns) when length(EPs) >= Index ->
+ep_table_get(EPs, [Index], Columns)
+		when length(EPs) >= Index, Index > 0 ->
 	EP = lists:nth(Index, EPs),
 	ep_table_get1(catch m3ua:get_ep(EP), Columns, []);
 ep_table_get(EPs, _Index, _Columns) when is_list(EPs) ->
@@ -287,6 +290,59 @@ ep_table_get_next(_, _, _, [], Acc) ->
 	lists:reverse(Acc);
 ep_table_get_next(_, {'EXIT', _Reason}, _, _, _) ->
 	{genErr, 0}.
+
+-spec as_table_get(GetAsResult, Index, Columns) -> Result
+	when
+		GetAsResult :: {ok, [AS]} | {error, Reason :: term()},
+		AS :: {Name, NA, Keys, TMT, MinASP, MaxASP, State},
+		Name :: term(),
+		NA :: undefined | pos_integer(),
+		Keys :: [tuple()],
+		TMT :: override | loadshare | broadcast,
+		MinASP :: pos_integer(),
+		MaxASP :: pos_integer(),
+		State :: down | inactive | active | pending,
+		Index :: pos_integer(),
+		Columns :: [Column],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {noValue, noSuchInstance} | genErr,
+		Element :: {value, Value} | {noValue, noSuchInstance},
+		Value :: atom() | integer() | string() | [integer()].
+%% @hidden
+as_table_get({ok, ASs}, [Index], Columns)
+		when length(ASs) >= Index, Index > 0 ->
+	as_table_get1(lists:nth(Index, ASs), Columns, []);
+as_table_get({ok, _ASs}, _Index, _Columns) ->
+	{noValue, noSuchInstance};
+as_table_get({error, _Reason}, _, _) ->
+	genErr.
+%% @hidden
+as_table_get1(AS, [N | T], Acc) when N < 2 ->
+	as_table_get1(AS, [2 | T], Acc);
+as_table_get1(AS, [2 | T], Acc) ->
+	as_table_get1(AS, T, [{value, element(7, AS)} | Acc]);
+as_table_get1(AS, [3 | T], Acc) ->
+	as_table_get1(AS, T, [{value, element(4, AS)} | Acc]);
+as_table_get1({Name, _, _, _, _, _, _} = AS, [4 | T], Acc)
+		when is_atom(Name) ->
+	as_table_get1(AS, T, [{value, atom_to_list(Name)} | Acc]);
+as_table_get1({Name, _, _, _, _, _, _} = AS, [4 | T], Acc)
+		when is_list(Name) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Value when is_list(Value) ->
+			as_table_get1(AS, T, [{value, Value} | Acc]);
+		_ ->
+			as_table_get1(AS, T, [{noValue, noSuchInstance} | Acc])
+	end;
+as_table_get1({Name, _, _, _, _, _, _} = AS, [4 | T], Acc)
+		when is_integer(Name) ->
+	as_table_get1(AS, T, [{value, integer_to_list(Name)} | Acc]);
+as_table_get1(AS, [4 | T], Acc) ->
+	as_table_get1(AS, T, [{noValue, noSuchInstance} | Acc]);
+as_table_get1(AS, [N | T], Acc) when N > 4 ->
+	as_table_get1(AS, T, [{noValue, noSuchInstance} | Acc]);
+as_table_get1(_, [], Acc) ->
+	lists:reverse(Acc).
 
 -spec as_table_get_next(GetAsResult, Index, Columns) -> Result
 	when
