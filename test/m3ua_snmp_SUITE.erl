@@ -124,11 +124,12 @@ get_ep() ->
 	[{userdata, [{doc, "Get an endpoint (EP) table entry"}]}].
 
 get_ep(_Config) ->
-	{ok, _EP} = m3ua:start(#m3ua_fsm_cb{}, 0, [{ip, {127,0,0,1}}]),
-	{value, OID} = snmpa:name_to_oid(m3uaEndPointTable),
-	OID1 = OID ++ [1],
-	{noError, _, _Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
-			[OID1], snmp_mgr_agent).
+	{ok, _EP} = m3ua:start(#m3ua_fsm_cb{}),
+	{value, EpTypeOID} = snmpa:name_to_oid(m3uaEpType),
+	EpTypeOID1 = EpTypeOID ++ [1],
+	{noError, _, Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
+			[EpTypeOID1], snmp_mgr_agent),
+	[{varbind, EpTypeOID1, 'INTEGER', 1, _}] = Varbinds.
 
 get_next_ep() ->
 	[{userdata, [{doc, "Get next on endpoint (EP) table"}]}].
@@ -142,11 +143,11 @@ get_next_ep(_Config) ->
 			[{role, sgp}, {connect, {172,16,120,123}, Port, []}]),
 	{ok, _EP4} = m3ua:start(#m3ua_fsm_cb{}),
 	{value, EpTableOID} = snmpa:name_to_oid(m3uaEndPointTable),
-	{noError, _, Varbinds1} = ct_snmp:get_next_values(m3ua_mibs_test,
+	{noError, _, Varbinds} = ct_snmp:get_next_values(m3ua_mibs_test,
 			[EpTableOID], snmp_mgr_agent),
-	{value, EpIndexOID} = snmpa:name_to_oid(m3uaEpIndex),
-	EpIndexOID1 = EpIndexOID ++ [1],
-	[{varbind, EpIndexOID1, 'Unsigned32', _, _}] = Varbinds1.
+	{value, EpTypeOID} = snmpa:name_to_oid(m3uaEpType),
+	EpTypeOID1 = EpTypeOID ++ [1],
+	[{varbind, EpTypeOID1, 'INTEGER', 1, _}] = Varbinds.
 
 get_as() ->
 	[{userdata, [{doc, "Get an application server (AS) table entry"}]}].
@@ -155,10 +156,11 @@ get_as(_Config) ->
 	Name = "as_" ++ integer_to_list(rand:uniform(255)),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _AS} = m3ua:as_add(Name, undefined, Keys, loadshare, 1, 4),
-	{value, OID} = snmpa:name_to_oid(m3uaSgpIpspAsId),
-	OID1 = OID ++ [1],
-	{noError, _, _Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
-			[OID1], snmp_mgr_agent).
+	{value, AsStateOID} = snmpa:name_to_oid(m3uaSgpIpspAsState),
+	AsStateOID1 = AsStateOID ++ [1],
+	{noError, _, Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
+			[AsStateOID1], snmp_mgr_agent),
+	[{varbind, AsStateOID1, 'INTEGER', _, _}] = Varbinds.
 
 get_next_as() ->
 	[{userdata, [{doc, "Get next on application server (AS) table"}]}].
@@ -174,11 +176,11 @@ get_next_as(_Config) ->
 	{ok, _AS2} = m3ua:as_add(Name2, 1, Keys2, override, 1, 2),
 	{ok, _AS3} = m3ua:as_add(Name3, 1, Keys3, broadcast, 1, 2),
 	{value, AsTableOID} = snmpa:name_to_oid(m3uaSgpIpspAsTable),
-	{noError, _, Varbinds1} = ct_snmp:get_next_values(m3ua_mibs_test,
+	{noError, _, Varbinds} = ct_snmp:get_next_values(m3ua_mibs_test,
 			[AsTableOID], snmp_mgr_agent),
-	{value, AsIdOID} = snmpa:name_to_oid(m3uaSgpIpspAsId),
-	AsIdOID1 = AsIdOID ++ [1],
-	[{varbind, AsIdOID1, 'Unsigned32', _, _}] = Varbinds1.
+	{value, AsStateOID} = snmpa:name_to_oid(m3uaSgpIpspAsState),
+	AsStateOID1 = AsStateOID ++ [1],
+	[{varbind, AsStateOID1, 'INTEGER', _, _}] = Varbinds.
 
 get_asp_sgp() ->
 	[{userdata, [{doc, "Get an ASP/SGP table entry"}]}].
@@ -187,18 +189,23 @@ get_asp_sgp(_Config) ->
 	Name = "as_" ++ integer_to_list(rand:uniform(255)),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _AS} = m3ua:as_add(Name, undefined, Keys, loadshare, 1, 4),
-	{value, OID} = snmpa:name_to_oid(m3uaAspSgpState),
-	OID1 = OID ++ [1, 1],
-	{noError, _, _Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
-			[OID1], snmp_mgr_agent).
+	{value, AspStateOID} = snmpa:name_to_oid(m3uaAspSgpState),
+	AspStateOID1 = AspStateOID ++ [1, 1],
+	{noError, _, Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
+			[AspStateOID1], snmp_mgr_agent),
+	[{varbind, AspStateOID1, 'INTEGER', _, _}] = Varbinds.
 
 get_next_asp_sgp() ->
 	[{userdata, [{doc, "Get next on ASP/SGP table"}]}].
 
 get_next_asp_sgp(_Config) ->
-	{value, AsTableOID} = snmpa:name_to_oid(m3uaAspSgpTable),
-	{noError, _, Varbinds1} = ct_snmp:get_next_values(m3ua_mibs_test,
-			[AsTableOID], snmp_mgr_agent).
+	{value, AspSgpTableOID} = snmpa:name_to_oid(m3uaAspSgpTable),
+	{noError, _, Varbinds} = ct_snmp:get_next_values(m3ua_mibs_test,
+			[AspSgpTableOID], snmp_mgr_agent),
+	% ASP/SGP table is empty, next is AS table
+	{value, SgpIpspAsStateOID} = snmpa:name_to_oid(m3uaSgpIpspAsState),
+	SgpIpspAsStateOID1 = SgpIpspAsStateOID ++ [1],
+	[{varbind, SgpIpspAsStateOID1, 'INTEGER', _, _}] = Varbinds.
 
 %%---------------------------------------------------------------------
 %%  Internal functions
