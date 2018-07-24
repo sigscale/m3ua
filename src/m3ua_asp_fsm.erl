@@ -689,7 +689,18 @@ handle_sync_event({getstat, undefined}, _From, StateName,
 	{reply, inet:getstat(Socket), StateName, StateData};
 handle_sync_event({getstat, Options}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), StateName, StateData}.
+	{reply, inet:getstat(Socket, Options), StateName, StateData};
+handle_sync_event(getcount, _From, StateName,
+		#statedata{up_out = UpOut, down_out = DownOut,
+		active_out = ActiveOut, inactive_out = InactiveOut,
+		up_ack_in = UpAckIn, down_ack_in = DownAckIn,
+		active_ack_in = ActiveAckIn, inactive_ack_in = InactiveAckIn,
+		notify_in = NotifyIn, daud_out = DaudOut, duna_in = DunaIn,
+		dava_in = DavaIn, dupu_in = DupuIn} = StateData) ->
+	Reply = {UpOut, DownOut, ActiveOut, InactiveOut, UpAckIn,
+			DownAckIn, ActiveAckIn, InactiveAckIn, NotifyIn,
+			DaudOut, DunaIn, DavaIn, DupuIn},
+	{reply, Reply, StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->

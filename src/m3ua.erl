@@ -23,7 +23,7 @@
 %% export the m3ua public API
 -export([start/1, start/3, stop/1]).
 -export([sctp_release/2, sctp_status/2]).
--export([getstat/1, getstat/2, getstat/3]).
+-export([getstat/1, getstat/2, getstat/3, getcount/1]).
 -export([as_add/6, as_delete/1, register/5, register/6]).
 -export([get_ep/0, get_ep/1, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
@@ -167,6 +167,37 @@ getstat(EndPoint, Assoc)
 getstat(EndPoint, Assoc, Options)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Options)  ->
 	m3ua_lm_server:getstat(EndPoint, Assoc, Options).
+
+-spec getcount(ASP) -> Result
+	when
+		ASP :: pid(),
+		Result :: {ok, Counts} | {error, Reason},
+		Counts :: {UpOut, DownOut, ActiveOut, InactiveOut,
+				UpAckIn, DownAckIn, ActiveAckIn, InactiveAckIn,
+				NotifyIn, DaudOut, DunaIn, DavaIn, DupuIn},
+		UpOut :: non_neg_integer(),
+		DownOut :: non_neg_integer(),
+		ActiveOut :: non_neg_integer(),
+		InactiveOut :: non_neg_integer(),
+		UpAckIn :: non_neg_integer(),
+		DownAckIn :: non_neg_integer(),
+		ActiveAckIn :: non_neg_integer(),
+		InactiveAckIn :: non_neg_integer(),
+		NotifyIn :: non_neg_integer(),
+		DaudOut :: non_neg_integer(),
+		DunaIn :: non_neg_integer(),
+		DavaIn :: non_neg_integer(),
+		DupuIn :: non_neg_integer(),
+		Reason :: term().
+%% @doc Get M3UA ASP message counter statistics.
+%%
+getcount(ASP) when is_pid(ASP) ->
+	case catch gen_fsm:sync_send_all_state_event(ASP, getcount) of
+		{'EXIT', Reason} ->
+			{error, Reason};
+		Counts ->
+			{ok, Counts}
+	end.
 
 -spec register(EndPoint, Assoc, NA, Keys, Mode) -> Result
 	when

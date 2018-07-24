@@ -89,9 +89,10 @@ sequences() ->
 %%
 all() ->
 	[start, stop, listen, connect, release, getstat_ep, getstat_assoc,
-			asp_up, asp_down, register, asp_active, asp_inactive_to_down,
-			asp_active_to_down, asp_active_to_inactive, get_sctp_status,
-			get_ep, mtp_transfer, asp_up_indication, asp_active_indication,
+			getcount, asp_up, asp_down, register, asp_active,
+			asp_inactive_to_down, asp_active_to_down,
+			asp_active_to_inactive, get_sctp_status, get_ep, mtp_transfer,
+			asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
 			as_state_change_traffic_maintenance, as_state_active,
 			as_state_inactive, as_side_state_changes_1, as_side_state_changes_2].
@@ -210,6 +211,35 @@ getstat_assoc(_Config) ->
 				false
 	end,
 	true = lists:all(F, OptionValues),
+	m3ua:stop(ClientEP),
+	m3ua:stop(ServerEP).
+
+getcount() ->
+	[{userdata, [{doc, "Get M3UA statistics for an ASP."}]}].
+
+getcount(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	NA = 0,
+	Keys = [{rand:uniform(16383), [], []}],
+	Mode = loadshare,
+	Ref = make_ref(),
+	{ok, ServerEP} = m3ua:start(callback(Ref), Port, []),
+	{ok, ClientEP} = m3ua:start(demo_as, 0,
+			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
+	wait(Ref),
+	[Assoc] = m3ua:get_assoc(ClientEP),
+	ok = m3ua:asp_up(ClientEP, Assoc),
+	{ok, RC} = m3ua:register(ClientEP, Assoc, NA, Keys, Mode),
+	F = fun() -> mnesia:read(m3ua_as, {NA, Keys, Mode}) end,
+	{atomic, [#m3ua_as{asp = ASPs}]} = mnesia:transaction(F),
+	#m3ua_as_asp{fsm = ASP} = lists:keyfind(RC, #m3ua_as_asp.rc, ASPs),
+	{ok, {1,0,0,0,1,0,0,0,0,0,0,0,0}} = m3ua:getcount(ASP),
+	ok = m3ua:asp_active(ClientEP, Assoc),
+	{ok, {1,0,1,0,1,0,1,0,0,0,0,0,0}} = m3ua:getcount(ASP),
+	ok = m3ua:asp_inactive(ClientEP, Assoc),
+	{ok, {1,0,1,1,1,0,1,1,1,0,0,0,0}} = m3ua:getcount(ASP),
+	ok = m3ua:asp_down(ClientEP, Assoc),
+	{ok, {1,1,1,1,1,1,1,1,1,0,0,0,0}} = m3ua:getcount(ASP),
 	m3ua:stop(ClientEP),
 	m3ua:stop(ServerEP).
 
