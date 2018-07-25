@@ -52,8 +52,8 @@ content_types_provided() ->
 				| {error, ErrorCode :: integer()}.
 %% @doc Body producing function for `GET /metrics'
 %% requests.
-get_metrics(Query, Headers) ->
-	Body = [as_state("dtag_frankfurt", "active")],
+get_metrics([] = _Query, _Headers) ->
+	Body = [as_state()],
 	{ok, [], Body}.
 
 %%----------------------------------------------------------------------
@@ -61,8 +61,59 @@ get_metrics(Query, Headers) ->
 %%----------------------------------------------------------------------
 
 %% @hidden
-as_state(Name, State) when is_list(Name), is_list(State) ->
-	["# HELP stc_m3ua_as_state The current state of an Application Server (AS).\n",
-			"# TYPE stc_m3ua_as_state guage\n",
-			"stc_m3ua_as_state{name=", Name, ",state=", State, "}\n"].
+as_state() ->
+	as_state(m3ua:get_as()).
+%% @hidden
+as_state({ok, []}) ->
+	[];
+as_state({ok, AS}) ->
+	HELP = ["# HELP stc_m3ua_as_state The current state of an "
+			"Application Server (AS).\n",
+			"# TYPE stc_m3ua_as_state guage\n"],
+	as_state(AS, [HELP]);
+as_state({error, Reason}) ->
+	error_logger:error_report(["Failed to get AS",
+			{module, ?MODULE}, {error, Reason}]),
+	[].
+%% @hidden
+as_state([{Name, _, _, _, _, _, State} | T], Acc) ->
+	NewAcc = as_state1(Name, State, Acc),
+	as_state(T, NewAcc);
+as_state([], Acc) ->
+	lists:reverse(["\n" | Acc]).
+%% @hidden
+as_state1(Name, State, Acc) when is_atom(Name) ->
+	as_state2(atom_to_list(Name), State, Acc);
+as_state1(Name, State, Acc) when is_integer(Name) ->
+	as_state2(integer_to_list(Name), State, Acc);
+as_state1(Name, State, Acc) when is_list(Name) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Name1 when is_list(Name1) ->
+			as_state2(Name1, State, Acc);
+		_ ->
+			as_state2([], State, Acc)
+	end;
+as_state1(_Name, State, Acc) ->
+	as_state2([], State, Acc).
+%% @hidden
+as_state2(Name, down, Acc) ->
+	[["stc_m3ua_as_state{name=", Name, ",state=down} 1\n",
+	"stc_m3ua_as_state{name=", Name, ",state=inactive} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=active} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=pending} 0\n"] | Acc];
+as_state2(Name, inactive, Acc) ->
+	[["stc_m3ua_as_state{name=", Name, ",state=down} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=inactive} 1\n",
+	"stc_m3ua_as_state{name=", Name, ",state=active} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=pending} 0\n"] | Acc];
+as_state2(Name, active, Acc) ->
+	[["stc_m3ua_as_state{name=", Name, ",state=down} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=inactive} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=active} 1\n",
+	"stc_m3ua_as_state{name=", Name, ",state=pending} 0\n"] | Acc];
+as_state2(Name, pending, Acc) ->
+	[["stc_m3ua_as_state{name=", Name, ",state=down} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=inactive} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=active} 0\n",
+	"stc_m3ua_as_state{name=", Name, ",state=pending} 1\n"] | Acc].
 
