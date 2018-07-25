@@ -29,6 +29,7 @@
 		get_metrics/2]).
 
 -include("m3ua.hrl").
+-include_lib("kernel/include/inet_sctp.hrl").
 
 -spec content_types_accepted() -> ContentTypes
 	when
@@ -53,7 +54,7 @@ content_types_provided() ->
 %% @doc Body producing function for `GET /metrics'
 %% requests.
 get_metrics([] = _Query, _Headers) ->
-	Body = [as_state(), asp_state()],
+	Body = [as_state(), asp_state(), sctp_state()],
 	{ok, [], Body}.
 
 %%----------------------------------------------------------------------
@@ -68,7 +69,7 @@ as_state({ok, []}) ->
 	[];
 as_state({ok, AS}) ->
 	HELP = ["# HELP stc_m3ua_as_state The current state of an "
-			"Application Server (AS).\n",
+			"Application Server (AS):\n# down | inactive | active | pending.\n",
 			"# TYPE stc_m3ua_as_state guage\n"],
 	as_state(AS, [HELP]);
 as_state({error, Reason}) ->
@@ -124,9 +125,9 @@ asp_state() ->
 asp_state([]) ->
 	[];
 asp_state(Assocs) when is_list(Assocs) ->
-	HELP = ["# HELP stc_m3ua_asp_state The current state of an "
-			"Application Server Process (ASP) or Signaling "
-			"Gateway Process (SGP).\n",
+	HELP = ["# HELP stc_m3ua_asp_state The current state of an\n"
+			"# Application Server Process (ASP) or Signaling "
+			"Gateway Process (SGP):\n# down | inactive | active.\n",
 			"# TYPE stc_m3ua_asp_state guage\n"],
 	asp_state(Assocs, [HELP]);
 asp_state({'EXIT', Reason}) ->
@@ -192,4 +193,195 @@ asp_state2(Name, Role, active, Acc) ->
 			",role=", Role, ",state=inactive} 0\n",
 	"stc_m3ua_asp_state{endpoint=", Name,
 			",state=active} 1\n"] | Acc].
+
+%% @hidden
+sctp_state() ->
+	sctp_state(catch m3ua:get_assoc()).
+%% @hidden
+sctp_state([]) ->
+	[];
+sctp_state(Assocs) when is_list(Assocs) ->
+	HELP = ["# HELP stc_m3ua_sctp_state The current state of an "
+			"SCTP association:\n# closed | cooke-wait | cookie-echoed "
+			"shutdown-pending\n#  | shutdown-received | shutdown-sent "
+			"shutdown-ack-sent.\n",
+			"# TYPE stc_m3ua_sctp_state guage\n"],
+	sctp_state(Assocs, [HELP]);
+sctp_state({'EXIT', Reason}) ->
+	error_logger:error_report(["Failed to get associations",
+			{module, ?MODULE}, {error, Reason}]),
+	[].
+%% @hidden
+sctp_state([{EP, Assoc} | T], Acc) ->
+	NewAcc = case catch m3ua:get_ep(EP) of
+		EndPoint when size(EndPoint) >= 4 ->
+			Name = element(1, EndPoint),
+			Role = atom_to_list(element(2, EndPoint)),
+			sctp_state1(Name, Role, m3ua:sctp_status(EP, Assoc), Acc);
+		{'EXIT', Reason} ->
+			error_logger:error_report(["Failed to get endpoint",
+					{module, ?MODULE}, {error, Reason}]),
+			[]
+	end,
+	sctp_state(T, NewAcc);
+sctp_state([], Acc) ->
+	lists:reverse(["\n" | Acc]).
+%% @hidden
+sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
+		when is_atom(Name) ->
+	sctp_state2(atom_to_list(Name), Role, State, Acc);
+sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
+		when is_integer(Name) ->
+	sctp_state2(integer_to_list(Name), Role, State, Acc);
+sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
+		when is_list(Name) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Name1 when is_list(Name1) ->
+			sctp_state2(Name1, Role, State, Acc);
+		_ ->
+			sctp_state2([], Role, State, Acc)
+	end;
+sctp_state1(_Name, Role, {ok, #sctp_status{state = State}}, Acc) ->
+	sctp_state2([], Role, State, Acc);
+sctp_state1(_Name, _, {error, Reason}, _) ->
+	error_logger:error_report(["Failed to get SCTP status",
+			{module, ?MODULE}, {error, Reason}]),
+	[].
+%% @hidden
+sctp_state2(Name, Role, closed, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 1\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+sctp_state2(Name, Role, cookie_wait, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 1\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+sctp_state2(Name, Role, cookie_echoed, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 1\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+sctp_state2(Name, Role, established, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 1\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+sctp_state2(Name, Role, shutdown_pending, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 1\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+sctp_state2(Name, Role, shutdown_received, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 1\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+sctp_state2(Name, Role, shutdown_sent, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 1\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+sctp_state2(Name, Role, shutdown__asck_sent, Acc) ->
+	[["stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=closed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-wait} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=cookie-echoed} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=established} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-pending} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-received} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-sent} 0\n",
+	"stc_m3ua_sctp_state{endpoint=", Name,
+			",role=", Role, ",state=shutdown-ack-sent} 1\n"] | Acc].
 
