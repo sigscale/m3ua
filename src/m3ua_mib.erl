@@ -625,7 +625,7 @@ asp_stat_table_get(_, [], Acc) ->
 asp_stat_table_get_next([], _Index, Columns) ->
 	[endOfTable || _ <- Columns];
 asp_stat_table_get_next(ASPs, Index, Columns) when length(ASPs) >= Index ->
-	asp_stat_table_get_next1(lists:nth(Index, ASPs), Columns, []);
+	asp_stat_table_get_next1(lists:nth(Index, ASPs), Index, Columns, []);
 asp_stat_table_get_next(ASPs, _Index, Columns) when is_list(ASPs) ->
 	F = fun(N) -> N + 1 end,
 	NextColumns = lists:map(F, Columns),
@@ -633,15 +633,19 @@ asp_stat_table_get_next(ASPs, _Index, Columns) when is_list(ASPs) ->
 asp_stat_table_get_next({'EXIT', _Reason}, _, [N | _]) ->
 	{genErr, N}.
 %% @hidden
-asp_stat_table_get_next1({EP, Assoc} = ASP, [N | T], Acc)
+asp_stat_table_get_next1(ASP, Index, [N | T], Acc) when N < 2 ->
+	asp_stat_table_get_next1(ASP, Index, [2 | T], Acc);
+asp_stat_table_get_next1({EP, Assoc} = ASP, Index, [N | T], Acc)
 		when N =< 14 ->
 	case m3ua:getcount(EP, Assoc) of
 		{ok, Counts} ->
-			asp_stat_table_get_next1(ASP, T,
-					[{value, element(N - 1, Counts)} | Acc]);
+			asp_stat_table_get_next1(ASP, Index, T,
+					[{[N, Index], element(N - 1, Counts)} | Acc]);
 		{error, _Reason} ->
 			{genErr, N}
 	end;
-asp_stat_table_get_next1(ASP, [_ | T], Acc) ->
-	asp_stat_table_get_next1(ASP, T, [endOfTable | Acc]).
+asp_stat_table_get_next1(ASP, Index, [_N | T], Acc) ->
+	asp_stat_table_get_next1(ASP, Index, T, [endOfTable | Acc]);
+asp_stat_table_get_next1(_, _, [], Acc) ->
+	lists:reverse(Acc).
 
