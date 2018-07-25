@@ -180,21 +180,52 @@ asp_sgp_table(get_next, [AsIndex, AspIndex], Columns) ->
 %% @private
 asp_stat_table(get, [N] = _RowIndex, Columns) ->
 	case catch m3ua:get_assoc() of
-		ASPs when length(ASPs) >= N ->
-			{EP, Assoc} = lists:nth(N, ASPs),
-			case m3ua:getcount(EP, Assoc) of
-				{ok, Counts} ->
-					asp_stat_table_get(Counts, Columns, []);
-				{error, _Reason} ->
-					genErr
+		ASPs when is_list(ASPs) ->
+			case lists:keyfind(N, 2, ASPs) of
+				{EP, Assoc} ->
+					case m3ua:getcount(EP, Assoc) of
+						{ok, Counts} ->
+							asp_stat_table_get(Counts, Columns, []);
+						{error, _Reason} ->
+							genErr
+					end;
+				false ->
+					{noValue, noSuchInstance}
 			end;
 		{'EXIT', _Reason} ->
 			genErr
 	end;
 asp_stat_table(get_next, [] = _RowIndex, Columns) ->
-	asp_stat_table_get_next(catch m3ua:get_assoc(), 1, Columns);
-asp_stat_table(get_next, [N], Columns) ->
-	asp_stat_table_get_next(catch m3ua:get_assoc(), N + 1, Columns).
+	asp_stat_table(get_next, [0], Columns);
+asp_stat_table(get_next, [N], [C | _] = Columns)
+		when C =< 14 ->
+	case catch m3ua:get_assoc() of
+		[] ->
+			[endOfTable || _ <- Columns];
+		ASPs when is_list(ASPs) ->
+			F1 = fun({_, A}) when A < (N + 1)->
+						true;
+					(_) ->
+						false
+			end,
+			case lists:dropwhile(F1, lists:keysort(2, ASPs)) of
+				[{EP, Assoc} | _] ->
+					case m3ua:getcount(EP, Assoc) of
+						{ok, Counts} ->
+							asp_stat_table_get_next(Counts, Assoc, Columns, []);
+						{error, _Reason} ->
+							genErr
+					end;
+				[] ->
+					F2 = fun(X) -> X + 1 end,
+					NextColumns = lists:map(F2, Columns),
+					asp_stat_table(get_next, [1], NextColumns)
+			end;
+		{'EXIT', _Reason} ->
+			genErr
+	end;
+asp_stat_table(get_next, _, Columns) ->
+	[endOfTable || _ <- Columns].
 
 %%----------------------------------------------------------------------
 %% internal functions
@@ -609,43 +640,25 @@ asp_stat_table_get(Counts, [_ | T], Acc) ->
 asp_stat_table_get(_, [], Acc) ->
 	lists:reverse(Acc).
 
--spec asp_stat_table_get_next(GetAssocResult, Index, Columns) -> Result
+-spec asp_stat_table_get_next(Counts, Index, Columns, Acc) -> Result
 	when
-		GetAssocResult :: [{EP, Assoc}] | {'EXIT', Reason :: term()},
-		EP :: pid(),
-		Assoc :: gen_sctp:assoc_id(),
+		Counts :: tuple(),
 		Index :: pos_integer(),
 		Columns :: [Column],
 		Column :: non_neg_integer(),
+		Acc :: [Element],
 		Result :: [Element] | {genErr, Column},
 		Element :: {NextOid, NextValue} | endOfTable,
 		NextOid :: [integer()],
 		NextValue :: atom() | integer() | string() | [integer()].
 %% @hidden
-asp_stat_table_get_next([], _Index, Columns) ->
-	[endOfTable || _ <- Columns];
-asp_stat_table_get_next(ASPs, Index, Columns) when length(ASPs) >= Index ->
-	asp_stat_table_get_next1(lists:nth(Index, ASPs), Index, Columns, []);
-asp_stat_table_get_next(ASPs, _Index, Columns) when is_list(ASPs) ->
-	F = fun(N) -> N + 1 end,
-	NextColumns = lists:map(F, Columns),
-	asp_stat_table_get_next(ASPs, 1, NextColumns);
-asp_stat_table_get_next({'EXIT', _Reason}, _, [N | _]) ->
-	{genErr, N}.
-%% @hidden
-asp_stat_table_get_next1(ASP, Index, [N | T], Acc) when N < 2 ->
-	asp_stat_table_get_next1(ASP, Index, [2 | T], Acc);
-asp_stat_table_get_next1({EP, Assoc} = ASP, Index, [N | T], Acc)
-		when N =< 14 ->
-	case m3ua:getcount(EP, Assoc) of
-		{ok, Counts} ->
-			asp_stat_table_get_next1(ASP, Index, T,
-					[{[N, Index], element(N - 1, Counts)} | Acc]);
-		{error, _Reason} ->
-			{genErr, N}
-	end;
-asp_stat_table_get_next1(ASP, Index, [_N | T], Acc) ->
-	asp_stat_table_get_next1(ASP, Index, T, [endOfTable | Acc]);
-asp_stat_table_get_next1(_, _, [], Acc) ->
+asp_stat_table_get_next(Counts, Index, [N | T], Acc) when N < 2 ->
+	asp_stat_table_get_next(Counts, Index, [2 | T], Acc);
+asp_stat_table_get_next(Counts, Index, [N | T], Acc) when N =< 14 ->
+	asp_stat_table_get_next(Counts, Index, T,
+			[{[N, Index], element(N - 1, Counts)} | Acc]);
+asp_stat_table_get_next(Counts, Index, [_N | T], Acc) ->
+	asp_stat_table_get_next(Counts, Index, T, [endOfTable | Acc]);
+asp_stat_table_get_next(_, _, [], Acc) ->
 	lists:reverse(Acc).
 
