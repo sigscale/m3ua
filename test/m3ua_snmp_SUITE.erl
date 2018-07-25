@@ -114,7 +114,8 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[get_ep, get_next_ep, get_as, get_next_as, get_asp_sgp, get_next_asp_sgp].
+	[get_ep, get_next_ep, get_as, get_next_as, get_asp_sgp, get_next_asp_sgp,
+			get_asp_stat, get_next_asp_stat].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -206,6 +207,49 @@ get_next_asp_sgp(_Config) ->
 	{value, SgpIpspAsStateOID} = snmpa:name_to_oid(m3uaSgpIpspAsState),
 	SgpIpspAsStateOID1 = SgpIpspAsStateOID ++ [1],
 	[{varbind, SgpIpspAsStateOID1, 'INTEGER', _, _}] = Varbinds.
+
+get_asp_stat() ->
+	[{userdata, [{doc, "Get ASP statistics table entry"}]}].
+
+get_asp_stat(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	Ref = make_ref(),
+	Finit = fun(_, _, _, _, _, Pid) ->
+			Pid ! Ref,
+			{ok, []}
+	end,
+   CB = #m3ua_fsm_cb{init = Finit, extra = [self()]},
+	{ok, _EP1} = m3ua:start(CB, Port, [{role, sgp}]),
+	{ok, EP2} = m3ua:start(#m3ua_fsm_cb{}, 0,
+			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
+	receive Ref -> ok end,
+	{EP2, Assoc} = lists:keyfind(EP2, 1, m3ua:get_assoc()),
+	{value, AspupOut} = snmpa:name_to_oid(m3uaAspStatAspupOut),
+	AspupOutOID = AspupOut ++ [Assoc],
+	{noError, _, Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
+			[AspupOutOID], snmp_mgr_agent),
+	[{varbind, AspupOutOID, 'Counter32', _, _}] = Varbinds.
+
+get_next_asp_stat() ->
+	[{userdata, [{doc, "Get next on ASP statistics table"}]}].
+
+get_next_asp_stat(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	Ref = make_ref(),
+	Finit = fun(_, _, _, _, _, Pid) ->
+			Pid ! Ref,
+			{ok, []}
+	end,
+   CB = #m3ua_fsm_cb{init = Finit, extra = [self()]},
+	{ok, _EP1} = m3ua:start(CB, Port, [{role, sgp}]),
+	{ok, EP2} = m3ua:start(#m3ua_fsm_cb{}, 0,
+			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
+	receive Ref -> ok end,
+	{EP2, Assoc} = lists:keyfind(EP2, 1, m3ua:get_assoc()),
+	{value, AspStatTableOID} = snmpa:name_to_oid(m3uaAspStatTable),
+	{noError, _, Varbinds} = ct_snmp:get_next_values(m3ua_mibs_test,
+			[AspStatTableOID], snmp_mgr_agent),
+	[{varbind, _OID, 'Counter32', _, _}] = Varbinds.
 
 %%---------------------------------------------------------------------
 %%  Internal functions
