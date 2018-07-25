@@ -1289,7 +1289,6 @@ m3uaAttributesGroup OBJECT-GROUP
 			m3uaTAckInitValue,
 			m3uaTPAudInitValue,
 			m3uaHeartBeat,
-			m3uaFailOverBuffSize,
 			m3uaRoutingFailures
 		}
 		STATUS    current
