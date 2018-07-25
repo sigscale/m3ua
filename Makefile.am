@@ -9,9 +9,9 @@ release: $(PACKAGE_VERSION).tar.gz
 
 $(PACKAGE_VERSION).tar.gz: $(PACKAGE_NAME).rel sys.config
 	cp $(PACKAGE_NAME).rel $(PACKAGE_VERSION).rel
-	$(ERL) -noinput -pa $(builddir)/ebin \
+	$(ERL) -noinput \
 		-eval "systools:make_script(\"$(PACKAGE_VERSION)\")" \
-		-eval "systools:make_tar(\"$(PACKAGE_VERSION)\", [{dirs, [include]}])" \
+		-eval "systools:make_tar(\"$(PACKAGE_VERSION)\", [{dirs, [include,mibs]}])" \
 		-s init stop
 
 install-data-hook: $(PACKAGE_VERSION).tar.gz
