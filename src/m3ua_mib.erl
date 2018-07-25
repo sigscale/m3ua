@@ -256,8 +256,8 @@ ep_table_get_next(EPs, _Index, Columns) when is_list(EPs) ->
 	F = fun(N) -> N + 1 end,
 	NextColumns = lists:map(F, Columns),
 	ep_table_get_next(EPs, 1, NextColumns);
-ep_table_get_next({'EXIT', _Reason}, _, _) ->
-	{genErr, 0}.
+ep_table_get_next({'EXIT', _Reason}, _, [N | _]) ->
+	{genErr, N}.
 %% @hidden
 ep_table_get_next(EPs, EP, Index, [N | T], Acc)
 		when is_tuple(EP), N < 2 ->
@@ -306,8 +306,8 @@ ep_table_get_next(EPs, EP, Index, [N | T], Acc) when N > 9 ->
 	ep_table_get_next(EPs, EP, Index, T, [endOfTable | Acc]);
 ep_table_get_next(_, _, _, [], Acc) ->
 	lists:reverse(Acc);
-ep_table_get_next(_, {'EXIT', _Reason}, _, _, _) ->
-	{genErr, 0}.
+ep_table_get_next(_, {'EXIT', _Reason}, _, [N | _],  _) ->
+	{genErr, N}.
 
 -spec as_table_get(GetAsResult, Index, Columns) -> Result
 	when
@@ -389,8 +389,8 @@ as_table_get_next({ok, ASs}, _Index, Columns) ->
 	F = fun(N) -> N + 1 end,
 	NextColumns = lists:map(F, Columns),
 	as_table_get_next({ok, ASs}, 1, NextColumns);
-as_table_get_next({error, _Reason}, _, _) ->
-	{genErr, 0}.
+as_table_get_next({error, _Reason}, _, [N | _]) ->
+	{genErr, N}.
 %% @hidden
 as_table_get_next(ASs, AS, Index, [N | T], Acc) when N < 2 ->
 	as_table_get_next(ASs, AS, Index, [2 | T], Acc);
