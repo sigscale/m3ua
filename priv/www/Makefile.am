@@ -3,5 +3,5 @@
 ##
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = mibs www
+www_DATA = index.html
 
