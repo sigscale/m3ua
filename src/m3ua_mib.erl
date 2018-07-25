@@ -254,42 +254,42 @@ ep_table_get(EPs, _Index, _Columns) when is_list(EPs) ->
 ep_table_get({'EXIT', _Reason}, _, _) ->
 	genErr.
 %% @hidden
-ep_table_get1({server, _, _} = EP, [2 | T], Acc) ->
+ep_table_get1({_, server, _, _} = EP, [2 | T], Acc) ->
 	ep_table_get1(EP, T, [{value, 1} | Acc]);
-ep_table_get1({client, _, _, _} = EP, [2 | T], Acc) ->
+ep_table_get1({_, client, _, _, _} = EP, [2 | T], Acc) ->
 	ep_table_get1(EP, T, [{value, 2} | Acc]);
 ep_table_get1(EP, [3 | T], Acc) when is_tuple(EP) ->
-	case element(3, EP) of
+	case element(4, EP) of
 		{Address, _} when size(Address) == 4 ->
 			ep_table_get1(EP, T, [{value, ipv4} | Acc]);
 		{Address, _} when size(Address) == 8 ->
 			ep_table_get1(EP, T, [{value, ipv6} | Acc])
 	end;
 ep_table_get1(EP, [4 | T], Acc) when is_tuple(EP) ->
-	{Address, _} = element(3, EP),
+	{Address, _} = element(4, EP),
 	Value = tuple_to_list(Address),
 	ep_table_get1(EP, T, [{value, Value} | Acc]);
 ep_table_get1(EP, [5 | T], Acc) when is_tuple(EP) ->
-	{_, Port} = element(3, EP),
+	{_, Port} = element(4, EP),
 	ep_table_get1(EP, T, [{value, Port} | Acc]);
-ep_table_get1({client, _, _, {Address, _}} = EP,
+ep_table_get1({_, client, _, _, {Address, _}} = EP,
 		[6 | T], Acc) when size(Address) == 4 ->
 	ep_table_get1(EP, T, [{value, ipv4} | Acc]);
-ep_table_get1({client, _, _, {Address, _}} = EP,
+ep_table_get1({_, client, _, _, {Address, _}} = EP,
 		[6 | T], Acc) when size(Address) == 8 ->
 	ep_table_get1(EP, T, [{value, ipv6} | Acc]);
-ep_table_get1({client, _, _, {Address, _}} = EP,
+ep_table_get1({_, client, _, _, {Address, _}} = EP,
 		[7 | T], Acc) ->
 	Value = tuple_to_list(Address),
 	ep_table_get1(EP, T, [{value, Value} | Acc]);
-ep_table_get1({client, _, _, {_, Port}} = EP,
+ep_table_get1({_, client, _, _, {_, Port}} = EP,
 		[8 | T], Acc) ->
 	ep_table_get1(EP, T, [{value, Port} | Acc]);
-ep_table_get1({server, _, _} = EP, [N | T], Acc)
+ep_table_get1({_, server, _, _} = EP, [N | T], Acc)
 		when N >= 6, N =< 8 ->
 	ep_table_get1(EP, T, [{noValue, noSuchInstance} | Acc]);
 ep_table_get1(EP, [9 | T], Acc) when is_tuple(EP) ->
-	ep_table_get1(EP, T, [{value, element(2, EP)} | Acc]);
+	ep_table_get1(EP, T, [{value, element(3, EP)} | Acc]);
 ep_table_get1(EP, [_N | T], Acc) when is_tuple(EP) ->
 	ep_table_get1(EP, T, [{noValue, noSuchInstance} | Acc]);
 ep_table_get1(EP, [], Acc) when is_tuple(EP) ->
@@ -323,37 +323,37 @@ ep_table_get_next({'EXIT', _Reason}, _, [N | _]) ->
 ep_table_get_next(EPs, EP, Index, [N | T], Acc)
 		when is_tuple(EP), N < 2 ->
 	ep_table_get_next(EPs, EP, Index, T, [{[2, Index], Index} | Acc]);
-ep_table_get_next(EPs, {server, _, _} = EP, Index, [2 | T], Acc) ->
+ep_table_get_next(EPs, {_, server, _, _} = EP, Index, [2 | T], Acc) ->
 	ep_table_get_next(EPs, EP, Index, T, [{[2, Index], 1} | Acc]);
-ep_table_get_next(EPs, {client, _, _, _} = EP, Index, [2 | T], Acc) ->
+ep_table_get_next(EPs, {_, client, _, _, _} = EP, Index, [2 | T], Acc) ->
 	ep_table_get_next(EPs, EP, Index, T, [{[2, Index], 2} | Acc]);
 ep_table_get_next(EPs, EP, Index, [3 | T], Acc) ->
-	case element(3, EP) of
+	case element(4, EP) of
 		{Address, _} when size(Address) == 4 ->
 			ep_table_get_next(EPs, EP, Index, T, [{[3, Index], ipv4} | Acc]);
 		{Address, _} when size(Address) == 8 ->
 			ep_table_get_next(EPs, EP, Index, T, [{[3, Index], ipv6} | Acc])
 	end;
 ep_table_get_next(EPs, EP, Index, [4 | T], Acc) ->
-	{Address, _} = element(3, EP),
+	{Address, _} = element(4, EP),
 	Value = tuple_to_list(Address),
 	ep_table_get_next(EPs, EP, Index, T, [{[4, Index], Value} | Acc]);
 ep_table_get_next(EPs, EP, Index, [5 | T], Acc) ->
-	{_, Port} = element(3, EP),
+	{_, Port} = element(4, EP),
 	ep_table_get_next(EPs, EP, Index, T, [{[5, Index], Port} | Acc]);
-ep_table_get_next(EPs, {client, _, _, {Address, _}} = EP,
+ep_table_get_next(EPs, {_, client, _, _, {Address, _}} = EP,
 		Index, [6 | T], Acc) when size(Address) == 4 ->
 	ep_table_get_next(EPs, EP, Index, T, [{[6, Index], ipv4} | Acc]);
-ep_table_get_next(EPs, {client, _, _, {Address, _}} = EP,
+ep_table_get_next(EPs, {_, client, _, _, {Address, _}} = EP,
 		Index, [6 | T], Acc) when size(Address) == 8 ->
 	ep_table_get_next(EPs, EP, Index, T, [{[6, Index], ipv6} | Acc]);
-ep_table_get_next(EPs, {client, _, _, {Address, _}} = EP,
+ep_table_get_next(EPs, {_, client, _, _, {Address, _}} = EP,
 		Index, [7 | T], Acc) ->
 	Value = tuple_to_list(Address),
 	ep_table_get_next(EPs, EP, Index, T, [{[7, Index], Value} | Acc]);
-ep_table_get_next(EPs, {client, _, _, {_, Port}} = EP, Index, [8 | T], Acc) ->
+ep_table_get_next(EPs, {_, client, _, _, {_, Port}} = EP, Index, [8 | T], Acc) ->
 	ep_table_get_next(EPs, EP, Index, T, [{[8, Index], Port} | Acc]);
-ep_table_get_next(EPs, {server, _, _} = EP, Index, [N | T], Acc)
+ep_table_get_next(EPs, {_, server, _, _} = EP, Index, [N | T], Acc)
 		when N >= 6, N =< 8 ->
 	case ep_table_get_next(EPs, Index + 1, [N]) of
 		[NextResult] ->
@@ -362,7 +362,7 @@ ep_table_get_next(EPs, {server, _, _} = EP, Index, [N | T], Acc)
 			{genErr, C}
 	end;
 ep_table_get_next(EPs, EP, Index, [9 | T], Acc) ->
-	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], element(2, EP)} | Acc]);
+	ep_table_get_next(EPs, EP, Index, T, [{[9, Index], element(3, EP)} | Acc]);
 ep_table_get_next(EPs, EP, Index, [N | T], Acc) when N > 9 ->
 	ep_table_get_next(EPs, EP, Index, T, [endOfTable | Acc]);
 ep_table_get_next(_, _, _, [], Acc) ->

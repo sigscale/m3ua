@@ -161,7 +161,8 @@
 		extra = [] :: [Args :: term()]}).
 
 -record(m3ua_ep,
-		{type :: client | server,
+		{name :: term(),
+		type :: client | server,
 		local_addr :: inet:ip_address(),
 		local_port :: inet:port_number(),
 		remote_addr :: inet:ip_address(),

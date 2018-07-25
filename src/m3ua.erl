@@ -389,7 +389,8 @@ get_ep([], Acc) ->
 -spec get_ep(EP) -> Result
 	when
 		EP :: pid(),
-		Result :: {server, Role, Local} | {client, Role, Local, Remote},
+		Name :: term(),
+		Result :: {Name, server, Role, Local} | {Name, client, Role, Local, Remote},
 		Role :: asp | sgp,
 		Local :: {Address, Port},
 		Remote :: {Address, Port},
@@ -399,13 +400,13 @@ get_ep([], Acc) ->
 %%
 get_ep(EP) when is_pid(EP) ->
 	case gen_fsm:sync_send_all_state_event(EP, getep) of
-		#m3ua_ep{type = server, role = Role,
+		#m3ua_ep{name = Name, type = server, role = Role,
 				local_addr = Laddr, local_port = Lport} ->
-			{server, Role, {Laddr, Lport}};
-		#m3ua_ep{type = client, role = Role,
+			{Name, server, Role, {Laddr, Lport}};
+		#m3ua_ep{name = Name, type = client, role = Role,
 				local_addr = Laddr, local_port = Lport,
 				remote_addr = Raddr, remote_port = Rport} ->
-			{client, Role, {Laddr, Lport}, {Raddr, Rport}}
+			{Name, client, Role, {Laddr, Lport}, {Raddr, Rport}}
 	end.
 
 -spec get_assoc() -> Result
