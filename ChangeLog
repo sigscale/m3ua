@@ -1,3 +1,13 @@
+2018-07-25  Vance Shipley <vances@sigscale.org>
+
+	* document table initializion
+	* api function to get endpoint details
+	* api function to get asp counters from fsm
+	* snmp mib
+	* instrument asp statistics table
+	* instrument asp/sgp table
+	* instrument as table
+
 2018-07-08  Vance Shipley <vances@sigscale.org>
 
 	* garbage collect as on asp/sgp termination for any reason
