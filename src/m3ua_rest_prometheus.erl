@@ -35,7 +35,7 @@
 		ContentTypes :: [string()].
 %% @doc Provide list of resource representations accepted.
 content_types_accepted() ->
-	[].
+	["text/plain"].
 
 -spec content_types_provided() -> ContentTypes
 	when
@@ -53,7 +53,7 @@ content_types_provided() ->
 %% @doc Body producing function for `GET /metrics'
 %% requests.
 get_metrics([] = _Query, _Headers) ->
-	Body = [as_state()],
+	Body = [as_state(), asp_state()],
 	{ok, [], Body}.
 
 %%----------------------------------------------------------------------
@@ -72,7 +72,7 @@ as_state({ok, AS}) ->
 			"# TYPE stc_m3ua_as_state guage\n"],
 	as_state(AS, [HELP]);
 as_state({error, Reason}) ->
-	error_logger:error_report(["Failed to get AS",
+	error_logger:error_report(["Failed to get application servers",
 			{module, ?MODULE}, {error, Reason}]),
 	[].
 %% @hidden
@@ -88,8 +88,8 @@ as_state1(Name, State, Acc) when is_integer(Name) ->
 	as_state2(integer_to_list(Name), State, Acc);
 as_state1(Name, State, Acc) when is_list(Name) ->
 	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		Name1 when is_list(Name1) ->
-			as_state2(Name1, State, Acc);
+		UTF8 when is_list(UTF8) ->
+			as_state2(UTF8, State, Acc);
 		_ ->
 			as_state2([], State, Acc)
 	end;
@@ -116,4 +116,80 @@ as_state2(Name, pending, Acc) ->
 	"stc_m3ua_as_state{name=", Name, ",state=inactive} 0\n",
 	"stc_m3ua_as_state{name=", Name, ",state=active} 0\n",
 	"stc_m3ua_as_state{name=", Name, ",state=pending} 1\n"] | Acc].
+
+%% @hidden
+asp_state() ->
+	asp_state(catch m3ua:get_assoc()).
+%% @hidden
+asp_state([]) ->
+	[];
+asp_state(Assocs) when is_list(Assocs) ->
+	HELP = ["# HELP stc_m3ua_asp_state The current state of an "
+			"Application Server Process (ASP) or Signaling "
+			"Gateway Process (SGP).\n",
+			"# TYPE stc_m3ua_asp_state guage\n"],
+	asp_state(Assocs, [HELP]);
+asp_state({'EXIT', Reason}) ->
+	error_logger:error_report(["Failed to get associations",
+			{module, ?MODULE}, {error, Reason}]),
+	[].
+%% @hidden
+asp_state([{EP, Assoc} | T], Acc) ->
+	NewAcc = case catch m3ua:get_ep(EP) of
+		EndPoint when size(EndPoint) >= 4 ->
+			Name = element(1, EndPoint),
+			Role = atom_to_list(element(3, EndPoint)),
+			asp_state1(Name, Role, catch m3ua:asp_status(EP, Assoc), Acc);
+		{'EXIT', Reason} ->
+			error_logger:error_report(["Failed to get endpoint",
+					{module, ?MODULE}, {error, Reason}]),
+			[]
+	end,
+	asp_state(T, NewAcc);
+asp_state([], Acc) ->
+	lists:reverse(["\n" | Acc]).
+%% @hidden
+asp_state1(Name, Role, State, Acc)
+		when is_atom(Name), is_atom(State) ->
+	asp_state2(atom_to_list(Name), Role, State, Acc);
+asp_state1(Name, Role, State, Acc)
+		when is_integer(Name), is_atom(State) ->
+	asp_state2(integer_to_list(Name), Role, State, Acc);
+asp_state1(Name, Role, State, Acc)
+		when is_list(Name), is_atom(State) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Name1 when is_list(Name1) ->
+			asp_state2(Name1, Role, State, Acc);
+		_ ->
+			asp_state2([], Role, State, Acc)
+	end;
+asp_state1(_Name, Role, State, Acc)
+		when is_atom(State) ->
+	asp_state2([], Role, State, Acc);
+asp_state1(_Name, _, {'EXIT', Reason}, _) ->
+	error_logger:error_report(["Failed to get ASP status",
+			{module, ?MODULE}, {error, Reason}]),
+	[].
+%% @hidden
+asp_state2(Name, Role, down, Acc) ->
+	[["stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=down} 1\n",
+	"stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=inactive} 0\n",
+	"stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=active} 0\n"] | Acc];
+asp_state2(Name, Role, inactive, Acc) ->
+	[["stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=down} 0\n",
+	"stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=inactive} 1\n",
+	"stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=active} 0\n"] | Acc];
+asp_state2(Name, Role, active, Acc) ->
+	[["stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=down} 0\n",
+	"stc_m3ua_asp_state{endpoint=", Name,
+			",role=", Role, ",state=inactive} 0\n",
+	"stc_m3ua_asp_state{endpoint=", Name,
+			",state=active} 1\n"] | Acc].
 
