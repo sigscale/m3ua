@@ -242,7 +242,7 @@ getstat(EndPoint, Assoc, Options)
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, Counts} | {error, inet:posix()},
-		Counts :: [tuple()].
+		Counts :: tuple().
 %% @doc Get M3UA statistics for an association.
 getcount(EndPoint, Assoc)
 		when is_pid(EndPoint), is_integer(Assoc) ->
