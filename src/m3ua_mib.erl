@@ -25,7 +25,7 @@
 -export([load/0, load/1, unload/0, unload/1]).
 
 %% export the m3ua_mib snmp agent callbacks
--export([ep_table/3, as_table/3, asp_sgp_table/3]).
+-export([ep_table/3, as_table/3, asp_sgp_table/3, asp_stat_table/3]).
 
 -include("m3ua.hrl").
 
@@ -165,6 +165,36 @@ asp_sgp_table(get_next, [AsIndex, AspIndex], Columns) ->
 		{aborted, _Reason} ->
 			{genErr, hd(Columns)}
 	end.
+
+-spec asp_stat_table(Operation, RowIndex, Columns) -> Result
+	when
+		Operation :: get | get_next,
+		RowIndex :: ObjectId,
+		ObjectId :: [integer()],
+		Columns :: [Column],
+		Column :: integer(),
+		Result :: [Element] | {genErr, Column} | genErr,
+		Element :: {value, Value} | {ObjectId, Value},
+		Value :: atom() | integer() | string() | [integer()].
+%% @doc Handle SNMP requests for the ASP statistics table.
+%% @private
+asp_stat_table(get, [N] = _RowIndex, Columns) ->
+	case catch m3ua:get_assoc() of
+		ASPs when length(ASPs) >= N ->
+			{EP, Assoc} = lists:nth(N, ASPs),
+			case m3ua:getcount(EP, Assoc) of
+				{ok, Counts} ->
+					asp_stat_table_get(Counts, Columns, []);
+				{error, _Reason} ->
+					genErr
+			end;
+		{'EXIT', _Reason} ->
+			genErr
+	end;
+asp_stat_table(get_next, [] = _RowIndex, Columns) ->
+	asp_stat_table_get_next(catch m3ua:get_assoc(), 1, Columns);
+asp_stat_table(get_next, [N], Columns) ->
+	asp_stat_table_get_next(catch m3ua:get_assoc(), N + 1, Columns).
 
 %%----------------------------------------------------------------------
 %% internal functions
@@ -561,4 +591,57 @@ asp_sgp_table_get_next(AsKeys, AS, AsIndex, AspIndex, [_N | T], Acc) ->
 			T, [endOfTable | Acc]);
 asp_sgp_table_get_next(_, _, _, _, [], Acc) ->
 	lists:reverse(Acc).
+
+-spec asp_stat_table_get(Counts, Columns, Acc) -> Result
+	when
+		Counts :: tuple(),
+		Columns :: [Column],
+		Acc :: [Element],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {noValue, noSuchInstance} | genErr,
+		Element :: {value, Value} | {noValue, noSuchInstance},
+		Value :: atom() | integer() | string() | [integer()].
+%% @hidden
+asp_stat_table_get(Counts, [N | T], Acc) when N > 1, N =< 14 ->
+	asp_stat_table_get(Counts, T, [{value, element(N - 1, Counts)} | Acc]);
+asp_stat_table_get(Counts, [_ | T], Acc) ->
+	asp_stat_table_get(Counts, T, [{noValue, noSuchInstance} | Acc]);
+asp_stat_table_get(_, [], Acc) ->
+	lists:reverse(Acc).
+
+-spec asp_stat_table_get_next(GetAssocResult, Index, Columns) -> Result
+	when
+		GetAssocResult :: [{EP, Assoc}] | {'EXIT', Reason :: term()},
+		EP :: pid(),
+		Assoc :: gen_sctp:assoc_id(),
+		Index :: pos_integer(),
+		Columns :: [Column],
+		Column :: non_neg_integer(),
+		Result :: [Element] | {genErr, Column},
+		Element :: {NextOid, NextValue} | endOfTable,
+		NextOid :: [integer()],
+		NextValue :: atom() | integer() | string() | [integer()].
+%% @hidden
+asp_stat_table_get_next([], _Index, Columns) ->
+	[endOfTable || _ <- Columns];
+asp_stat_table_get_next(ASPs, Index, Columns) when length(ASPs) >= Index ->
+	asp_stat_table_get_next1(lists:nth(Index, ASPs), Columns, []);
+asp_stat_table_get_next(ASPs, _Index, Columns) when is_list(ASPs) ->
+	F = fun(N) -> N + 1 end,
+	NextColumns = lists:map(F, Columns),
+	asp_stat_table_get_next(ASPs, 1, NextColumns);
+asp_stat_table_get_next({'EXIT', _Reason}, _, [N | _]) ->
+	{genErr, N}.
+%% @hidden
+asp_stat_table_get_next1({EP, Assoc} = ASP, [N | T], Acc)
+		when N =< 14 ->
+	case m3ua:getcount(EP, Assoc) of
+		{ok, Counts} ->
+			asp_stat_table_get_next1(ASP, T,
+					[{value, element(N - 1, Counts)} | Acc]);
+		{error, _Reason} ->
+			{genErr, N}
+	end;
+asp_stat_table_get_next1(ASP, [_ | T], Acc) ->
+	asp_stat_table_get_next1(ASP, T, [endOfTable | Acc]).
 
