@@ -30,7 +30,7 @@
 -export([as_add/6, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
--export([getstat/2, getstat/3]).
+-export([getstat/2, getstat/3, getcount/2]).
 
 %% export the callbacks needed for gen_server behaviour
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -237,6 +237,17 @@ getstat(EndPoint, Assoc, Options)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Options)  ->
 	gen_server:call(m3ua, {getstat, EndPoint, Assoc, Options}).
 
+-spec getcount(EndPoint, Assoc) -> Result
+	when
+		EndPoint :: pid(),
+		Assoc :: gen_sctp:assoc_id(),
+		Result :: {ok, Counts} | {error, inet:posix()},
+		Counts :: [tuple()].
+%% @doc Get M3UA statistics for an association.
+getcount(EndPoint, Assoc)
+		when is_pid(EndPoint), is_integer(Assoc) ->
+	gen_server:call(m3ua, {getcount, EndPoint, Assoc}).
+
 %%----------------------------------------------------------------------
 %%  The m3ua_lm_server gen_server callbacks
 %%----------------------------------------------------------------------
@@ -405,6 +416,15 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 			Event = {getstat, Options},
 			Reply = gen_fsm:sync_send_all_state_event(Fsm, Event),
 			{reply, Reply, State};
+		none ->
+			{reply, {error, not_found}, State}
+	end;
+handle_call({getcount, EndPoint, Assoc}, _From,
+		#state{fsms = Fsms} = State) ->
+	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
+		{value, Fsm} ->
+			Reply = gen_fsm:sync_send_all_state_event(Fsm, getcount),
+			{reply, {ok, Reply}, State};
 		none ->
 			{reply, {error, not_found}, State}
 	end.
