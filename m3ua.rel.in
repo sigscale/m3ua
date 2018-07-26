@@ -3,4 +3,7 @@
 	{stdlib, "@ERLANG_LIB_VER_stdlib@"},
 	{sasl, "@ERLANG_LIB_VER_sasl@"},
 	{mnesia, "@ERLANG_LIB_VER_mnesia@"},
+	{inets, "@ERLANG_LIB_VER_inets@"},
+	{snmp, "@ERLANG_LIB_VER_snmp@"},
+	{sigscale_mibs, "@ERLANG_LIB_VER_sigscale_mibs@"},
 	{@PACKAGE@, "@VERSION@"}]}.
