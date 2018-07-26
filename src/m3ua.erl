@@ -172,25 +172,18 @@ getstat(EndPoint, Assoc, Options)
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
-		Result :: {ok, Counts} | {error, Reason},
-		Counts :: {UpOut, DownOut, ActiveOut, InactiveOut,
-				UpAckIn, DownAckIn, ActiveAckIn, InactiveAckIn,
-				NotifyIn, DaudOut, DunaIn, DavaIn, DupuIn},
-		UpOut :: non_neg_integer(),
-		DownOut :: non_neg_integer(),
-		ActiveOut :: non_neg_integer(),
-		InactiveOut :: non_neg_integer(),
-		UpAckIn :: non_neg_integer(),
-		DownAckIn :: non_neg_integer(),
-		ActiveAckIn :: non_neg_integer(),
-		InactiveAckIn :: non_neg_integer(),
-		NotifyIn :: non_neg_integer(),
-		DaudOut :: non_neg_integer(),
-		DunaIn :: non_neg_integer(),
-		DavaIn :: non_neg_integer(),
-		DupuIn :: non_neg_integer(),
+		Result :: {ok, Counters} | {error, Reason},
+		Counters :: #{MessageType => Total},
+		MessageType :: up_out | up_in | up_ack_in | up_ack_out
+				| down_out | down_in | down_ack_in | down_ack_out
+				| active_out | active_in | active_ack_in | active_ack_out
+				| inactive_out | inactive_in | inactive_ack_in | inactive_ack_out
+				| notify_out | notify_in | daud_out | daud_in
+				| duna_out | duna_in | dava_in | dava_out 
+				| dupu_out | dupu_in | transfer_in | transfer_out,
+		Total :: non_neg_integer(),
 		Reason :: term().
-%% @doc Get M3UA ASP message counter statistics.
+%% @doc Get M3UA message statistics counters.
 %%
 getcount(EndPoint, Assoc)
 		when is_pid(EndPoint), is_integer(Assoc) ->
@@ -389,8 +382,8 @@ get_ep([], Acc) ->
 -spec get_ep(EP) -> Result
 	when
 		EP :: pid(),
-		Name :: term(),
 		Result :: {Name, server, Role, Local} | {Name, client, Role, Local, Remote},
+		Name :: term(),
 		Role :: asp | sgp,
 		Local :: {Address, Port},
 		Remote :: {Address, Port},

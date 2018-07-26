@@ -625,7 +625,7 @@ asp_sgp_table_get_next(_, _, _, _, [], Acc) ->
 
 -spec asp_stat_table_get(Counts, Columns, Acc) -> Result
 	when
-		Counts :: tuple(),
+		Counts :: #{},
 		Columns :: [Column],
 		Acc :: [Element],
 		Column :: non_neg_integer(),
@@ -633,8 +633,45 @@ asp_sgp_table_get_next(_, _, _, _, [], Acc) ->
 		Element :: {value, Value} | {noValue, noSuchInstance},
 		Value :: atom() | integer() | string() | [integer()].
 %% @hidden
-asp_stat_table_get(Counts, [N | T], Acc) when N > 1, N =< 14 ->
-	asp_stat_table_get(Counts, T, [{value, element(N - 1, Counts)} | Acc]);
+asp_stat_table_get(Counts, [2 | T], Acc) ->
+	Count = maps:get(up_out, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [3 | T], Acc) ->
+	Count = maps:get(active_out, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [4 | T], Acc) ->
+	Count = maps:get(down_out, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [5 | T], Acc) ->
+	Count = maps:get(inactive_out, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [6 | T], Acc) ->
+	Count = maps:get(up_ack_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [7 | T], Acc) ->
+	Count = maps:get(active_ack_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [8 | T], Acc) ->
+	Count = maps:get(down_ack_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [9 | T], Acc) ->
+	Count = maps:get(inactive_ack_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [10 | T], Acc) ->
+	Count = maps:get(notify_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [11 | T], Acc) ->
+	Count = maps:get(daud_out, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [12 | T], Acc) ->
+	Count = maps:get(duna_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [13 | T], Acc) ->
+	Count = maps:get(dava_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
+asp_stat_table_get(Counts, [14 | T], Acc) ->
+	Count = maps:get(dupu_in, Counts, 0),
+	asp_stat_table_get(Counts, T, [{value, Count} | Acc]);
 asp_stat_table_get(Counts, [_ | T], Acc) ->
 	asp_stat_table_get(Counts, T, [{noValue, noSuchInstance} | Acc]);
 asp_stat_table_get(_, [], Acc) ->
@@ -642,7 +679,7 @@ asp_stat_table_get(_, [], Acc) ->
 
 -spec asp_stat_table_get_next(Counts, Index, Columns, Acc) -> Result
 	when
-		Counts :: tuple(),
+		Counts :: #{},
 		Index :: pos_integer(),
 		Columns :: [Column],
 		Column :: non_neg_integer(),
@@ -654,9 +691,45 @@ asp_stat_table_get(_, [], Acc) ->
 %% @hidden
 asp_stat_table_get_next(Counts, Index, [N | T], Acc) when N < 2 ->
 	asp_stat_table_get_next(Counts, Index, [2 | T], Acc);
-asp_stat_table_get_next(Counts, Index, [N | T], Acc) when N =< 14 ->
-	asp_stat_table_get_next(Counts, Index, T,
-			[{[N, Index], element(N - 1, Counts)} | Acc]);
+asp_stat_table_get_next(Counts, Index, [2 | T], Acc) ->
+	Count = maps:get(up_out, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[2, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [3 | T], Acc) ->
+	Count = maps:get(active_out, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[3, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [4 | T], Acc) ->
+	Count = maps:get(down_out, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[4, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [5 | T], Acc) ->
+	Count = maps:get(inactive_out, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[5, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [6 | T], Acc) ->
+	Count = maps:get(up_ack_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[6, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [7 | T], Acc) ->
+	Count = maps:get(active_ack_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[7, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [8 | T], Acc) ->
+	Count = maps:get(down_ack_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[8, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [9 | T], Acc) ->
+	Count = maps:get(inactive_ack_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[9, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [10 | T], Acc) ->
+	Count = maps:get(notify_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[10, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [11 | T], Acc) ->
+	Count = maps:get(daud_out, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[11, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [12 | T], Acc) ->
+	Count = maps:get(duna_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[12, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [13 | T], Acc) ->
+	Count = maps:get(dava_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[13, Index], Count} | Acc]);
+asp_stat_table_get_next(Counts, Index, [14 | T], Acc) ->
+	Count = maps:get(dupu_in, Counts, 0),
+	asp_stat_table_get_next(Counts, Index, T, [{[14, Index], Count} | Acc]);
 asp_stat_table_get_next(Counts, Index, [_N | T], Acc) ->
 	asp_stat_table_get_next(Counts, Index, T, [endOfTable | Acc]);
 asp_stat_table_get_next(_, _, [], Acc) ->

@@ -230,13 +230,13 @@ getcount(_Config) ->
 	[Assoc] = m3ua:get_assoc(ClientEP),
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	{ok, _RC} = m3ua:register(ClientEP, Assoc, NA, Keys, Mode),
-	{ok, {1,0,0,0,1,0,0,0,0,0,0,0,0}} = m3ua:getcount(ClientEP, Assoc),
+	{ok, #{up_out := 1, up_ack_in := 1}} = m3ua:getcount(ClientEP, Assoc),
 	ok = m3ua:asp_active(ClientEP, Assoc),
-	{ok, {1,0,1,0,1,0,1,0,0,0,0,0,0}} = m3ua:getcount(ClientEP, Assoc),
+	{ok, #{active_out := 1, active_ack_in := 1}} = m3ua:getcount(ClientEP, Assoc),
 	ok = m3ua:asp_inactive(ClientEP, Assoc),
-	{ok, {1,0,1,1,1,0,1,1,1,0,0,0,0}} = m3ua:getcount(ClientEP, Assoc),
+	{ok, #{inactive_out := 1, inactive_ack_in := 1}} = m3ua:getcount(ClientEP, Assoc),
 	ok = m3ua:asp_down(ClientEP, Assoc),
-	{ok, {1,1,1,1,1,1,1,1,1,0,0,0,0}} = m3ua:getcount(ClientEP, Assoc),
+	{ok, #{down_out := 1, down_ack_in := 1}} = m3ua:getcount(ClientEP, Assoc),
 	m3ua:stop(ClientEP),
 	m3ua:stop(ServerEP).
 

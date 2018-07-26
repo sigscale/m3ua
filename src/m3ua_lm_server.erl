@@ -149,7 +149,8 @@ sctp_release(EndPoint, Assoc) ->
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
-		Result :: ok | {error, Reason},
+		Result :: {ok, AssocStatus} | {error, Reason},
+		AssocStatus :: #sctp_status{},
 		Reason :: term().
 %% @doc Report the status of an SCTP association.
 %% @private
@@ -242,7 +243,7 @@ getstat(EndPoint, Assoc, Options)
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
 		Result :: {ok, Counts} | {error, inet:posix()},
-		Counts :: tuple().
+		Counts :: #{atom() => non_neg_integer()}.
 %% @doc Get M3UA statistics for an association.
 getcount(EndPoint, Assoc)
 		when is_pid(EndPoint), is_integer(Assoc) ->
