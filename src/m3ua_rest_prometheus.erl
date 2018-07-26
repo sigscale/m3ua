@@ -20,7 +20,7 @@
 %%%
 %%% This module exports metrics for Prometheus server to "scrape".
 %%%
-%%% @ref <a href="https://github.com/prometheus/prometheus">Prometheus.io</a>.
+%%% @reference <a href="https://github.com/prometheus/prometheus">Prometheus.io</a>.
 %%%
 -module(m3ua_rest_prometheus).
 -copyright('Copyright (c) 2016 - 2018 SigScale Global Inc.').
@@ -54,7 +54,7 @@ content_types_provided() ->
 %% @doc Body producing function for `GET /metrics'
 %% requests.
 get_metrics([] = _Query, _Headers) ->
-	Body = [as_state(), asp_state(), sctp_state()],
+	Body = [as_state(), asp_state(), sctp_state(), asp_count()],
 	{ok, [], Body}.
 
 %%----------------------------------------------------------------------
@@ -384,4 +384,142 @@ sctp_state2(Name, Role, shutdown__asck_sent, Acc) ->
 			",role=", Role, ",state=shutdown-sent} 0\n",
 	"stc_m3ua_sctp_state{endpoint=", Name,
 			",role=", Role, ",state=shutdown-ack-sent} 1\n"] | Acc].
+
+%% @hidden
+asp_count() ->
+	asp_count(catch m3ua:get_assoc()).
+%% @hidden
+asp_count([]) ->
+	[];
+asp_count(Assocs) when is_list(Assocs) ->
+	HELP = ["# HELP stc_m3ua_message_total A counter of M3UA "
+			"messages\n#  sent or received.\n"
+			"# TYPE stc_m3ua_message_total counter\n"],
+	asp_count(Assocs, [HELP]);
+asp_count({'EXIT', Reason}) ->
+	error_logger:error_report(["Failed to get associations",
+			{module, ?MODULE}, {error, Reason}]),
+	[].
+%% @hidden
+asp_count([{EP, Assoc} | T], Acc) ->
+	NewAcc = case catch m3ua:get_ep(EP) of
+		EndPoint when size(EndPoint) >= 4 ->
+			Name = element(1, EndPoint),
+			Role = atom_to_list(element(3, EndPoint)),
+			asp_count1(Name, Role, m3ua:getcount(EP, Assoc), Acc);
+		{'EXIT', Reason} ->
+			error_logger:error_report(["Failed to get endpoint",
+					{module, ?MODULE}, {error, Reason}]),
+			[]
+	end,
+	asp_count(T, NewAcc);
+asp_count([], Acc) ->
+	lists:reverse(["\n" | Acc]).
+%% @hidden
+asp_count1(Name, Role, {ok, Count}, Acc)
+		when is_atom(Name) ->
+	asp_count2(atom_to_list(Name), Role, Count, Acc);
+asp_count1(Name, Role, {ok, Count}, Acc)
+		when is_integer(Name) ->
+	asp_count2(integer_to_list(Name), Role, Count, Acc);
+asp_count1(Name, Role, {ok, Count}, Acc)
+		when is_list(Name) ->
+	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
+		Name1 when is_list(Name1) ->
+			asp_count2(Name1, Role, Count, Acc);
+		_ ->
+			asp_count2([], Role, Count, Acc)
+	end;
+asp_count1(_Name, Role, {ok, Count}, Acc) ->
+	asp_count2([], Role, Count, Acc);
+asp_count1(_Name, _, {error, Reason}, _) ->
+	error_logger:error_report(["Failed to get ASP statistics",
+			{module, ?MODULE}, {error, Reason}]),
+	[].
+%% @hidden
+asp_count2(Name, Role, Count, Acc) ->
+	[["stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-up-out} ",
+			integer_to_list(maps:get(up_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-up-in} ",
+			integer_to_list(maps:get(up_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-up-ack-out} ",
+			integer_to_list(maps:get(up_ack_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-up-ack-in} ",
+			integer_to_list(maps:get(up_ack_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-down-out} ",
+			integer_to_list(maps:get(down_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-down-in} ",
+			integer_to_list(maps:get(down_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-down-ack-out} ",
+			integer_to_list(maps:get(down_ack_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-down-ack-in} ",
+			integer_to_list(maps:get(down_ack_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-active-out} ",
+			integer_to_list(maps:get(active_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-active-in} ",
+			integer_to_list(maps:get(active_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-active-ack-out} ",
+			integer_to_list(maps:get(active_ack_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-active-ack-in} ",
+			integer_to_list(maps:get(active_ack_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-inactive-out} ",
+			integer_to_list(maps:get(inactive_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-inactive-in} ",
+			integer_to_list(maps:get(inactive_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-inactive-ack-out} ",
+			integer_to_list(maps:get(inactive_ack_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",asp-inactive-ack-in} ",
+			integer_to_list(maps:get(inactive_ack_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",notify-out} ",
+			integer_to_list(maps:get(notify_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",notify-in} ",
+			integer_to_list(maps:get(notify_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",daud-out} ",
+			integer_to_list(maps:get(daud_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",daud-in} ",
+			integer_to_list(maps:get(daud_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",duna-out} ",
+			integer_to_list(maps:get(duna_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",duna-in} ",
+			integer_to_list(maps:get(duna_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",dava-out} ",
+			integer_to_list(maps:get(dava_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",dava-in} ",
+			integer_to_list(maps:get(dava_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",dupu-out} ",
+			integer_to_list(maps:get(dupu_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",dupu-in} ",
+			integer_to_list(maps:get(dupu_in, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",transfer-out} ",
+			integer_to_list(maps:get(transfer_out, Count, 0)), "\n",
+	"stc_m3ua_message_total{endpoint=", Name,
+			",role=", Role, ",transfer-in} ",
+			integer_to_list(maps:get(transfer_in, Count, 0)), "\n"] | Acc].
 
