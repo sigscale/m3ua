@@ -1,3 +1,10 @@
+2018-07-26  Vance Shipley <vances@sigscale.org>
+
+	* prometheus client support
+	* refactor m3ua counters with maps
+	* instrument sgp statistics table
+	* instrument sctp association status
+
 2018-07-25  Vance Shipley <vances@sigscale.org>
 
 	* document table initializion
