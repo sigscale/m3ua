@@ -222,7 +222,8 @@
 		ep_name :: term(),
 		use_rc :: boolean(),
 		callback :: atom() | #m3ua_fsm_cb{},
-		cb_state :: term()}).
+		cb_state :: term(),
+		count = #{} :: #{atom() => non_neg_integer()}}).
 
 %%----------------------------------------------------------------------
 %%  Interface functions
@@ -461,8 +462,9 @@ active(_Event, StateData) ->
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
 %% @private
 %%
-active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}}, _From,
-		#statedata{socket = Socket, assoc = Assoc, ep = EP} = StateData) ->
+active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}},
+		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP,
+		count = Count} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
 			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
@@ -471,7 +473,10 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}}, _From,
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
-			{reply, ok, active, StateData};
+			TransferOut = maps:get(transfer_out, Count, 0),
+			NewCount = maps:put(transfer_out, TransferOut + 1, Count),
+			NewStateData = StateData#statedata{count = NewCount},
+			{reply, ok, active, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -493,7 +498,7 @@ active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}}, _From,
 %%
 handle_event({'M-NOTIFY', NotifyFor, RC}, StateName,
 		#statedata{socket = Socket, ep = EP, assoc = Assoc,
-		callback = CbMod, cb_state = CbState} = StateData) ->
+		callback = CbMod, cb_state = CbState, count = Count} = StateData) ->
 	Status = case NotifyFor of
 		'AS_ACTIVE' ->
 			as_active;
@@ -510,7 +515,11 @@ handle_event({'M-NOTIFY', NotifyFor, RC}, StateName,
 			CbArgs = [RC, Status, undefined, CbState],
 			{ok, NewCbState} = m3ua_callback:cb(notify, CbMod, CbArgs),
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, StateName, StateData#statedata{cb_state = NewCbState}};
+			NotifyOut = maps:get(notify_out, Count, 0),
+			NewCount = maps:put(notify_out, NotifyOut + 1, Count),
+			NewStateData = StateData#statedata{cb_state = NewCbState,
+					count = NewCount},
+			{next_state, StateName, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -571,7 +580,10 @@ handle_sync_event({getstat, undefined}, _From, StateName,
 	{reply, inet:getstat(Socket), StateName, StateData};
 handle_sync_event({getstat, Options}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), StateName, StateData}.
+	{reply, inet:getstat(Socket, Options), StateName, StateData};
+handle_sync_event(getcount, _From, StateName,
+		#statedata{count = Counters} = StateData) ->
+	{reply, Counters, StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
@@ -690,7 +702,8 @@ handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 		down, _Stream, #statedata{socket = Socket, assoc = Assoc,
-		callback = CbMod, cb_state = State, ep = EP} = StateData) ->
+		callback = CbMod, cb_state = State, ep = EP,
+		count = Count} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -698,7 +711,12 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 			gen_server:cast(m3ua, {'M-ASP_UP',
 					indication, CbMod, self(), EP, Assoc, State}),
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData};
+			UpIn = maps:get(up_in, Count, 0),
+			UpAckOut = maps:get(up_ack_out, Count, 0),
+			NewCount = maps:put(up_in, UpIn + 1, Count),
+			NextCount = maps:put(up_ack_out, UpAckOut + 1, NewCount),
+			NewStateData = StateData#statedata{count = NextCount},
+			{next_state, inactive, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -707,7 +725,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 		inactive, _Stream, #statedata{socket = Socket,
-		assoc = Assoc, ep = EP} = StateData) ->
+		assoc = Assoc, ep = EP, count = Count} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -720,7 +738,12 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 			case gen_sctp:send(Socket, Assoc, 0, Packet2) of
 				ok ->
 					inet:setopts(Socket, [{active, once}]),
-					{next_state, inactive, StateData};
+					UpIn = maps:get(up_in, Count, 0),
+					UpAckOut = maps:get(up_ack_out, Count, 0),
+					NewCount = maps:put(up_in, UpIn + 1, Count),
+					NextCount = maps:put(up_ack_out, UpAckOut + 1, NewCount),
+					NewStateData = StateData#statedata{count = NextCount},
+					{next_state, inactive, NewStateData};
 				{error, eagain} ->
 					% @todo flow control
 					{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -744,7 +767,7 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
-		callback = CbMod, cb_state = State} = StateData) ->
+		callback = CbMod, cb_state = State, count = Count} = StateData) ->
 	AspActive = m3ua_codec:parameters(Params),
 	RCs = proplists:get_value(?RoutingContext, AspActive),
 	AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
@@ -754,7 +777,12 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			gen_server:cast(m3ua, {'M-ASP_ACTIVE',
 					indication, self(), EP, Assoc, RCs, CbMod, State}),
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, active, StateData};
+			ActiveIn = maps:get(active_in, Count, 0),
+			ActiveAckOut = maps:get(active_ack_out, Count, 0),
+			NewCount = maps:put(active_in, ActiveIn + 1, Count),
+			NextCount = maps:put(active_ack_out, ActiveAckOut + 1, NewCount),
+			NewStateData = StateData#statedata{count = NextCount},
+			{next_state, active, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -763,8 +791,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 		_Stream, #statedata{socket = Socket, assoc = Assoc, callback = CbMod,
-		cb_state = State, ep = EP} = StateData) when StateName == inactive;
-		StateName == active ->
+		cb_state = State, ep = EP, count = Count} = StateData)
+		when StateName == inactive; StateName == active ->
 	AspDownAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDNACK},
 	Packet = m3ua_codec:m3ua(AspDownAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -772,7 +800,12 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 			gen_server:cast(m3ua, {'M-ASP_DOWN',
 					indication, CbMod, self(), EP, Assoc, State}),
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, down, StateData};
+			DownIn = maps:get(down_in, Count, 0),
+			DownAckOut = maps:get(down_ack_out, Count, 0),
+			NewCount = maps:put(down_in, DownIn + 1, Count),
+			NextCount = maps:put(down_ack_out, DownAckOut + 1, NewCount),
+			NewStateData = StateData#statedata{count = NextCount},
+			{next_state, down, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -781,7 +814,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN}, StateName,
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		active, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
-		callback = CbMod, cb_state = State} = StateData) ->
+		callback = CbMod, cb_state = State, count = Count} = StateData) ->
 	AspInActive = m3ua_codec:parameters(Params),
 	RCs = proplists:get_value(?RoutingContext, AspInActive),
 	AspInActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
@@ -791,7 +824,12 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 			gen_server:cast(m3ua, {'M-ASP_INACTIVE',
 					indication, self(), EP, Assoc, RCs, CbMod, State}),
 			inet:setopts(Socket, [{active, once}]),
-			{next_state, inactive, StateData};
+			InactiveIn = maps:get(inactive_in, Count, 0),
+			InactiveAckOut = maps:get(inactive_ack_out, Count, 0),
+			NewCount = maps:put(inactive_in, InactiveIn + 1, Count),
+			NextCount = maps:put(inactive_ack_out, InactiveAckOut + 1, NewCount),
+			NewStateData = StateData#statedata{count = NextCount},
+			{next_state, inactive, NewStateData};
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -801,7 +839,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 handle_sgp(#m3ua{class = ?TransferMessage,
 		type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket,
-		callback = CbMod, cb_state = CbState} = StateData)
+		callback = CbMod, cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
@@ -809,30 +847,38 @@ handle_sgp(#m3ua{class = ?TransferMessage,
 			data = Data} = m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
 	CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(transfer, CbMod, CbArgs),
-	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
+	TransferIn = maps:get(transfer_in, Count, 0),
+	NewCount = maps:put(transfer_in, TransferIn + 1, Count),
+	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
 	{next_state, active, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = CbState} = StateData) when CbMod /= undefined ->
+		cb_state = CbState, count = Count} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
-	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
+	DunaIn = maps:get(duna_in, Count, 0),
+	NewCount = maps:put(duna_in, DunaIn + 1, Count),
+	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
 	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = CbState} = StateData) when CbMod /= undefined ->
+		cb_state = CbState, count = Count} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = proplists:get_value(?RoutingContext, Parameters),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
-	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, once}]),
+	DavaIn = maps:get(dava_in, Count, 0),
+	NewCount = maps:put(dava_in, DavaIn + 1, Count),
+	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
 	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
