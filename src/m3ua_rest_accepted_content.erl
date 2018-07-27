@@ -74,12 +74,13 @@ check_content_type_header(Headers, Method, Module, Data) ->
 			check_accept_header(Headers, Module, [{resource, Module} | Data]);
 		{_, []} when Method == "DELETE"; Method == "GET" ->
 			check_accept_header(Headers, Module, [{resource, Module} | Data]);
-		{_, ProvidedType} ->
+		{_, ProvidedType1} ->
+			[ProvidedType2 | _] = string:tokens(ProvidedType1, [$;]),
 			AcceptedTypes = Module:content_types_accepted(),
-			case lists:member(ProvidedType, AcceptedTypes) of
+			case lists:member(ProvidedType2, AcceptedTypes) of
 				true ->
 					check_accept_header(Headers, Module, [{resource, Module},
-							{content_type,  ProvidedType} | Data]);
+							{content_type,  ProvidedType2} | Data]);
 				false ->
 					Response = "<h2>HTTP Error 415 - Unsupported Media Type</h2>",
 					{break, [{response, {415, Response}}]}
@@ -92,11 +93,12 @@ check_content_type_header(Headers, Method, Module, Data) ->
 %% @hidden
 check_accept_header(Headers, Module, Data) ->
 	case lists:keyfind("accept", 1, Headers) of
-		{_, AcceptType} ->
+		{_, AcceptType1} ->
+			[AcceptType2 | _] = string:tokens(AcceptType1, [$;]),
 			Representations = Module:content_types_provided(),
-			case lists:member(AcceptType, Representations) of
+			case lists:member(AcceptType2, Representations) of
 				true ->
-					{proceed, [{accept, AcceptType} | Data]};
+					{proceed, [{accept, AcceptType2} | Data]};
 				false ->
 					Response = "<h2>HTTP Error 415 - Unsupported Media Type</h2>",
 					{break, [{response, {415, Response}}]}
