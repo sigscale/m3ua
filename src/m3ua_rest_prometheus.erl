@@ -70,7 +70,7 @@ as_state({ok, []}) ->
 as_state({ok, AS}) ->
 	HELP = ["# HELP stc_m3ua_as_state The current state of an "
 			"Application Server (AS):\n# down | inactive | active | pending.\n",
-			"# TYPE stc_m3ua_as_state guage\n"],
+			"# TYPE stc_m3ua_as_state gauge\n"],
 	as_state(AS, [HELP]);
 as_state({error, Reason}) ->
 	error_logger:error_report(["Failed to get application servers",
@@ -128,7 +128,7 @@ asp_state(Assocs) when is_list(Assocs) ->
 	HELP = ["# HELP stc_m3ua_asp_state The current state of an\n"
 			"# Application Server Process (ASP) or Signaling "
 			"Gateway Process (SGP):\n# down | inactive | active.\n",
-			"# TYPE stc_m3ua_asp_state guage\n"],
+			"# TYPE stc_m3ua_asp_state gauge\n"],
 	asp_state(Assocs, [HELP]);
 asp_state({'EXIT', Reason}) ->
 	error_logger:error_report(["Failed to get associations",
@@ -205,7 +205,7 @@ sctp_state(Assocs) when is_list(Assocs) ->
 			"SCTP association:\n# closed | cooke-wait | cookie-echoed "
 			"shutdown-pending\n#  | shutdown-received | shutdown-sent "
 			"shutdown-ack-sent.\n",
-			"# TYPE stc_m3ua_sctp_state guage\n"],
+			"# TYPE stc_m3ua_sctp_state gauge\n"],
 	sctp_state(Assocs, [HELP]);
 sctp_state({'EXIT', Reason}) ->
 	error_logger:error_report(["Failed to get associations",
