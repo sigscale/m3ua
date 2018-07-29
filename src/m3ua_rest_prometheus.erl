@@ -202,9 +202,9 @@ sctp_state([]) ->
 	[];
 sctp_state(Assocs) when is_list(Assocs) ->
 	HELP = ["# HELP stc_m3ua_sctp_state The current state of an "
-			"SCTP association:\n# closed | cooke-wait | cookie-echoed "
+			"SCTP association:\n# closed | cookie-wait | cookie-echoed "
 			"shutdown-pending\n#  | shutdown-received | shutdown-sent "
-			"shutdown-ack-sent.\n",
+			"| shutdown-ack-sent.\n",
 			"# TYPE stc_m3ua_sctp_state gauge\n"],
 	sctp_state(Assocs, [HELP]);
 sctp_state({'EXIT', Reason}) ->
