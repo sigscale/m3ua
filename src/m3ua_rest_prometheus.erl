@@ -83,19 +83,13 @@ as_state([{Name, _, _, _, _, _, State} | T], Acc) ->
 as_state([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-as_state1(Name, State, Acc) when is_atom(Name) ->
-	as_state2(atom_to_list(Name), State, Acc);
-as_state1(Name, State, Acc) when is_integer(Name) ->
-	as_state2(integer_to_list(Name), State, Acc);
-as_state1(Name, State, Acc) when is_list(Name) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		UTF8 when is_list(UTF8) ->
-			as_state2(UTF8, State, Acc);
-		_ ->
-			as_state2([], State, Acc)
-	end;
-as_state1(_Name, State, Acc) ->
-	as_state2([], State, Acc).
+as_state1(Name, State, Acc) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			as_state2(lists:droplast(NameS), State, Acc);
+		NameS ->
+			as_state2(NameS, State, Acc)
+	end.
 %% @hidden
 as_state2(Name, down, Acc) ->
 	[["stc_m3ua_as_state{name=\"", Name, "\",state=\"down\"} 1\n",
@@ -150,23 +144,13 @@ asp_state([{EP, Assoc} | T], Acc) ->
 asp_state([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-asp_state1(Name, Role, State, Acc)
-		when is_atom(Name), is_atom(State) ->
-	asp_state2(atom_to_list(Name), Role, State, Acc);
-asp_state1(Name, Role, State, Acc)
-		when is_integer(Name), is_atom(State) ->
-	asp_state2(integer_to_list(Name), Role, State, Acc);
-asp_state1(Name, Role, State, Acc)
-		when is_list(Name), is_atom(State) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		Name1 when is_list(Name1) ->
-			asp_state2(Name1, Role, State, Acc);
-		_ ->
-			asp_state2([], Role, State, Acc)
+asp_state1(Name, Role, State, Acc) when is_atom(State) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			asp_state2(lists:droplast(NameS), Role, State, Acc);
+		NameS ->
+			asp_state2(NameS, Role, State, Acc)
 	end;
-asp_state1(_Name, Role, State, Acc)
-		when is_atom(State) ->
-	asp_state2([], Role, State, Acc);
 asp_state1(_Name, _, {'EXIT', Reason}, _) ->
 	error_logger:error_report(["Failed to get ASP status",
 			{module, ?MODULE}, {error, Reason}]),
@@ -227,22 +211,13 @@ sctp_state([{EP, Assoc} | T], Acc) ->
 sctp_state([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
-		when is_atom(Name) ->
-	sctp_state2(atom_to_list(Name), Role, State, Acc);
-sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
-		when is_integer(Name) ->
-	sctp_state2(integer_to_list(Name), Role, State, Acc);
-sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
-		when is_list(Name) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		Name1 when is_list(Name1) ->
-			sctp_state2(Name1, Role, State, Acc);
-		_ ->
-			sctp_state2([], Role, State, Acc)
+sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			sctp_state2(lists:droplast(NameS), Role, State, Acc);
+		NameS ->
+			sctp_state2(NameS, Role, State, Acc)
 	end;
-sctp_state1(_Name, Role, {ok, #sctp_status{state = State}}, Acc) ->
-	sctp_state2([], Role, State, Acc);
 sctp_state1(_Name, _, {error, Reason}, _) ->
 	error_logger:error_report(["Failed to get SCTP status",
 			{module, ?MODULE}, {error, Reason}]),
@@ -416,22 +391,13 @@ asp_count([{EP, Assoc} | T], Acc) ->
 asp_count([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-asp_count1(Name, Role, {ok, Count}, Acc)
-		when is_atom(Name) ->
-	asp_count2(atom_to_list(Name), Role, Count, Acc);
-asp_count1(Name, Role, {ok, Count}, Acc)
-		when is_integer(Name) ->
-	asp_count2(integer_to_list(Name), Role, Count, Acc);
-asp_count1(Name, Role, {ok, Count}, Acc)
-		when is_list(Name) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		Name1 when is_list(Name1) ->
-			asp_count2(Name1, Role, Count, Acc);
-		_ ->
-			asp_count2([], Role, Count, Acc)
+asp_count1(Name, Role, {ok, Count}, Acc) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			asp_count2(lists:droplast(NameS), Role, Count, Acc);
+		NameS ->
+			asp_count2(NameS, Role, Count, Acc)
 	end;
-asp_count1(_Name, Role, {ok, Count}, Acc) ->
-	asp_count2([], Role, Count, Acc);
 asp_count1(_Name, _, {error, Reason}, _) ->
 	error_logger:error_report(["Failed to get ASP statistics",
 			{module, ?MODULE}, {error, Reason}]),
