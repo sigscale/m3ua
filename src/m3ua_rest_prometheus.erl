@@ -83,40 +83,34 @@ as_state([{Name, _, _, _, _, _, State} | T], Acc) ->
 as_state([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-as_state1(Name, State, Acc) when is_atom(Name) ->
-	as_state2(atom_to_list(Name), State, Acc);
-as_state1(Name, State, Acc) when is_integer(Name) ->
-	as_state2(integer_to_list(Name), State, Acc);
-as_state1(Name, State, Acc) when is_list(Name) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		UTF8 when is_list(UTF8) ->
-			as_state2(UTF8, State, Acc);
-		_ ->
-			as_state2([], State, Acc)
-	end;
-as_state1(_Name, State, Acc) ->
-	as_state2([], State, Acc).
+as_state1(Name, State, Acc) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			as_state2(lists:droplast(NameS), State, Acc);
+		NameS ->
+			as_state2(NameS, State, Acc)
+	end.
 %% @hidden
 as_state2(Name, down, Acc) ->
-	[["stc_m3ua_as_state{name=", Name, ",state=down} 1\n",
-	"stc_m3ua_as_state{name=", Name, ",state=inactive} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=active} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=pending} 0\n"] | Acc];
+	[["stc_m3ua_as_state{name=\"", Name, "\",state=\"down\"} 1\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"inactive\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"active\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"pending\"} 0\n"] | Acc];
 as_state2(Name, inactive, Acc) ->
-	[["stc_m3ua_as_state{name=", Name, ",state=down} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=inactive} 1\n",
-	"stc_m3ua_as_state{name=", Name, ",state=active} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=pending} 0\n"] | Acc];
+	[["stc_m3ua_as_state{name=\"", Name, "\",state=\"down\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"inactive\"} 1\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"active\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"pending\"} 0\n"] | Acc];
 as_state2(Name, active, Acc) ->
-	[["stc_m3ua_as_state{name=", Name, ",state=down} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=inactive} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=active} 1\n",
-	"stc_m3ua_as_state{name=", Name, ",state=pending} 0\n"] | Acc];
+	[["stc_m3ua_as_state{name=\"", Name, "\",state=\"down\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"inactive\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"active\"} 1\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"pending\"} 0\n"] | Acc];
 as_state2(Name, pending, Acc) ->
-	[["stc_m3ua_as_state{name=", Name, ",state=down} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=inactive} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=active} 0\n",
-	"stc_m3ua_as_state{name=", Name, ",state=pending} 1\n"] | Acc].
+	[["stc_m3ua_as_state{name=\"", Name, "\",state=\"down\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"inactive\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"active\"} 0\n",
+	"stc_m3ua_as_state{name=\"", Name, "\",state=\"pending\"} 1\n"] | Acc].
 
 %% @hidden
 asp_state() ->
@@ -150,49 +144,39 @@ asp_state([{EP, Assoc} | T], Acc) ->
 asp_state([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-asp_state1(Name, Role, State, Acc)
-		when is_atom(Name), is_atom(State) ->
-	asp_state2(atom_to_list(Name), Role, State, Acc);
-asp_state1(Name, Role, State, Acc)
-		when is_integer(Name), is_atom(State) ->
-	asp_state2(integer_to_list(Name), Role, State, Acc);
-asp_state1(Name, Role, State, Acc)
-		when is_list(Name), is_atom(State) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		Name1 when is_list(Name1) ->
-			asp_state2(Name1, Role, State, Acc);
-		_ ->
-			asp_state2([], Role, State, Acc)
+asp_state1(Name, Role, State, Acc) when is_atom(State) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			asp_state2(lists:droplast(NameS), Role, State, Acc);
+		NameS ->
+			asp_state2(NameS, Role, State, Acc)
 	end;
-asp_state1(_Name, Role, State, Acc)
-		when is_atom(State) ->
-	asp_state2([], Role, State, Acc);
 asp_state1(_Name, _, {'EXIT', Reason}, _) ->
 	error_logger:error_report(["Failed to get ASP status",
 			{module, ?MODULE}, {error, Reason}]),
 	[].
 %% @hidden
 asp_state2(Name, Role, down, Acc) ->
-	[["stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=down} 1\n",
-	"stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=inactive} 0\n",
-	"stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=active} 0\n"] | Acc];
+	[["stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"down\"} 1\n",
+	"stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"inactive\"} 0\n",
+	"stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"active\"} 0\n"] | Acc];
 asp_state2(Name, Role, inactive, Acc) ->
-	[["stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=down} 0\n",
-	"stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=inactive} 1\n",
-	"stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=active} 0\n"] | Acc];
+	[["stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"down\"} 0\n",
+	"stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"inactive\"} 1\n",
+	"stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"active\"} 0\n"] | Acc];
 asp_state2(Name, Role, active, Acc) ->
-	[["stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=down} 0\n",
-	"stc_m3ua_asp_state{endpoint=", Name,
-			",role=", Role, ",state=inactive} 0\n",
-	"stc_m3ua_asp_state{endpoint=", Name,
-			",state=active} 1\n"] | Acc].
+	[["stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"down\"} 0\n",
+	"stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"inactive\"} 0\n",
+	"stc_m3ua_asp_state{endpoint=\"", Name,
+			"\",state=\"active\"} 1\n"] | Acc].
 
 %% @hidden
 sctp_state() ->
@@ -227,163 +211,154 @@ sctp_state([{EP, Assoc} | T], Acc) ->
 sctp_state([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
-		when is_atom(Name) ->
-	sctp_state2(atom_to_list(Name), Role, State, Acc);
-sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
-		when is_integer(Name) ->
-	sctp_state2(integer_to_list(Name), Role, State, Acc);
-sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc)
-		when is_list(Name) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		Name1 when is_list(Name1) ->
-			sctp_state2(Name1, Role, State, Acc);
-		_ ->
-			sctp_state2([], Role, State, Acc)
+sctp_state1(Name, Role, {ok, #sctp_status{state = State}}, Acc) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			sctp_state2(lists:droplast(NameS), Role, State, Acc);
+		NameS ->
+			sctp_state2(NameS, Role, State, Acc)
 	end;
-sctp_state1(_Name, Role, {ok, #sctp_status{state = State}}, Acc) ->
-	sctp_state2([], Role, State, Acc);
 sctp_state1(_Name, _, {error, Reason}, _) ->
 	error_logger:error_report(["Failed to get SCTP status",
 			{module, ?MODULE}, {error, Reason}]),
 	[].
 %% @hidden
 sctp_state2(Name, Role, closed, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 1\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 1\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 0\n"] | Acc];
 sctp_state2(Name, Role, cookie_wait, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 1\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 1\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 0\n"] | Acc];
 sctp_state2(Name, Role, cookie_echoed, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 1\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 1\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 0\n"] | Acc];
 sctp_state2(Name, Role, established, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 1\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 1\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 0\n"] | Acc];
 sctp_state2(Name, Role, shutdown_pending, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 1\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 1\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 0\n"] | Acc];
 sctp_state2(Name, Role, shutdown_received, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 1\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 1\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 0\n"] | Acc];
 sctp_state2(Name, Role, shutdown_sent, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 1\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 0\n"] | Acc];
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 1\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 0\n"] | Acc];
 sctp_state2(Name, Role, shutdown__asck_sent, Acc) ->
-	[["stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=closed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-wait} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=cookie-echoed} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=established} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-pending} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-received} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-sent} 0\n",
-	"stc_m3ua_sctp_state{endpoint=", Name,
-			",role=", Role, ",state=shutdown-ack-sent} 1\n"] | Acc].
+	[["stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"closed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-wait\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"cookie-echoed\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"established\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-pending\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-received\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-sent\"} 0\n",
+	"stc_m3ua_sctp_state{endpoint=\"", Name,
+			"\",role=\"", Role, "\",state=\"shutdown-ack-sent\"} 1\n"] | Acc].
 
 %% @hidden
 asp_count() ->
@@ -416,110 +391,101 @@ asp_count([{EP, Assoc} | T], Acc) ->
 asp_count([], Acc) ->
 	lists:reverse(["\n" | Acc]).
 %% @hidden
-asp_count1(Name, Role, {ok, Count}, Acc)
-		when is_atom(Name) ->
-	asp_count2(atom_to_list(Name), Role, Count, Acc);
-asp_count1(Name, Role, {ok, Count}, Acc)
-		when is_integer(Name) ->
-	asp_count2(integer_to_list(Name), Role, Count, Acc);
-asp_count1(Name, Role, {ok, Count}, Acc)
-		when is_list(Name) ->
-	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
-		Name1 when is_list(Name1) ->
-			asp_count2(Name1, Role, Count, Acc);
-		_ ->
-			asp_count2([], Role, Count, Acc)
+asp_count1(Name, Role, {ok, Count}, Acc) ->
+	case lists:flatten(io_lib:format("~p", [Name])) of
+		[$" | NameS] ->
+			asp_count2(lists:droplast(NameS), Role, Count, Acc);
+		NameS ->
+			asp_count2(NameS, Role, Count, Acc)
 	end;
-asp_count1(_Name, Role, {ok, Count}, Acc) ->
-	asp_count2([], Role, Count, Acc);
 asp_count1(_Name, _, {error, Reason}, _) ->
 	error_logger:error_report(["Failed to get ASP statistics",
 			{module, ?MODULE}, {error, Reason}]),
 	[].
 %% @hidden
 asp_count2(Name, Role, Count, Acc) ->
-	[["stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-up-out} ",
+	[["stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-up-out\"} ",
 			integer_to_list(maps:get(up_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-up-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-up-in\"} ",
 			integer_to_list(maps:get(up_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-up-ack-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-up-ack-out\"} ",
 			integer_to_list(maps:get(up_ack_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-up-ack-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-up-ack-in\"} ",
 			integer_to_list(maps:get(up_ack_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-down-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-down-out\"} ",
 			integer_to_list(maps:get(down_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-down-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-down-in\"} ",
 			integer_to_list(maps:get(down_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-down-ack-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-down-ack-out\"} ",
 			integer_to_list(maps:get(down_ack_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-down-ack-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-down-ack-in\"} ",
 			integer_to_list(maps:get(down_ack_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-active-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-active-out\"} ",
 			integer_to_list(maps:get(active_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-active-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-active-in\"} ",
 			integer_to_list(maps:get(active_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-active-ack-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-active-ack-out\"} ",
 			integer_to_list(maps:get(active_ack_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-active-ack-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-active-ack-in\"} ",
 			integer_to_list(maps:get(active_ack_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-inactive-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-inactive-out\"} ",
 			integer_to_list(maps:get(inactive_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-inactive-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-inactive-in\"} ",
 			integer_to_list(maps:get(inactive_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-inactive-ack-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-inactive-ack-out\"} ",
 			integer_to_list(maps:get(inactive_ack_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",asp-inactive-ack-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"asp-inactive-ack-in\"} ",
 			integer_to_list(maps:get(inactive_ack_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",notify-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"notify-out\"} ",
 			integer_to_list(maps:get(notify_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",notify-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"notify-in\"} ",
 			integer_to_list(maps:get(notify_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",daud-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"daud-out\"} ",
 			integer_to_list(maps:get(daud_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",daud-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"daud-in\"} ",
 			integer_to_list(maps:get(daud_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",duna-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"duna-out\"} ",
 			integer_to_list(maps:get(duna_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",duna-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"duna-in\"} ",
 			integer_to_list(maps:get(duna_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",dava-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"dava-out\"} ",
 			integer_to_list(maps:get(dava_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",dava-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"dava-in\"} ",
 			integer_to_list(maps:get(dava_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",dupu-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"dupu-out\"} ",
 			integer_to_list(maps:get(dupu_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",dupu-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"dupu-in\"} ",
 			integer_to_list(maps:get(dupu_in, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",transfer-out} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"transfer-out\"} ",
 			integer_to_list(maps:get(transfer_out, Count, 0)), "\n",
-	"stc_m3ua_message_total{endpoint=", Name,
-			",role=", Role, ",transfer-in} ",
+	"stc_m3ua_message_total{endpoint=\"", Name,
+			"\",role=\"", Role, "\",type=\"transfer-in\"} ",
 			integer_to_list(maps:get(transfer_in, Count, 0)), "\n"] | Acc].
 

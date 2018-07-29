@@ -1,3 +1,9 @@
+2018-07-29  Vance Shipley <vances@sigscale.org>
+
+	* prometheus: handle any term as name
+	* prometheus: label values must be quoted
+	* rest: ignore mime type suffix in accept header
+
 2018-07-26  Vance Shipley <vances@sigscale.org>
 
 	* prometheus client support
