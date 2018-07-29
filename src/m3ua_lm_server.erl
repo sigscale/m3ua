@@ -1044,11 +1044,11 @@ reg_result([#registration_result{status = registered, rc = RC}],
 		{aborted, Reason} ->
 			{error, Reason}
 	end,
+	CbArgs = [NA, Keys, TMT, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
+	ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewCbState}),
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			CbArgs = [NA, Keys, TMT, CbState],
-			{ok, NewCbState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
-			ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewCbState}),
 			gen_server:reply(From, Result),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
