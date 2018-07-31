@@ -1,6 +1,7 @@
 2018-07-31  Vance Shipley <vances@sigscale.org>
 
 	* safe calls to get statistics
+	* safety from late arrivals in m3ua
 
 2018-07-29  Vance Shipley <vances@sigscale.org>
 
