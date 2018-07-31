@@ -793,7 +793,11 @@ handle_info({'EXIT', Pid, _Reason},
 	end;
 handle_info(timeout, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
-	{noreply, NewState}.
+	{noreply, NewState};
+handle_info(Event,State) ->
+	error_logger:error_report(["Unexpected event",
+			{module, ?MODULE}, {pid, self()}, {event, Event}]),
+	{noreply, State}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->
