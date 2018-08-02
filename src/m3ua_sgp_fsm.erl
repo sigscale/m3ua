@@ -365,6 +365,7 @@ init([Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
 		EP, EpName, Cb, StaticKeys, UseRC]) ->
+	process_flag(trap_exit, true),
 	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
@@ -376,7 +377,6 @@ init([Socket, Address, Port,
 								EP, Assoc, Cb, CbState})
 			end,
 			lists:foreach(Freg, StaticKeys),
-			process_flag(trap_exit, true),
 			Statedata = #statedata{socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
@@ -384,6 +384,7 @@ init([Socket, Address, Port,
 					ep = EP, ep_name = EpName, use_rc = UseRC},
 			{ok, down, Statedata, 0};
 		{error, Reason} ->
+			gen_sctp:close(Socket),
 			{stop, Reason}
 	end.
 
