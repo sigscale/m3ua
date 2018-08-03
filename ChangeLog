@@ -1,3 +1,9 @@
+2018-08-03  Vance Shipley <vances@sigscale.org>
+
+	* add transfer/9 api to set timeout value
+	* close socket on connection failure
+	* close socket if init callback returns error
+
 2018-07-31  Vance Shipley <vances@sigscale.org>
 
 	* safe calls to get statistics
