@@ -133,21 +133,21 @@ connecting(timeout, #statedata{options = LocalOptions,
 				{ok, {LocalAddress, LocalPort}} ->
 					case gen_sctp:connect_init(Socket,
 							RemoteAddress, RemotePort, ConnectOptions) of
-							ok ->
-								NewStateData = StateData#statedata{socket = Socket,
-										local_addr = LocalAddress,
-										local_port = LocalPort},
-								{next_state, connecting, NewStateData};
-							{error, ReasonConnect} ->
-								error_logger:error_report(["Connect failed",
-										{error, ReasonConnect}, {name, Name},
-										{address, RemoteAddress}, {port, RemotePort},
-										{options, ConnectOptions}]),
-								gen_sctp:close(Socket),
-								NewStateData = StateData#statedata{socket = undefined,
-										local_addr = undefined,
-										local_port = undefined},
-								{next_state, connecting, NewStateData, ?ERROR_WAIT}
+						ok ->
+							NewStateData = StateData#statedata{socket = Socket,
+									local_addr = LocalAddress,
+									local_port = LocalPort},
+							{next_state, connecting, NewStateData};
+						{error, ReasonConnect} ->
+							error_logger:error_report(["Connect failed",
+									{error, ReasonConnect}, {name, Name},
+									{address, RemoteAddress}, {port, RemotePort},
+									{options, ConnectOptions}]),
+							gen_sctp:close(Socket),
+							NewStateData = StateData#statedata{socket = undefined,
+									local_addr = undefined,
+									local_port = undefined},
+							{next_state, connecting, NewStateData, ?ERROR_WAIT}
 					end;
 				{error, ReasonPort} ->
 					error_logger:error_report(["Failed to get port number",
