@@ -261,13 +261,19 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_assoc_change{state = _Reason}}}, connecting,
 		#statedata{socket = Socket} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, connecting, StateData, ?RETRY_WAIT};
+	gen_sctp:close(Socket),
+	NewStateData = StateData#statedata{socket = undefined},
+	{next_state, connecting, NewStateData, ?RETRY_WAIT};
 handle_info({'EXIT', Fsm, {shutdown, {{EP, _Assoc}, Reason}}},
-		_StateName, #statedata{fsm = Fsm} = StateData) ->
+		_StateName, #statedata{socket = Socket, fsm = Fsm} = StateData) ->
+	gen_sctp:close(Socket),
 	{stop, {shutdown, {EP, Reason}}, StateData};
-handle_info({'EXIT', Fsm, Reason},
-		_StateName, #statedata{fsm = Fsm} = StateData) ->
+handle_info({'EXIT', Fsm, Reason}, _StateName,
+		#statedata{socket = undefined, fsm = Fsm} = StateData) ->
+	{stop, Reason, StateData};
+handle_info({'EXIT', Fsm, Reason}, _StateName,
+		#statedata{socket = Socket, fsm = Fsm} = StateData) ->
+	gen_sctp:close(Socket),
 	{stop, Reason, StateData}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
