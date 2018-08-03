@@ -415,8 +415,12 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
 			Event = {getstat, Options},
-			Reply = gen_fsm:sync_send_all_state_event(Fsm, Event),
-			{reply, Reply, State};
+			case catch gen_fsm:sync_send_all_state_event(Fsm, Event) of
+				{'EXIT', Reason} ->
+					{reply, {error, Reason}, State};
+				Reply ->
+					{reply, {ok, Reply}, State}
+			end;
 		none ->
 			{reply, {error, not_found}, State}
 	end;
@@ -424,8 +428,12 @@ handle_call({getcount, EndPoint, Assoc}, _From,
 		#state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
-			Reply = gen_fsm:sync_send_all_state_event(Fsm, getcount),
-			{reply, {ok, Reply}, State};
+			case catch gen_fsm:sync_send_all_state_event(Fsm, getcount) of
+				{'EXIT', Reason} ->
+					{reply, {error, Reason}, State};
+				Reply ->
+					{reply, {ok, Reply}, State}
+			end;
 		none ->
 			{reply, {error, not_found}, State}
 	end.
@@ -785,7 +793,11 @@ handle_info({'EXIT', Pid, _Reason},
 	end;
 handle_info(timeout, #state{ep_sup_sup = undefined} = State) ->
 	NewState = get_sups(State),
-	{noreply, NewState}.
+	{noreply, NewState};
+handle_info(Event,State) ->
+	error_logger:error_report(["Unexpected event",
+			{module, ?MODULE}, {pid, self()}, {event, Event}]),
+	{noreply, State}.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		State::#state{}) ->
@@ -1044,11 +1056,11 @@ reg_result([#registration_result{status = registered, rc = RC}],
 		{aborted, Reason} ->
 			{error, Reason}
 	end,
+	CbArgs = [NA, Keys, TMT, CbState],
+	{ok, NewCbState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
+	ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewCbState}),
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
-			CbArgs = [NA, Keys, TMT, CbState],
-			{ok, NewCbState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
-			ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewCbState}),
 			gen_server:reply(From, Result),
 			NewReqs = gb_trees:delete(Ref, Reqs),
 			NewState = State#state{reqs = NewReqs},
