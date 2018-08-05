@@ -88,14 +88,14 @@ stop(EP) when is_pid(EP) ->
 -spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
 	when
 		Name :: term(),
-		NA :: undefined | pos_integer(),
+		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		MinASP :: pos_integer(),
 		MaxASP :: pos_integer(),
 		Key :: {DPC, [SI], [OPC]},
-		DPC :: pos_integer(),
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
+		DPC :: 0..16777215,
+		SI :: byte(),
+		OPC :: 0..16777215,
 		Mode :: override | loadshare | broadcast,
 		Result :: {ok, AS} | {error, Reason},
 		AS :: #m3ua_as{},
@@ -110,12 +110,12 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 -spec as_delete(RoutingKey) -> Result
 	when
 		RoutingKey :: {NA, Keys, Mode},
-		NA :: undefined | pos_integer(),
+		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
-		DPC :: pos_integer(),
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
+		DPC :: 0..16777215,
+		SI :: byte(),
+		OPC :: 0..16777215,
 		Mode :: override | loadshare | broadcast,
 		Result :: ok | {error, Reason},
 		Reason :: term().
@@ -193,12 +193,12 @@ getcount(EndPoint, Assoc)
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
-		NA :: pos_integer(),
+		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
-		DPC :: pos_integer(),
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
+		DPC :: 0..16777215,
+		SI :: byte(),
+		OPC :: 0..16777215,
 		Mode :: override | loadshare | broadcast,
 		Result :: {ok, RoutingContext} | {error, Reason},
 		RoutingContext :: pos_integer(),
@@ -215,12 +215,12 @@ register(EndPoint, Assoc, NA, Keys, Mode)
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
-		NA :: pos_integer(),
+		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
-		DPC :: pos_integer(),
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
+		DPC :: 0..16777215,
+		SI :: byte(),
+		OPC :: 0..16777215,
 		Mode :: override | loadshare | broadcast,
 		AsName :: term(),
 		Result :: {ok, RoutingContext} | {error, Reason},
@@ -320,8 +320,8 @@ asp_inactive(EndPoint, Assoc) ->
 	when
 		Fsm :: pid(),
 		Stream :: pos_integer(),
-		OPC :: 0..4294967295,
-		DPC :: 0..4294967295,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
 		NI :: byte(),
 		SI :: byte(),
 		SLS :: byte(),
@@ -342,8 +342,8 @@ transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data)
 	when
 		Fsm :: pid(),
 		Stream :: pos_integer(),
-		OPC :: 0..4294967295,
-		DPC :: 0..4294967295,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
 		NI :: byte(),
 		SI :: byte(),
 		SLS :: byte(),
@@ -367,7 +367,7 @@ transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data, Timeout)
 		Result :: {ok, [AS]} | {error, Reason},
 		AS :: {Name, NA, Keys, TMT, MinASP, MaxASP, State},
 		Name :: string(),
-		NA :: undefined | pos_integer(),
+		NA :: 0..4294967295 | undefined,
 		Keys :: [key()],
 		TMT :: tmt(),
 		MinASP :: pos_integer(),
@@ -460,9 +460,9 @@ get_assoc(EP) when is_pid(EP) ->
 -spec sort(Keys) -> Keys
 	when
 		Keys :: [{DPC, [SI], [OPC]}],
-		DPC :: pos_integer(),
+		DPC :: 0..16777215,
 		SI :: pos_integer(),
-		OPC :: pos_integer().
+		OPC :: 0..16777215,
 %% @doc Uniquely sort list of routing keys.
 %% @private
 sort(Keys) when is_list(Keys) ->

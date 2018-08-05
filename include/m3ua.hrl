@@ -92,7 +92,7 @@
 -define(DeregistrationStatus,       531).
 
 -type tmt() :: override | loadshare | broadcast.
--type key() :: {DPC :: 0..4294967295, [SI :: byte()], [OPC :: 0..4294967295]}.
+-type key() :: {DPC :: 0..16777215, [SI :: byte()], [OPC :: 0..16777215]}.
 -type routing_key() :: {NA :: 0..4294967295, Keys :: [key()], TMT :: tmt()}.
 
 %% M3UA Common Header -- RFC4666, Section-1.3.1
@@ -103,8 +103,8 @@
 		params = <<>> :: binary() | [tuple()]}).
 
 -record(protocol_data,
-		{opc :: 0..4294967295,
-		dpc :: 0..4294967295,
+		{opc :: 0..16777215,
+		dpc :: 0..16777215,
 		si = 0 :: byte(),
 		ni = 0 :: byte(),
 		mp = 0 :: byte(),
