@@ -271,7 +271,7 @@
 		RCs :: [RC],
 		RC :: 0..4294967295,
 		DPCs :: [DPC],
-		DPC :: 0..u16777215,
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
