@@ -36,16 +36,16 @@
 init(_Module, _Asp, _EP, _EpName, _Assoc) ->
 	{ok, []}.
 
-transfer(_Stream, _RK, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
+transfer(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
 	{ok, State}.
 
-pause(_Stream, _RK, _DPCs, State) ->
+pause(_Stream, _RCs, _DPCs, State) ->
 	{ok, State}.
 
-resume(_Stream, _RK, _DPCs, State) ->
+resume(_Stream, _RCs, _DPCs, State) ->
 	{ok, State}.
 
-status(_Stream, _RK, _DPCs, State) ->
+status(_Stream, _RCs, _DPCs, State) ->
 	{ok, State}.
 
 register( _NA, _Keys, _TMT, State) ->
@@ -63,7 +63,7 @@ asp_active(State) ->
 asp_inactive(State) ->
 	{ok, State}.
 
-notify(_RC, _Status, _AspID, State) ->
+notify(_RCs, _Status, _AspID, State) ->
 	{ok, State}.
 
 terminate(_Reason, _State) ->
