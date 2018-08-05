@@ -79,6 +79,7 @@ fetch_parameter(Tag, Params) ->
 	when
 		Tag :: integer(),
 		Params :: [tuple()],
+		Default :: term(),
 		Value :: term().
 %% @doc Get a parameter value in M3UA parameter list or default.
 get_parameter(Tag, Params, Default) ->
