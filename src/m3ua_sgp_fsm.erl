@@ -50,8 +50,8 @@
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RC = 0..4294967295 | undefined </tt></li>
-%%%    <li><tt>OPC = 0..4294967295 </tt></li>
-%%%    <li><tt>DPC = 0..4294967295 </tt></li>
+%%%    <li><tt>OPC = 0..16777215</tt></li>
+%%%    <li><tt>DPC = 0..16777215</tt></li>
 %%%    <li><tt>NI = byte() </tt></li>
 %%%    <li><tt>SI = byte() </tt></li>
 %%%    <li><tt>SLS = byte() </tt></li>
@@ -66,12 +66,13 @@
 %%%
 %%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(Stream, RC, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>pause(Stream, RCs, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
+%%%    <li><tt>RCs = [RC]</tt></li>
+%%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = pos_integer() </tt></li>
+%%%    <li><tt>DPC = 0..16777215</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -82,12 +83,13 @@
 %%%
 %%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(Stream, RC, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>resume(Stream, RCs, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
+%%%    <li><tt>RCs = [RC]</tt></li>
+%%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = pos_integer() </tt></li>
+%%%    <li><tt>DPC = 0..16777215</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -99,11 +101,12 @@
 %%%
 %%%  <h3 class="function"><a name="status-4">status/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(Stream, RC, DCPs, State) -&gt; Result </tt>
+%%%  <p><tt>status(Stream, RCs, DPCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>RC = pos_integer() | undefined </tt></li>
+%%%    <li><tt>RCs = [RC]</tt></li>
+%%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = pos_integer() </tt></li>
+%%%    <li><tt>DPC = 0..16777215</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -116,7 +119,7 @@
 %%%  <div class="spec">
 %%%  <p><tt>register(NA, Keys, TMT, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>NA = pos_integer()</tt></li>
+%%%    <li><tt>NA = 0..4294967295</tt></li>
 %%%    <li><tt>Keys = [key()]</tt></li>
 %%%    <li><tt>TMT = tmt()</tt></li>
 %%%    <li><tt>State = term() </tt></li>
@@ -165,16 +168,14 @@
 %%%
 %%%  <h3 class="function"><a name="notify-4">notify/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>notify(RC, Status, AspID, State) -&gt; Result </tt>
+%%%  <p><tt>notify(RCs, Status, AspID, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>Asp = pid()</tt></li>
-%%%    <li><tt>EP = pid()</tt></li>
-%%%    <li><tt>Assoc = gen_sctp:assoc_id()</tt></li>
-%%%    <li><tt>RC = pos_integer()</tt></li>
+%%%    <li><tt>RCs = [RC]</tt></li>
+%%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>Status = as_inactive | as_active | as_pending
 %%%         | insufficient_asp_active | alternate_asp_active
 %%%         | asp_failure</tt></li>
-%%%    <li><tt>AspID = pos_integer()</tt></li>
+%%%    <li><tt>AspID = 0..4294967295</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State}</tt></li>
 %%%  </ul></p>
@@ -215,9 +216,9 @@
 		in_streams :: non_neg_integer(),
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
-		rks = [] :: [{RC :: pos_integer(), RK :: routing_key()}],
+		rks = [] :: [{RC :: 0..4294967295, RK :: routing_key()}],
 		ual :: undefined | integer(),
-		stream :: undefined | integer(),
+		stream :: undefined | pos_integer(),
 		ep :: pid(),
 		ep_name :: term(),
 		use_rc :: boolean(),
@@ -243,8 +244,8 @@
 	when
 		Stream :: pos_integer(),
 		RC :: 0..4294967295 | undefined,
-		OPC :: 0..4294967295,
-		DPC :: 0..4294967295,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
 		NI :: byte(),
 		SI :: byte(),
 		SLS :: byte(),
@@ -253,39 +254,42 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback pause(Stream, RC, DPCs, State) -> Result
+-callback pause(Stream, RCs, DPCs, State) -> Result
 	when
 		Stream :: pos_integer(),
-		RC :: pos_integer() | undefined,
+		RCs :: [RC],
+		RC :: 0..4294967295,
 		DPCs :: [DPC],
-		DPC :: pos_integer(),
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback resume(Stream, RC, DPCs, State) -> Result
+-callback resume(Stream, RCs, DPCs, State) -> Result
 	when
 		Stream :: pos_integer(),
-		RC :: pos_integer() | undefined,
+		RCs :: [RC],
+		RC :: 0..4294967295,
 		DPCs :: [DPC],
-		DPC :: pos_integer(),
+		DPC :: 0..u16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback status(Stream, RC, DPCs, State) -> Result
+-callback status(Stream, RCs, DPCs, State) -> Result
 	when
 		Stream :: pos_integer(),
-		RC :: pos_integer() | undefined,
+		RCs :: [RC],
+		RC :: 0..4294967295,
 		DPCs :: [DPC],
-		DPC :: pos_integer(),
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
 -callback register(NA, Keys, TMT, State) -> Result
 	when
-		NA :: pos_integer(),
+		NA :: byte(),
 		Keys :: [key()],
 		TMT :: tmt(),
 		State :: term(),
@@ -308,12 +312,13 @@
 	when
 		State :: term(),
 		Result :: {ok, State}.
--callback notify(RC, Status, AspID, State) -> Result
+-callback notify(RCs, Status, AspID, State) -> Result
 	when
-		RC :: pos_integer(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active | asp_failure,
-		AspID :: pos_integer(),
+		AspID :: 0..4294967295,
 		State :: term(),
 		Result :: {ok, State}.
 -callback terminate(Reason, State) -> Result
@@ -330,8 +335,8 @@
 	when
 		SGP :: pid(),
 		Stream :: pos_integer(),
-		OPC :: 0..4294967295,
-		DPC :: 0..4294967295,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
 		NI :: byte(),
 		SI :: byte(),
 		SLS :: byte(),
@@ -770,7 +775,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
 		callback = CbMod, cb_state = State, count = Count} = StateData) ->
 	AspActive = m3ua_codec:parameters(Params),
-	RCs = proplists:get_value(?RoutingContext, AspActive),
+	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
 	Packet = m3ua_codec:m3ua(AspActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -817,7 +822,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		active, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
 		callback = CbMod, cb_state = State, count = Count} = StateData) ->
 	AspInActive = m3ua_codec:parameters(Params),
-	RCs = proplists:get_value(?RoutingContext, AspInActive),
+	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	AspInActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 	Packet = m3ua_codec:m3ua(AspInActiveAck),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
@@ -843,7 +848,12 @@ handle_sgp(#m3ua{class = ?TransferMessage,
 		callback = CbMod, cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
-	RC = proplists:get_value(?RoutingContext, Parameters),
+	RC = case m3ua_codec:find_parameter(?RoutingContext, Parameters) of
+		{ok, [RC1]} ->
+			RC1;
+		{error, not_found} ->
+			undefined
+	end,
 	#protocol_data{opc = OPC, dpc = DPC, ni = NI, si = SI, sls = SLS,
 			data = Data} = m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
 	CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
@@ -858,7 +868,7 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
 		cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
-	RC = proplists:get_value(?RoutingContext, Parameters),
+	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
@@ -872,7 +882,7 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
 		cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
-	RC = proplists:get_value(?RoutingContext, Parameters),
+	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
@@ -885,7 +895,7 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
 		cb_state = CbState} = StateData) when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
-	RC = proplists:get_value(?RoutingContext, Parameters),
+	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RC, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
