@@ -24,7 +24,7 @@
 -export([parameters/1, routing_key/1]).
 
 -export([add_parameter/3, store_parameter/3,
-		find_parameter/2, fetch_parameter/2,
+		find_parameter/2, fetch_parameter/2, get_parameter/3,
 		get_all_parameter/2]).
 
 -include("m3ua.hrl").
@@ -73,6 +73,20 @@ fetch_parameter(Tag, Params) ->
 			Value;
 		false ->
 			exit(not_found)
+	end.
+
+-spec get_parameter(Tag, Params, Default) -> Value
+	when
+		Tag :: integer(),
+		Params :: [tuple()],
+		Value :: term().
+%% @doc Get a parameter value in M3UA parameter list or default.
+get_parameter(Tag, Params, Default) ->
+	case lists:keyfind(Tag, 1, Params) of
+		{_, Value} ->
+			Value;
+		false ->
+			Default
 	end.
 
 -spec get_all_parameter(Tag, Params) -> Params
