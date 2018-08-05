@@ -419,7 +419,7 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 				{'EXIT', Reason} ->
 					{reply, {error, Reason}, State};
 				Reply ->
-					{reply, {ok, Reply}, State}
+					{reply, Reply, State}
 			end;
 		none ->
 			{reply, {error, not_found}, State}
