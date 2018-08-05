@@ -3,7 +3,7 @@
 ##
 ## Process this file with automake to produce Makefile.in
 
-ERLCFLAGS +=  +'{group_check, false}'
+ERLCFLAGS =  +'{group_check, false}'
 
 emib_DATA =  SIGSCALE-M3UA-MIB.bin
 
