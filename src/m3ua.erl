@@ -31,7 +31,7 @@
 -export([transfer/8, transfer/9]).
 
 %% export the m3ua private API
--export([sort/1]).
+-export([sort/1, keymember/4, keymember/5]).
 
 -type option() :: {name, term()}
 		| {connect, inet:ip_address(), inet:port_number(), [gen_sctp:option()]}
@@ -474,6 +474,80 @@ sort([{DPC, SIs, OPCs} | T], Acc) when is_integer(DPC) ->
 	sort(T, [{DPC, SortedSIs, SortedOPCs} | Acc]);
 sort([], Acc) ->
 	lists:sort(Acc).
+
+-spec keymember(DPC, OPC, SI, RoutingKeys) -> boolean()
+	when
+		NA :: byte(),
+		DPC :: 0..4294967295,
+		SI :: 0..4294967295,
+		OPC :: 0..4294967295,
+		RoutingKeys :: [{NA, Keys, TMT}],
+		Keys :: [{DPC, [SI], [OPC]}],
+		TMT :: tmt().
+%% @equiv keymember(undefined, DPC, OPC, SI, RoutingKeys)
+%% @private
+keymember(DPC, OPC, SI, RoutingKeys) ->
+	keymember(undefined, DPC, OPC, SI, RoutingKeys).
+
+-spec keymember(NA, DPC, OPC, SI, RoutingKeys) -> boolean()
+	when
+		NA :: undefined | byte(),
+		DPC :: 0..4294967295,
+		SI :: 0..4294967295,
+		OPC :: 0..4294967295,
+		RoutingKeys :: [{NA, Keys, TMT}],
+		Keys :: [{DPC, [SI], [OPC]}],
+		TMT :: tmt().
+%% @doc Test if destination matches any of the routing keys.
+%% @private
+keymember(undefined, DPC, OPC, SI, [{_, Keys, _TMT} | T] = _RoutingKeys)
+		when is_integer(DPC), is_integer(OPC), is_integer(SI) ->
+	keymember1(undefined, DPC, OPC, SI, T, Keys);
+keymember(NA, DPC, OPC, SI, [{NA, Keys, _TMT} | T] = _RoutingKeys)
+		when is_integer(NA), is_integer(DPC),
+		is_integer(OPC), is_integer(SI) ->
+	keymember1(NA, DPC, OPC, SI, T, Keys);
+keymember(NA, DPC, OPC, SI, [_ | T] = _RoutingKeys)
+		when ((NA == undefined) or is_integer(NA)), is_integer(DPC),
+		is_integer(OPC), is_integer(SI) ->
+	keymember(NA, DPC, OPC, SI, T);
+keymember(NA, DPC, OPC, SI, [] = _RoutingKeys)
+		when ((NA == undefined) or is_integer(NA)), is_integer(DPC),
+		is_integer(OPC), is_integer(SI) ->
+	false.
+%% @hidden
+keymember1(_, DPC, _, _, _, [{DPC, [], []} | _]) ->
+	true;
+keymember1(NA, DPC, OPC, SI, RoutingKeys, [{DPC, SIs, []} | T]) ->
+	case lists:member(SI, SIs) of
+		true ->
+			true;
+		false ->
+			keymember1(NA, DPC, OPC, SI, RoutingKeys, T)
+	end;
+keymember1(NA, DPC, OPC, SI, RoutingKeys, [{DPC, [], OPCs} | T]) ->
+	case lists:member(OPC, OPCs) of
+		true ->
+			true;
+		false ->
+			keymember1(NA, DPC, OPC, SI, RoutingKeys, T)
+	end;
+keymember1(NA, DPC, OPC, SI, RoutingKeys, [{DPC, SIs, OPCs} | T]) ->
+	case lists:member(SI, SIs) of
+		true ->
+			case lists:member(OPC, OPCs) of
+				true ->
+					true;
+				false ->
+					keymember1(NA, DPC, OPC, SI, RoutingKeys, T)
+			end;
+		false ->
+			keymember1(NA, DPC, OPC, SI, RoutingKeys, T)
+	end;
+keymember1(NA, DPC, OPC, SI, RoutingKeys, [_ | T]) ->
+	keymember1(NA, DPC, OPC, SI, RoutingKeys, T);
+keymember1(NA, DPC, OPC, SI, RoutingKeys, []) ->
+	keymember(NA, DPC, OPC, SI, RoutingKeys).
 
 %%----------------------------------------------------------------------
 %%  internal functions
