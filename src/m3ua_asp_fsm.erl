@@ -784,7 +784,7 @@ terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData) ->
 	Fdel = fun F([{_RC, RK} | T]) ->
 				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
 				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
-				mnesia:write(AS#m3ua_as{state = active, asp = L2}),
+				mnesia:write(AS#m3ua_as{asp = L2}),
 				mnesia:delete(m3ua_asp, Fsm, write),
 				F(T);
 			F([]) ->
