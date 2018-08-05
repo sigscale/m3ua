@@ -671,67 +671,18 @@ handle_cast({'M-NOTIFY', indication, ASP, _EP, _Assoc,
 	{ok, NewCbState} = m3ua_callback:cb(notify, CbMod, CbArgs),
 	ok = gen_fsm:send_all_state_event(ASP, {notify, NewCbState}),
 	{noreply, State};
-handle_cast({TrafficMaint, indication, Sgp, EP, Assoc, RCs, CbMod, CbState},
-		State) when TrafficMaint == 'M-ASP_ACTIVE'; TrafficMaint == 'M-ASP_INACTIVE' ->
-	traffic_maint(TrafficMaint, Sgp, EP, Assoc, RCs, CbMod, CbState, State);
-handle_cast({StateMaint, indication, CbMod, Sgp, _EP, _Assoc, CbState}, #state{} = State) when
-		StateMaint == 'M-ASP_UP'; StateMaint == 'M-ASP_DOWN' ->
- 	F = fun() ->
-			case mnesia:read(m3ua_asp, Sgp, write) of
-				[] ->
-					[];
-				[#m3ua_asp{rk = RK} | _] ->
-					case mnesia:read(m3ua_as, RK, write) of
-						[] ->
-							[];
-						[#m3ua_as{asp = Asps, min_asp = Min} = AS]
-								when StateMaint == 'M-ASP_DOWN' ->
-							F = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
-							Len = length(lists:filter(F, Asps)),
-							case lists:keytake(Sgp, #m3ua_as_asp.fsm, Asps) of
-								{value, #m3ua_as_asp{state = active} = Asp, RemAsp}
-										when (Len - 1) >= Min ->
-									NewAsp = Asp#m3ua_as_asp{state = inactive},
-									NewAsps = [NewAsp | RemAsp],
-									NewAS = AS#m3ua_as{asp = NewAsps},
-									mnesia:write(NewAS),
-									[];
-								{value, Asp, RemAsp} ->
-									NewAsp = Asp#m3ua_as_asp{state = inactive},
-									NewAsps = [NewAsp | RemAsp],
-									NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
-									mnesia:write(NewAS),
-									F2 = fun(#m3ua_as_asp{fsm = SGP, rc = RC}, Acc) ->
-											[{SGP, RC, inactive} | Acc]
-									end,
-									lists:foldl(F2, [], NewAsps);
-								false ->
-									[]
-							end;
-						[#m3ua_as{}] when StateMaint == 'M-ASP_UP' ->
-							[]
-					end
-			end
-	end,
-	case mnesia:transaction(F) of
-		{atomic, NotifyFsms} ->
-			CbArgs = [CbState],
-			{ok, NewCbState} = m3ua_callback:cb(cb_func(StateMaint), CbMod, CbArgs),
-			ok = gen_fsm:send_all_state_event(Sgp, {StateMaint, NewCbState}),
-			F3 = fun({Fsm, RC, active}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_ACTIVE', RC});
-					({Fsm, RC, inactive}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC})
-			end,
-			ok = lists:foreach(F3, NotifyFsms),
-			{noreply, State};
-		{aborted, Reason} ->
-			error_logger:error_report(["State maintenance indication failed",
-						StateMaint, {reason, Reason}, {module, ?MODULE}]),
-			{noreply, State}
-	end;
-handle_cast({'M-RK_REG', indication, RKs,
-		Socket, EP, Assoc, Sgp, CbMod, CbState}, State) ->
+handle_cast({TrafficMaint, indication, Sgp, _EP, _Assoc,
+		RCs, CbMod, CbState}, State)
+		when TrafficMaint == 'M-ASP_ACTIVE';
+		TrafficMaint == 'M-ASP_INACTIVE' ->
+	traffic_maint(TrafficMaint, Sgp, RCs, CbMod, CbState, State);
+handle_cast({StateMaint, indication, CbMod, Sgp, _EP, _Assoc,
+		CbState}, #state{} = State)
+		when StateMaint == 'M-ASP_UP';
+		StateMaint == 'M-ASP_DOWN' ->
+	state_maint(StateMaint, Sgp, CbMod, CbState, State);
+handle_cast({'M-RK_REG', indication, RKs, Socket, EP, Assoc,
+		Sgp, CbMod, CbState}, State) ->
 	reg_request(RKs, Sgp, EP, Assoc, Socket, CbMod, CbState, State).
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->
@@ -1008,12 +959,15 @@ reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 						_ ->
 							RC
 					end,
-					F = fun(#m3ua_as{state = active}) -> true; (_) -> false end,
-					ActiveLen = length(lists:filter(F, Asps)),
-					NewAsState = case (ActiveLen >= Min) and (ActiveLen =< Max) of
-						true ->
+					F = fun(#m3ua_as{state = active}, Acc) ->
+								Acc + 1;
+							(_, Acc) ->
+								Acc
+					end,
+					NewAsState = case lists:foldl(F, 0, Asps) of
+						N when (N >= Min) and (N =< Max) ->
 							active;
-						false ->
+						_N ->
 							inactive
 					end,
 					M3UAAsp5 = #m3ua_as_asp{fsm = Sgp, state = inactive},
@@ -1082,7 +1036,79 @@ reg_result([#registration_result{status = Status}],
 	end.
 
 %% @hidden
-traffic_maint(TrafficMaint, Sgp, _EP, _Assoc, RCs, CbMod, CbState, State) ->
+state_maint(StateMaint, Sgp, CbMod, CbState, State) ->
+	F = fun() -> state_maint1(StateMaint, Sgp) end,
+	case mnesia:transaction(F) of
+		{atomic, NotifyFsms} ->
+			CbArgs = [CbState],
+			{ok, NewCbState} = m3ua_callback:cb(cb_func(StateMaint), CbMod, CbArgs),
+			ok = gen_fsm:send_all_state_event(Sgp, {StateMaint, NewCbState}),
+			F3 = fun({Fsm, RC, pending}) ->
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_PENDING', RC})
+			end,
+			ok = lists:foreach(F3, NotifyFsms),
+			{noreply, State};
+		{aborted, Reason} ->
+			error_logger:error_report(["State maintenance indication failed",
+						StateMaint, {reason, Reason}, {module, ?MODULE}]),
+			{noreply, State}
+	end.
+%% @hidden
+state_maint1(StateMaint, Sgp) ->
+	case mnesia:read(m3ua_asp, Sgp, write) of
+		[] ->
+			[];
+		[#m3ua_asp{} = ASP] ->
+			state_maint2(ASP, StateMaint, Sgp)
+	end.
+%% @hidden
+state_maint2(#m3ua_asp{rk = RK}, StateMaint, Sgp) ->
+	case mnesia:read(m3ua_as, RK, write) of
+		[] ->
+			[];
+		[#m3ua_as{asp = Asps} = AS]
+				when StateMaint == 'M-ASP_DOWN' ->
+			F1 = fun(#m3ua_as_asp{state = active}, Acc) ->
+						Acc + 1;
+					(_, Acc) ->
+						Acc
+			end,
+			case lists:keytake(Sgp, #m3ua_as_asp.fsm, Asps) of
+				{value, Asp, RemAsp} ->
+					NewAsp = Asp#m3ua_as_asp{state = down},
+					NewAsps = [NewAsp | RemAsp],
+					case lists:foldl(F1, 0, NewAsps) of
+						0 ->
+							% @todo timer T(r)
+							NewAS = AS#m3ua_as{state = pending, asp = NewAsps},
+							mnesia:write(NewAS),
+							F2 = fun(#m3ua_as_asp{fsm = SGP, rc = RC}, Acc) ->
+									[{SGP, RC, pending} | Acc]
+							end,
+							lists:foldl(F2, [], NewAsps);
+						_N ->
+							NewAS = AS#m3ua_as{asp = NewAsps},
+							mnesia:write(NewAS),
+							[]
+					end;
+				false ->
+					[]
+			end;
+		[#m3ua_as{asp = Asps} = AS] when StateMaint == 'M-ASP_UP' ->
+			case lists:keytake(Sgp, #m3ua_as_asp.fsm, Asps) of
+				{value, Asp, RemAsp} ->
+					NewAsp = Asp#m3ua_as_asp{state = inactive},
+					NewAsps = [NewAsp | RemAsp],
+					NewAS = AS#m3ua_as{asp = NewAsps},
+					mnesia:write(NewAS),
+					[];
+				false ->
+					[]
+			end
+	end.
+
+%% @hidden
+traffic_maint(TrafficMaint, Sgp, RCs, CbMod, CbState, State) ->
 	F = fun() -> traffic_maint1(TrafficMaint, Sgp, RCs) end,
 	case mnesia:transaction(F) of
 		{atomic, Fsms} ->
@@ -1093,7 +1119,9 @@ traffic_maint(TrafficMaint, Sgp, _EP, _Assoc, RCs, CbMod, CbState, State) ->
 					F2 = fun({Fsm, RC, active}) ->
 								gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_ACTIVE', RC});
 							({Fsm, RC, inactive}) ->
-								gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC})
+								gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC});
+							({Fsm, RC, pending}) ->
+								gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_PENDING', RC})
 					end,
 					ok = lists:foreach(F2, Fsms),
 					{noreply, State};
@@ -1119,7 +1147,8 @@ traffic_maint2([#m3ua_asp{rk = RK, rc = RC} | T], TrafficMaint, Sgp, Notify) ->
 	case mnesia:read(m3ua_as, RK, write) of
 		[] ->
 			traffic_maint2(T, TrafficMaint, Sgp, Notify);
-		[#m3ua_as{state = active, asp = M3uaAsps} = AS] when TrafficMaint == 'M-ASP_ACTIVE'->
+		[#m3ua_as{state = active, asp = M3uaAsps} = AS]
+				when TrafficMaint == 'M-ASP_ACTIVE' ->
 			case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 				{value, M_Asp, RemAsps} ->
 					NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
@@ -1129,23 +1158,26 @@ traffic_maint2([#m3ua_asp{rk = RK, rc = RC} | T], TrafficMaint, Sgp, Notify) ->
 				false ->
 					traffic_maint2(T, TrafficMaint, Sgp, Notify)
 			end;
-		[#m3ua_as{state = active, min_asp = Min, asp = M3uaAsps} = AS]
-				when TrafficMaint == 'M-ASP_INACTIVE'->
-			F3 = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
-			AspLen = length(lists:filter(F3, M3uaAsps)),
-			case AspLen of
-				Len when (Len - 1) < Min ->
+		[#m3ua_as{state = active, asp = M3uaAsps} = AS]
+				when TrafficMaint == 'M-ASP_INACTIVE' ->
+			F1 = fun(#m3ua_as_asp{state = active}, Acc) ->
+						Acc + 1;
+					(_, Acc) ->
+						Acc
+			end,
+			case lists:foldl(F1, 0, M3uaAsps) of
+				1 ->
 					case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 						{value, M_Asp, RemAsps} ->
 							NewAsps = [M_Asp#m3ua_as_asp{state = inactive} | RemAsps],
-							NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
+							NewAS = AS#m3ua_as{state = pending, asp = NewAsps},
 							ok = mnesia:write(NewAS),
-							NewNotify = fold_notify(M3uaAsps, RC, inactive, Notify),
+							NewNotify = fold_notify(M3uaAsps, RC, pending, Notify),
 							traffic_maint2(T, TrafficMaint, Sgp, NewNotify);
 						false ->
 							traffic_maint2(T, TrafficMaint, Sgp, Notify)
 					end;
-				_ ->
+				_N ->
 					case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 						{value, M_Asp, RemAsps} ->
 							NewAsps = [M_Asp#m3ua_as_asp{state = inactive} | RemAsps],
@@ -1156,12 +1188,15 @@ traffic_maint2([#m3ua_asp{rk = RK, rc = RC} | T], TrafficMaint, Sgp, Notify) ->
 							traffic_maint2(T, TrafficMaint, Sgp, Notify)
 					end
 			end;
-		[#m3ua_as{min_asp = Min, max_asp = Max, asp = M3uaAsps} = AS]
+		[#m3ua_as{state = inactive, min_asp = Min, asp = M3uaAsps} = AS]
 				when TrafficMaint == 'M-ASP_ACTIVE'->
-			F3 = fun(#m3ua_as_asp{state = active}) -> true; (_) -> false end,
-			AspLen = length(lists:filter(F3, M3uaAsps)),
-			case AspLen of
-				Len when (Len + 1) >= Min, ((Max == undefined) or (Max >= (Len + 1))) ->
+			F1 = fun(#m3ua_as_asp{state = active}, Acc) ->
+						Acc + 1;
+					(_, Acc) ->
+						Acc
+			end,
+			case lists:foldl(F1, 0, M3uaAsps) of
+				N when (N + 1) >= Min ->
 					case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
 						{value, M_Asp, RemAsps} ->
 							NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
@@ -1172,33 +1207,40 @@ traffic_maint2([#m3ua_asp{rk = RK, rc = RC} | T], TrafficMaint, Sgp, Notify) ->
 						false ->
 							traffic_maint2(T, TrafficMaint, Sgp, Notify)
 					end;
-				_Len ->
+				_N ->
 					case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
-						{value, M_Asp, RemAsps} when AS#m3ua_as.state == inactive ->
-							NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
-							NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
-							ok = mnesia:write(NewAS),
-							traffic_maint2(T, TrafficMaint, Sgp, Notify);
 						{value, M_Asp, RemAsps} ->
 							NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
-							NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
+							NewAS = AS#m3ua_as{asp = NewAsps},
 							ok = mnesia:write(NewAS),
-							NewNotify = fold_notify(M3uaAsps, RC, inactive, Notify),
-							traffic_maint2(T, TrafficMaint, Sgp, NewNotify);
+							traffic_maint2(T, TrafficMaint, Sgp, Notify);
 						false ->
 							traffic_maint2(T, TrafficMaint, Sgp, Notify)
 					end
 			end;
-		[#m3ua_as{asp = M3uaAsps} = AS] when TrafficMaint == 'M-ASP_INACTIVE'->
-				case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
-					{value, M_Asp, RemAsps} ->
-						NewAsps = [M_Asp#m3ua_as_asp{state = inactive} | RemAsps],
-						NewAS = AS#m3ua_as{asp = NewAsps},
-						ok = mnesia:write(NewAS),
-						traffic_maint2(T, TrafficMaint, Sgp, Notify);
-					false ->
-						traffic_maint2(T, TrafficMaint, Sgp, Notify)
-				end
+		[#m3ua_as{state = pending, asp = M3uaAsps} = AS]
+				when TrafficMaint == 'M-ASP_ACTIVE'->
+			case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
+				{value, M_Asp, RemAsps} ->
+					NewAsps = [M_Asp#m3ua_as_asp{state = active} | RemAsps],
+					NewAS = AS#m3ua_as{state = active, asp = NewAsps},
+					ok = mnesia:write(NewAS),
+					NewNotify = fold_notify(M3uaAsps, RC, active, Notify),
+					traffic_maint2(T, TrafficMaint, Sgp, NewNotify);
+				false ->
+					traffic_maint2(T, TrafficMaint, Sgp, Notify)
+			end;
+		[#m3ua_as{asp = M3uaAsps} = AS]
+				when TrafficMaint == 'M-ASP_INACTIVE'->
+			case lists:keytake(Sgp, #m3ua_as_asp.fsm, M3uaAsps) of
+				{value, M_Asp, RemAsps} ->
+					NewAsps = [M_Asp#m3ua_as_asp{state = inactive} | RemAsps],
+					NewAS = AS#m3ua_as{state = inactive, asp = NewAsps},
+					ok = mnesia:write(NewAS),
+					traffic_maint2(T, TrafficMaint, Sgp, Notify);
+				false ->
+					traffic_maint2(T, TrafficMaint, Sgp, Notify)
+			end
 	end.
 	
 %% @private
@@ -1210,7 +1252,7 @@ cb_func('M-RK_REG') -> register.
 
 -spec filter_asps(RCs, Asps) -> FilteredAsps
 	when
-		RCs :: [pos_integer()] | undefined,
+		RCs :: [0..4294967295] | undefined,
 		Asps :: [#m3ua_asp{}],
 		FilteredAsps :: [#m3ua_asp{}].
 %% @doc Filter matching ASPs with Routing Context
@@ -1231,6 +1273,9 @@ filter_asps1([RC | T], Asps, Acc) ->
 filter_asps1([], _Asps, Acc) ->
 	lists:reverse(Acc).
 
+%% @hidden
+fold_notify([#m3ua_as_asp{state = down} | T], RC, State, FoldNotify) ->
+	fold_notify(T, RC, State, FoldNotify);
 fold_notify([#m3ua_as_asp{fsm = Fsm} | T], RC, State, FoldNotify) ->
 	fold_notify(T, RC, State, fold_notify1(Fsm, RC, State, FoldNotify, []));
 fold_notify([], _RC, _State, FoldNotify) ->
