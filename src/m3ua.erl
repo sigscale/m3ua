@@ -462,7 +462,7 @@ get_assoc(EP) when is_pid(EP) ->
 		Keys :: [{DPC, [SI], [OPC]}],
 		DPC :: 0..16777215,
 		SI :: pos_integer(),
-		OPC :: 0..16777215,
+		OPC :: 0..16777215.
 %% @doc Uniquely sort list of routing keys.
 %% @private
 sort(Keys) when is_list(Keys) ->
