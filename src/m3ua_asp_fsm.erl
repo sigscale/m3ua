@@ -599,13 +599,20 @@ active({AspOp, request, Ref, From},
 %% @private
 %%
 active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}},
-		_From, #statedata{socket = Socket, assoc = Assoc,
-		count = Count, ep = EP} = StateData) ->
+		_From, #statedata{socket = Socket, assoc = Assoc, count = Count,
+		ep = EP, rks = RKs, use_rc = UseRC} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
 			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
+	P1 = case UseRC of
+		true ->
+			RC = get_rc(DPC, OPC, SI, RKs),
+			m3ua_codec:add_parameter(?RoutingContext, [RC], P0);
+		false ->
+			P0
+	end,
 	TransferMsg = #m3ua{class = ?TransferMessage,
-			type = ?TransferMessageData, params = P0},
+			type = ?TransferMessageData, params = P1},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
@@ -1026,5 +1033,27 @@ inet_getopts(Socket, Options) ->
 			{error, Reason};
 		Result ->
 			Result
+	end.
+
+-spec get_rc(DPC, OPC, SI, RKs) -> RC
+	when
+		DPC :: 0..4294967295,
+		OPC :: 0..4294967295,
+		SI :: 0..4294967295,
+		RKs :: [{RC, RK}],
+		RC :: 0..4294967295,
+		RK :: {NA, Keys, TMT},
+		NA :: byte(),
+		Keys :: [{DPC, [SI], [OPC]}],
+		TMT :: tmt().
+%% @doc Find routing context matching destination.
+%% @hidden
+get_rc(DPC, OPC, SI, [{RC, RK} | T] = _RoutingKeys)
+		when is_integer(DPC), is_integer(OPC), is_integer(SI) ->
+	case m3ua:keymember(DPC, OPC, SI, [RK]) of
+		true ->
+			RC;
+		false ->
+			get_rc(DPC, OPC, SI, T)
 	end.
 

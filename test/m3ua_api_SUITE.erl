@@ -60,9 +60,8 @@ end_per_suite(_Config) ->
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
 %% Initiation before each test case.
 %%
-init_per_testcase(TC, Config) when TC == as_state_change_traffic_maintenance;
-		TC == as_state_active; TC  == as_state_inactive; TC == as_side_state_changes_1;
-		TC ==  as_side_state_changes_2 ->
+init_per_testcase(TC, Config) when TC == sg_state_active; TC == as_state_active;
+		TC == sg_state_down; TC == as_state_down ->
 	case is_alive() of
 			true ->
 				Config;
@@ -94,8 +93,7 @@ all() ->
 			asp_active_to_inactive, get_sctp_status, get_ep, mtp_transfer,
 			asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
-			as_state_change_traffic_maintenance, as_state_active,
-			as_state_inactive, as_side_state_changes_1, as_side_state_changes_2].
+			sg_state_active, as_state_active, sg_state_down, as_state_down].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -387,7 +385,8 @@ mtp_transfer(_Config) ->
 	wait(Ref),
 	[Assoc] = m3ua:get_assoc(ClientEP),
 	ok = m3ua:asp_up(ClientEP, Assoc),
-	Keys = [{rand:uniform(16383), [], []}],
+	DPC = rand:uniform(16383),
+	Keys = [{DPC, [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
 			undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
@@ -396,8 +395,7 @@ mtp_transfer(_Config) ->
 			PID1
 	end,
 	Stream = 1,
-	OPC = rand:uniform(1000),
-	DPC = rand:uniform(1000),
+	OPC = rand:uniform(16383),
 	NI = rand:uniform(4),
 	SI = rand:uniform(10),
 	SLS = rand:uniform(10),
@@ -511,18 +509,17 @@ asp_down_indication(_Config) ->
 			ok
 	end.
 
-as_state_change_traffic_maintenance() ->
-	[{userdata, [{doc, "Maintain and notify AS
-			state changes with traffic maintenance messages"}]}].
+sg_state_active() ->
+	[{userdata, [{doc, "SG traffic maintenance for AS state"}]}].
 
-as_state_change_traffic_maintenance(_Config) ->
+sg_state_active(_Config) ->
 	MinAsps = 3,
 	MaxAsps = 5,
 	Mode = loadshare,
-	NA = rand:uniform(10),
-	DPC = rand:uniform(255),
-	SIs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
-	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
+	NA = rand:uniform(4294967295),
+	DPC = rand:uniform(16777215),
+	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
+	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
 	RK = {NA, Keys, Mode},
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
@@ -552,79 +549,91 @@ as_state_change_traffic_maintenance(_Config) ->
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP1, Assoc1]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP2, Assoc2]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP3, Assoc3]),
-	F1  = fun() ->
-		F2 = fun() ->
-			case mnesia:read(m3ua_as, RK, read)  of
-				[] ->
-					not_found;
-				[#m3ua_as{} = As] ->
-					As
-			end
-		end,
-		case mnesia:transaction(F2) of
-			{atomic, As1} ->
-				As1;
-			{aboarted, Reason} ->
-				Reason
-		end
-	end,
-	IsAllState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
-					true;
-				(_) ->
-					false
-			end,
-			lists:all(F, Asps)
-	end,
-	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
-					true;
-				(_) ->
-					false
-			end,
-			lists:filter(F, Asps)
-	end,
-	%% Initial state down
-	#m3ua_as{state = down, asp = []} = F1(),
+	#m3ua_as{state = down, asp = []} = get_as(RK),
 	{ok, _RoutingContext1} = rpc:call(AsNode, m3ua, register, [ClientEP1, Assoc1, NA, Keys, Mode]),
-	%% Registered ASP 1
-	#m3ua_as{state = inactive, asp = Asps1} = F1(),
-	true = IsAllState(inactive, Asps1),
+	#m3ua_as{state = inactive, asp = Asps1} = get_as(RK),
+	true = is_all_state(inactive, Asps1),
 	1 = length(Asps1),
-	%% Registered ASP 2
 	{ok, _RoutingContext2} = rpc:call(AsNode, m3ua, register, [ClientEP2, Assoc2, NA, Keys, Mode]),
-	#m3ua_as{state = inactive, asp = Asps2} = F1(),
-	true = IsAllState(inactive, Asps2),
+	#m3ua_as{state = inactive, asp = Asps2} = get_as(RK),
+	true = is_all_state(inactive, Asps2),
 	2 = length(Asps2),
-	%% Registered ASP 3
 	{ok, _RoutingContext3} = rpc:call(AsNode, m3ua, register, [ClientEP3, Assoc3, NA, Keys, Mode]),
-	#m3ua_as{state = inactive, asp = Asps3} = F1(),
-	true = IsAllState(inactive, Asps3),
+	#m3ua_as{state = inactive, asp = Asps3} = get_as(RK),
+	true = is_all_state(inactive, Asps3),
 	3 = length(Asps3),
-	%% Active ASP 1
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP1, Assoc1]),
-	#m3ua_as{state = inactive, asp = Asps4} = F1(),
-	1 = length(FilterState(active, Asps4)),
-	%% Active ASP 2
+	#m3ua_as{state = inactive, asp = Asps4} = get_as(RK),
+	1 = count_state(active, Asps4),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP2, Assoc2]),
-	#m3ua_as{state = inactive, asp = Asps5} = F1(),
-	2 = length(FilterState(active, Asps5)),
-	%% Active ASP 3
+	#m3ua_as{state = inactive, asp = Asps5} = get_as(RK),
+	2 = count_state(active, Asps5),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP3, Assoc3]),
-	#m3ua_as{state = active, asp = Asps6} = F1(),
-	3 = length(FilterState(active, Asps6)).
+	#m3ua_as{state = active, asp = Asps6} = get_as(RK),
+	3 = count_state(active, Asps6).
 
 as_state_active() ->
-	[{userdata, [{doc, "Suffient ASPs, AS state change to active"}]}].
+	[{userdata, [{doc, "AS traffic maintenance for AS state"}]}].
 
 as_state_active(_Config) ->
 	MinAsps = 3,
 	MaxAsps = 5,
 	Mode = loadshare,
-	NA = rand:uniform(10),
-	DPC = rand:uniform(255),
-	SIs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
-	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
+	NA = rand:uniform(4294967295),
+	DPC = rand:uniform(16777215),
+	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
+	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
+	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
+	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
+	Port = rand:uniform(64511) + 1024,
+	{ok, _ServerEP} = m3ua:start(#m3ua_fsm_cb{}, Port, []),
+	Path1 = filename:dirname(code:which(m3ua)),
+	Path2 = filename:dirname(code:which(?MODULE)),
+	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
+	{ok, Host} = inet:gethostname(),
+	Node = "as" ++ integer_to_list(erlang:unique_integer([positive])),
+	{ok, AsNode} = slave:start_link(Host, Node, ErlFlags),
+	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
+	ok = rpc:call(AsNode, application, start, [m3ua]),
+	Ref1 = make_ref(),
+	{ok, ClientEP1} = rpc:call(AsNode, m3ua, start,
+			[callback(Ref1), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	Ref2 = make_ref(),
+	{ok, ClientEP2} = rpc:call(AsNode, m3ua, start,
+			[callback(Ref2), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	Ref3 = make_ref(),
+	{ok, ClientEP3} = rpc:call(AsNode, m3ua, start,
+			[callback(Ref3), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	wait(Ref1),
+	wait(Ref2),
+	wait(Ref3),
+	[Assoc1] = m3ua:get_assoc(ClientEP1),
+	[Assoc2] = m3ua:get_assoc(ClientEP2),
+	[Assoc3] = m3ua:get_assoc(ClientEP3),
+	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP1, Assoc1]),
+	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP2, Assoc2]),
+	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP3, Assoc3]),
+	{ok, _RoutingContext1} = rpc:call(AsNode, m3ua, register, [ClientEP1, Assoc1, NA, Keys, Mode]),
+	{ok, _RoutingContext2} = rpc:call(AsNode, m3ua, register, [ClientEP2, Assoc2, NA, Keys, Mode]),
+	{ok, _RoutingContext3} = rpc:call(AsNode, m3ua, register, [ClientEP3, Assoc3, NA, Keys, Mode]),
+	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP1, Assoc1]),
+	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP2, Assoc2]),
+	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP3, Assoc3]),
+	{_RC, as_active} = wait(Ref1),
+	{_RC, as_active} = wait(Ref2),
+	{_RC, as_active} = wait(Ref3).
+
+sg_state_down() ->
+	[{userdata, [{doc, "SG state maintenance for AS state"}]}].
+
+sg_state_down(_Config) ->
+	MinAsps = 3,
+	MaxAsps = 5,
+	Mode = loadshare,
+	NA = rand:uniform(4294967295),
+	DPC = rand:uniform(16777215),
+	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
+	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
 	RK = {NA, Keys, Mode},
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
@@ -654,306 +663,134 @@ as_state_active(_Config) ->
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP1, Assoc1]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP2, Assoc2]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP3, Assoc3]),
-	F1  = fun() ->
-		F2 = fun() ->
-			case mnesia:read(m3ua_as, RK, read)  of
-				[] ->
-					not_found;
-				[#m3ua_as{} = As] ->
-					As
-			end
-		end,
-		case mnesia:transaction(F2) of
-			{atomic, As1} ->
-				As1;
-			{aboarted, Reason} ->
-				Reason
-		end
-	end,
-	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
-					true;
-				(_) ->
-					false
-			end,
-			lists:filter(F, Asps)
-	end,
 	{ok, _RoutingContext1} = rpc:call(AsNode, m3ua, register, [ClientEP1, Assoc1, NA, Keys, Mode]),
 	{ok, _RoutingContext2} = rpc:call(AsNode, m3ua, register, [ClientEP2, Assoc2, NA, Keys, Mode]),
 	{ok, _RoutingContext3} = rpc:call(AsNode, m3ua, register, [ClientEP3, Assoc3, NA, Keys, Mode]),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP1, Assoc1]),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP2, Assoc2]),
-	#m3ua_as{state = inactive, asp = Asps5} = F1(),
-	2 = length(FilterState(active, Asps5)),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP3, Assoc3]),
-	#m3ua_as{state = active, asp = Asps6} = F1(),
-	3 = length(FilterState(active, Asps6)).
+	#m3ua_as{state = active, asp = Asps1} = get_as(RK),
+	true = is_all_state(active, Asps1),
+	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP1, Assoc1]),
+	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP2, Assoc2]),
+	#m3ua_as{state = active, asp = Asps2} = get_as(RK),
+	1 = count_state(active, Asps2),
+	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP3, Assoc3]),
+	#m3ua_as{state = down, asp = Asps3} = get_as(RK),
+	true = is_all_state(down, Asps3).
 
-as_state_inactive() ->
-	[{userdata, [{doc, "Insuffient ASPs, AS state change active to inactive"}]}].
+as_state_down() ->
+	[{userdata, [{doc, "AS state maintenance for AS state"}]}].
 
-as_state_inactive(_Config) ->
+as_state_down(_Config) ->
 	MinAsps = 3,
 	MaxAsps = 5,
 	Mode = loadshare,
-	NA = rand:uniform(10),
-	DPC = rand:uniform(255),
-	SIs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
-	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
+	NA = rand:uniform(4294967295),
+	DPC = rand:uniform(16777215),
+	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
+	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
-	RK = {NA, Keys, Mode},
 	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(64511) + 1024,
-	Ref = make_ref(),
-	{ok, _ServerEP} = m3ua:start(callback(Ref), Port, []),
+	{ok, _ServerEP} = m3ua:start(#m3ua_fsm_cb{}, Port, []),
 	Path1 = filename:dirname(code:which(m3ua)),
-	Path2 = filename:dirname(code:which(m3ua_demo_as)),
+	Path2 = filename:dirname(code:which(?MODULE)),
 	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
 	{ok, Host} = inet:gethostname(),
 	Node = "as" ++ integer_to_list(erlang:unique_integer([positive])),
 	{ok, AsNode} = slave:start_link(Host, Node, ErlFlags),
 	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
 	ok = rpc:call(AsNode, application, start, [m3ua]),
+	Ref1 = make_ref(),
 	{ok, ClientEP1} = rpc:call(AsNode, m3ua, start,
-			[m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+			[callback(Ref1), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	Ref2 = make_ref(),
 	{ok, ClientEP2} = rpc:call(AsNode, m3ua, start,
-			[m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+			[callback(Ref2), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	Ref3 = make_ref(),
 	{ok, ClientEP3} = rpc:call(AsNode, m3ua, start,
-			[m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
-	wait(Ref),
-	wait(Ref),
-	wait(Ref),
+			[callback(Ref3), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	wait(Ref1),
+	wait(Ref2),
+	wait(Ref3),
 	[Assoc1] = m3ua:get_assoc(ClientEP1),
 	[Assoc2] = m3ua:get_assoc(ClientEP2),
 	[Assoc3] = m3ua:get_assoc(ClientEP3),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP1, Assoc1]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP2, Assoc2]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP3, Assoc3]),
-	F1  = fun() ->
-		F2 = fun() ->
-			case mnesia:read(m3ua_as, RK, read)  of
-				[] ->
-					not_found;
-				[#m3ua_as{} = As] ->
-					As
-			end
-		end,
-		case mnesia:transaction(F2) of
-			{atomic, As1} ->
-				As1;
-			{aboarted, Reason} ->
-				Reason
-		end
-	end,
-	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
-					true;
-				(_) ->
-					false
-			end,
-			lists:filter(F, Asps)
-	end,
 	{ok, _RoutingContext1} = rpc:call(AsNode, m3ua, register, [ClientEP1, Assoc1, NA, Keys, Mode]),
 	{ok, _RoutingContext2} = rpc:call(AsNode, m3ua, register, [ClientEP2, Assoc2, NA, Keys, Mode]),
 	{ok, _RoutingContext3} = rpc:call(AsNode, m3ua, register, [ClientEP3, Assoc3, NA, Keys, Mode]),
-	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP1, Assoc1]),
-	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP2, Assoc2]),
-	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP3, Assoc3]),
-	#m3ua_as{state = active, asp = Asps1} = F1(),
-	3 = length(FilterState(active, Asps1)),
-	ok = rpc:call(AsNode, m3ua, asp_inactive, [ClientEP1, Assoc1]),
-	#m3ua_as{state = inactive, asp = Asps2} = F1(),
-	2 = length(FilterState(active, Asps2)).
-
-as_side_state_changes_1() ->
-	[{userdata, [{doc, "AS and ASP state changes with Traffic
-			maintenance messages and Notification messages"}]}].
-
-as_side_state_changes_1(_Config) ->
-	MinAsps = 3,
-	MaxAsps = 5,
-	Mode = loadshare,
-	NA = rand:uniform(10),
-	DPC = rand:uniform(255),
-	SIs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
-	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
-	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
-	RK = {NA, Keys, Mode},
-	Port = rand:uniform(64511) + 1024,
-	Path1 = filename:dirname(code:which(m3ua)),
-	Path2 = filename:dirname(code:which(demo_sg)),
-	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
-	{ok, Host} = inet:gethostname(),
-	Node = "sg" ++ integer_to_list(erlang:unique_integer([positive])),
-	{ok, SgNode} = slave:start_link(Host, Node, ErlFlags),
-	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
-	ok = rpc:call(SgNode, application, start, [m3ua]),
-	Ref = make_ref(),
-	{ok, _ServerEP} = rpc:call(SgNode, m3ua, start, [callback(Ref), Port, []]),
-	{ok, _AS} = rpc:call(SgNode, m3ua, as_add, [undefined, NA, Keys, Mode, MinAsps, MaxAsps]),
-	{ok, ClientEP1} = m3ua:start(m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	{ok, ClientEP2} = m3ua:start(m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	{ok, ClientEP3} = m3ua:start(m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	wait(Ref),
-	wait(Ref),
-	wait(Ref),
-	[Assoc1] = m3ua:get_assoc(ClientEP1),
-	[Assoc2] = m3ua:get_assoc(ClientEP2),
-	[Assoc3] = m3ua:get_assoc(ClientEP3),
-	ok = m3ua:asp_up(ClientEP1, Assoc1),
-	ok = m3ua:asp_up(ClientEP2, Assoc2),
-	ok = m3ua:asp_up(ClientEP3, Assoc3),
-	F1  = fun() ->
-		F2 = fun() ->
-			case mnesia:read(m3ua_as, RK, read)  of
-				[] ->
-					not_found;
-				[#m3ua_as{} = As] ->
-					As
-			end
-		end,
-		case mnesia:transaction(F2) of
-			{atomic, As1} ->
-				As1;
-			{aboarted, Reason} ->
-				Reason
-		end
-	end,
-	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
-					true;
-				(_) ->
-					false
-			end,
-			lists:filter(F, Asps)
-	end,
-	{ok, _RoutingContext1} = m3ua:register(ClientEP1, Assoc1, NA, Keys, Mode),
-	{ok, _RoutingContext2} = m3ua:register(ClientEP2, Assoc2, NA, Keys, Mode),
-	{ok, _RoutingContext3} = m3ua:register(ClientEP3, Assoc3, NA, Keys, Mode),
-	ok = m3ua:asp_active(ClientEP1, Assoc1),
-	ok = m3ua:asp_active(ClientEP2, Assoc2),
-	ok = m3ua:asp_active(ClientEP3, Assoc3),
-	receive after 250 -> ok end,
-	#m3ua_as{state = active, asp = Asps1} = F1(),
-	3 = length(FilterState(active, Asps1)),
-	ok = m3ua:asp_inactive(ClientEP1, Assoc1),
-	receive after 250 -> ok end,
-	#m3ua_as{state = inactive, asp = Asps2} = F1(),
-	2 = length(FilterState(active, Asps2)),
-	ok = m3ua:asp_active(ClientEP1, Assoc1),
-	receive after 250 -> ok end,
-	#m3ua_as{state = active, asp = Asps3} = F1(),
-	3 = length(FilterState(active, Asps3)).
-
-as_side_state_changes_2() ->
-	[{userdata, [{doc, "AS and ASP state changes with State
-			Maintenance messages and Notification messages"}]}].
-
-as_side_state_changes_2(_Config) ->
-	MinAsps = 3,
-	MaxAsps = 5,
-	Mode = loadshare,
-	NA = rand:uniform(10),
-	DPC = rand:uniform(255),
-	SIs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
-	OPCs = [rand:uniform(255) || _  <- lists:seq(1, 5)],
-	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
-	RK = {NA, Keys, Mode},
-	Port = rand:uniform(64511) + 1024,
-	Path1 = filename:dirname(code:which(m3ua)),
-	Path2 = filename:dirname(code:which(demo_sg)),
-	ErlFlags = "-pa " ++ Path1 ++ " -pa " ++ Path2,
-	{ok, Host} = inet:gethostname(),
-	Node = "sg" ++ integer_to_list(erlang:unique_integer([positive])),
-	{ok, SgNode} = slave:start_link(Host, Node, ErlFlags),
-	{ok, _} = rpc:call(SgNode, m3ua_app, install, [[SgNode]]),
-	ok = rpc:call(SgNode, application, start, [m3ua]),
-	Ref = make_ref(),
-	{ok, _ServerEP} = rpc:call(SgNode, m3ua, start, [callback(Ref), Port, []]),
-	{ok, _AS} = rpc:call(SgNode, m3ua, as_add, [undefined, NA, Keys, Mode, MinAsps, MaxAsps]),
-	{ok, ClientEP1} = m3ua:start(m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	{ok, ClientEP2} = m3ua:start(m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	{ok, ClientEP3} = m3ua:start(m3ua_demo_as, 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	wait(Ref),
-	wait(Ref),
-	wait(Ref),
-	[Assoc1] = m3ua:get_assoc(ClientEP1),
-	[Assoc2] = m3ua:get_assoc(ClientEP2),
-	[Assoc3] = m3ua:get_assoc(ClientEP3),
-	ok = m3ua:asp_up(ClientEP1, Assoc1),
-	ok = m3ua:asp_up(ClientEP2, Assoc2),
-	ok = m3ua:asp_up(ClientEP3, Assoc3),
-	F1  = fun() ->
-		F2 = fun() ->
-			case mnesia:read(m3ua_as, RK, read)  of
-				[] ->
-					not_found;
-				[#m3ua_as{} = As] ->
-					As
-			end
-		end,
-		case mnesia:transaction(F2) of
-			{atomic, As1} ->
-				As1;
-			{aboarted, Reason} ->
-				Reason
-		end
-	end,
-	FilterState = fun(IsAspState, Asps) ->
-			F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
-					true;
-				(_) ->
-					false
-			end,
-			lists:filter(F, Asps)
-	end,
-	{ok, _RoutingContext1} = m3ua:register(ClientEP1, Assoc1, NA, Keys, Mode),
-	{ok, _RoutingContext2} = m3ua:register(ClientEP2, Assoc2, NA, Keys, Mode),
-	{ok, _RoutingContext3} = m3ua:register(ClientEP3, Assoc3, NA, Keys, Mode),
-	ok = m3ua:asp_active(ClientEP1, Assoc1),
-	ok = m3ua:asp_active(ClientEP2, Assoc2),
-	ok = m3ua:asp_active(ClientEP3, Assoc3),
-	receive after 500 -> ok end,
-	ok = m3ua:asp_down(ClientEP1, Assoc1),
-	receive after 500 -> ok end,
-	#m3ua_as{state = inactive, asp = Asps1} = F1(),
-	2 = length(FilterState(active, Asps1)),
-	1 = length(FilterState(inactive, Asps1)),
-	ok = m3ua:asp_down(ClientEP2, Assoc2),
-	#m3ua_as{state = inactive, asp = Asps2} = F1(),
-	1 = length(FilterState(active, Asps2)),
-	2 = length(FilterState(inactive, Asps2)),
-	ok = m3ua:asp_up(ClientEP2, Assoc2),
-	#m3ua_as{state = inactive, asp = Asps3} = F1(),
-	1 = length(FilterState(active, Asps3)),
-	2 = length(FilterState(inactive, Asps3)),
-	ok = m3ua:asp_active(ClientEP2, Assoc2),
-	#m3ua_as{state = inactive, asp = Asps4} = F1(),
-	2 = length(FilterState(active, Asps4)),
-	1 = length(FilterState(inactive, Asps4)),
-	ok = m3ua:asp_up(ClientEP1, Assoc1),
-	#m3ua_as{state = inactive, asp = Asps5} = F1(),
-	2 = length(FilterState(active, Asps5)),
-	1 = length(FilterState(inactive, Asps5)),
-	ok = m3ua:asp_active(ClientEP1, Assoc1),
-	#m3ua_as{state = inactive, asp = Asps6} = F1(),
-	3 = length(FilterState(active, Asps6)),
-	0 = length(FilterState(inactive, Asps6)).
+	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP1, Assoc1]),
+	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP2, Assoc2]),
+	ok = flush(Ref1),
+	ok = flush(Ref2),
+	ok = flush(Ref3),
+	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP3, Assoc3]),
+	{_RC, as_inactive} = wait(Ref1),
+	{_RC, as_inactive} = wait(Ref2),
+	{_RC, as_inactive} = wait(Ref3).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
 
 callback(Ref) ->
-	Finit = fun(_, _, _, _, _, Pid) ->
+	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, Pid) ->
 				Pid ! Ref,
 				{ok, []}
 	end,
-	#m3ua_fsm_cb{init = Finit, extra = [self()]}.
+	Fnotify = fun(RC, Status, _AspID, State, Pid) ->
+				Pid ! {Ref, RC, Status},
+				{ok, State}
+	end,
+	#m3ua_fsm_cb{init = Finit, notify = Fnotify, extra = [self()]}.
 
 wait(Ref) ->
 	receive
 		Ref ->
+			ok;
+		{Ref, RC, Status} ->
+			{RC, Status}
+	end.
+
+flush(Ref) ->
+	receive
+		Ref ->
+			flush(Ref);
+		{Ref, _RC, _Status} ->
+			flush(Ref)
+	after
+		0 ->
 			ok
+	end.
+
+is_all_state(IsAspState, Asps) ->
+	F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
+			true;
+		(_) ->
+			false
+	end,
+	lists:all(F, Asps).
+
+count_state(IsAspState, Asps) ->
+	F = fun(#m3ua_as_asp{state = AspState}, Acc) when AspState == IsAspState ->
+				Acc + 1;
+			(_, Acc) ->
+				Acc
+	end,
+	lists:foldl(F, 0, Asps).
+
+get_as(RK) ->
+	F = fun() ->
+			[#m3ua_as{}] = mnesia:read(m3ua_as, RK, read)
+	end,
+	case mnesia:transaction(F) of
+		{atomic, [AS]} ->
+			AS;
+		{aboarted, Reason} ->
+			Reason
 	end.
 
