@@ -6,8 +6,8 @@
 testmods = m3ua_api_SUITE \
 			m3ua_codec_SUITE \
 			m3ua_snmp_SUITE \
-			demo_as \
-			demo_sg
+			m3ua_demo_as \
+			m3ua_demo_sg
 
 check_DATA = .dialyzer_ok .common_test_ok
 
