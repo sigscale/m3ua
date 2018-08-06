@@ -1,3 +1,10 @@
+2018-08-07  Vance Shipley <vances@sigscale.org>
+
+	* improve as state and traffic management
+	* correct getstat return value
+	* add private api function for registered key check
+	* add codec api for get with default
+
 2018-08-03  Vance Shipley <vances@sigscale.org>
 
 	* add transfer/9 api to set timeout value
