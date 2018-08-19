@@ -26,7 +26,7 @@
 %% export the m3ua_lm_server API
 -export([start/2, stop/1]).
 -export([sctp_release/2, sctp_status/2]).
--export([register/6]).
+-export([register/7]).
 -export([as_add/6, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
@@ -114,10 +114,12 @@ as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
 as_delete(RoutingKey) ->
 	gen_server:call(m3ua, {as_delete, RoutingKey}).
 
--spec register(EndPoint, Assoc, NA, Keys, Mode, AsName) -> Result
+-spec register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode, AsName) ->
+		Result
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
+		RoutingContext :: undefined | non_neg_integer(),
 		NA :: pos_integer(),
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -126,13 +128,13 @@ as_delete(RoutingKey) ->
 		OPC :: pos_integer(),
 		Mode :: override | loadshare | broadcast,
 		AsName :: term(),
-		Result :: {ok, RoutingContext} | {error, Reason},
-		RoutingContext :: pos_integer(),
+		Result :: {ok, NewRoutingContext} | {error, Reason},
+		NewRoutingContext :: non_neg_integer(),
 		Reason :: term().
 %% @doc Register a routing key for an application server.
-register(EndPoint, Assoc, NA, Keys, Mode, AsName) ->
-	gen_server:call(m3ua,
-			{'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AsName}).
+register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode, AsName) ->
+	gen_server:call(m3ua, {'M-RK_REG', request,
+			EndPoint, Assoc, RoutingContext, NA, Keys, Mode, AsName}).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when
@@ -383,13 +385,14 @@ handle_call({as_delete, RoutingKey}, _From, State) ->
 		{aborted, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({'M-RK_REG', request, EndPoint, Assoc, NA, Keys, Mode, AsName}, From,
+handle_call({'M-RK_REG', request, EndPoint, Assoc,
+		RC, NA, Keys, Mode, AsName}, From,
 		#state{fsms = Fsms, reqs = Reqs} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
 			Ref = make_ref(),
-			gen_fsm:send_event(Fsm,
-					{'M-RK_REG', request,  Ref, self(), NA, Keys, Mode, AsName}),
+			gen_fsm:send_event(Fsm, {'M-RK_REG', request,
+					Ref, self(), RC, NA, Keys, Mode, AsName}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
@@ -756,25 +759,17 @@ get_sups(#state{sup = TopSup, ep_sup_sup = undefined} = State) ->
 
 %% @private
 reg_request(RoutingKeys, SGP, EP, Assoc, Socket, CbMod, SGPState, State) ->
+	% @todo Why inactive?
 	reg_request(RoutingKeys, SGP, EP, Assoc, Socket, CbMod, SGPState, State, inactive, []).
 %% @hidden
 reg_request([RK | T], SGP, EP, Assoc, Socket, CbMod, SGPState, State, AsState, RegResults) ->
 	try m3ua_codec:routing_key(RK)
 	of
-		#m3ua_routing_key{na = NA, key = Keys, tmt = Mode} = RoutingKey ->
-			F = fun() ->
-				case catch reg_request1(SGP, RoutingKey) of
-					{reg, AsState1, RegResult1} ->
-						{reg, AsState1, RegResult1};
-					{not_reg, AsState1, RegResult1} ->
-						{not_reg, AsState1, RegResult1};
-					{error, Reason} ->
-						{error, Reason}
-				end
-			end,
+		#m3ua_routing_key{rc = RC, na = NA, key = Keys, tmt = Mode} = RoutingKey ->
+			F = fun() -> catch reg_request1(SGP, RoutingKey) end,
 			case mnesia:transaction(F) of
 				{atomic, {reg, NewAsState, RegRes}} ->
-					CbArgs =	[NA, m3ua:sort(Keys), Mode, SGPState],
+					CbArgs = [undefined, NA, m3ua:sort(Keys), Mode, SGPState],
 					case m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs) of
 						{ok, NewCbState} ->
 							ok = gen_fsm:send_all_state_event(SGP, {'M-RK_REG', NewCbState}),
@@ -796,7 +791,7 @@ reg_request([RK | T], SGP, EP, Assoc, Socket, CbMod, SGPState, State, AsState, R
 			end
 	catch
 		_:_ ->
-			reg_request(T, SGP, EP, Assoc, Socket, CbMod, SGPState, State, AsState, RegResults)
+			{noreply, State}
 	end;
 reg_request([], _SGP, _EP, Assoc, Socket, _CbMod, _SGPState, State, AsState, RegResults) ->
 	try
@@ -828,36 +823,13 @@ reg_request([], _SGP, _EP, Assoc, Socket, _CbMod, _SGPState, State, AsState, Reg
 			{noreply, State}
 	end.
 %% @hidden
-reg_request1(_Sgp, #m3ua_routing_key{lrk_id = undefined, key = Keys,
-		tmt = Mode, na = NA}) ->
-	try
-		RK = {NA, m3ua:sort(Keys), Mode},
-		AsState = case mnesia:read(m3ua_as, RK) of
-			[] ->
-				as_inactive;
-			[#m3ua_as{state = down}] ->
-				as_inactive;
-			[#m3ua_as{state = inactive}] ->
-				as_inactive;
-			[#m3ua_as{state = active}] ->
-				as_active;
-			[#m3ua_as{state = pending}] ->
-				as_pending
-		end,
-		RegResult = #registration_result{status = unsupported_rk_parameter_field, rc = 0},
-		Message = m3ua_codec:add_parameter(?RegistrationResult, RegResult, []),
-		{not_reg, AsState, Message}
-	catch
-		_:Reason ->
-			{error, Reason}
-	end;
-reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
-		rc = RC, lrk_id = LRKId}) ->
+reg_request1(Sgp, #m3ua_routing_key{rc = RC, na = NA,
+		key = Keys, tmt = Mode, lrk_id = LRKId}) ->
 	SKeys = m3ua:sort(Keys),
 	RK = {NA, SKeys, Mode},
 	case mnesia:read(m3ua_as, RK, write) of
 		[] when RC == undefined ->
-			RC1 = erlang:phash2(rand:uniform(16#7FFFFFFF), 255),
+			RC1 = rand:uniform(16#FFFFFFFF),
 			M3UAAsp1 = #m3ua_as_asp{fsm = Sgp, state = inactive},
 			AS1 = #m3ua_as{state = inactive, routing_key = RK, asp = [M3UAAsp1]},
 			Asp1 = #m3ua_asp{fsm = Sgp, rc = RC1, rk = RK},
@@ -921,7 +893,7 @@ reg_request1(Sgp, #m3ua_routing_key{na = NA, key = Keys, tmt = Mode,
 				false ->
 					NewRC1 = case RC of
 						undefined ->
-							erlang:phash2(rand:uniform(16#7FFFFFFF), 255);
+							rand:uniform(16#FFFFFFFF),
 						_ ->
 							RC
 					end,
@@ -976,9 +948,8 @@ reg_result([#registration_result{status = registered, rc = RC}],
 		{aborted, Reason} ->
 			{error, Reason}
 	end,
-	CbArgs = [NA, Keys, TMT, CbState],
+	CbArgs = [RC, NA, Keys, TMT, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(cb_func('M-RK_REG'), CbMod, CbArgs),
-	ok = gen_fsm:send_all_state_event(Asp, {'M-RK_REG', NewCbState}),
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, Result),

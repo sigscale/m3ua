@@ -115,10 +115,11 @@
 %%%  </div><p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
-%%%  <h3 class="function"><a name="register-4">register/4</a></h3>
+%%%  <h3 class="function"><a name="register-5">register/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>register(NA, Keys, TMT, State) -&gt; Result </tt>
+%%%  <p><tt>register(RC, NA, Keys, TMT, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>NA = 0..4294967295</tt></li>
 %%%    <li><tt>Keys = [key()]</tt></li>
 %%%    <li><tt>TMT = tmt()</tt></li>
@@ -221,7 +222,8 @@
 		stream :: undefined | pos_integer(),
 		ep :: pid(),
 		ep_name :: term(),
-		use_rc :: boolean(),
+		static = false :: boolean(),
+		use_rc = true :: boolean(),
 		callback :: atom() | #m3ua_fsm_cb{},
 		cb_state :: term(),
 		count = #{} :: #{atom() => non_neg_integer()}}).
@@ -287,9 +289,10 @@
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback register(NA, Keys, TMT, State) -> Result
+-callback register(RC, NA, Keys, TMT, State) -> Result
 	when
-		NA :: byte(),
+		RC :: 0..4294967295,
+		NA :: 0..4294967295 | undefined,
 		Keys :: [key()],
 		TMT :: tmt(),
 		State :: term(),
@@ -369,24 +372,17 @@ transfer(SGP, Stream, OPC, DPC, NI, SI, SLS, Data)
 init([Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
-		EP, EpName, Cb, StaticKeys, UseRC]) ->
+		EP, EpName, Cb, Static, UseRC]) ->
 	process_flag(trap_exit, true),
 	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
-			Freg = fun({RC, {NA, Keys, Mode}, AsName}) ->
-						RegResult = [#registration_result{rc = RC,
-								status = registered}],
-						gen_server:cast(m3ua, {'M-RK_REG', confirm, undefined,
-								self(), RegResult, NA, Keys, Mode, AsName,
-								EP, Assoc, Cb, CbState})
-			end,
-			lists:foreach(Freg, StaticKeys),
 			Statedata = #statedata{socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
 					callback = Cb, cb_state = CbState,
-					ep = EP, ep_name = EpName, use_rc = UseRC},
+					ep = EP, ep_name = EpName,
+					static = Static, use_rc = UseRC},
 			{ok, down, Statedata, 0};
 		{error, Reason} ->
 			gen_sctp:close(Socket),
@@ -430,6 +426,8 @@ down({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>inactive</b> state.
 %% @private
 %%
+inactive({'M-RK_REG', request, _, _, _, _, _, _, _} = Event, StateData) ->
+	handle_reg(Event, inactive, StateData);
 inactive(_Event, StateData) ->
 	{stop, unexpected_message, StateData}.
 
@@ -455,6 +453,8 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %% 	gen_fsm:send_event/2} in the <b>active</b> state.
 %% @private
 %%
+active({'M-RK_REG', request, _, _, _, _, _, _, _} = Event, StateData) ->
+	handle_reg(Event, active, StateData);
 active(_Event, StateData) ->
 	{stop, unexpected_message, StateData}.
 
@@ -468,12 +468,21 @@ active(_Event, StateData) ->
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
 %% @private
 %%
-active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}},
+active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP,
-		count = Count} = StateData) ->
+		rks = RKs, use_rc = UseRC, count = Count} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
 			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
+	P1 = case {RC, UseRC} of
+		{undefined, true} ->
+			RC1 = get_rc(DPC, OPC, SI, RKs),
+			m3ua_codec:add_parameter(?RoutingContext, [RC1], P0);
+		{RC, true} ->
+			m3ua_codec:add_parameter(?RoutingContext, [RC], P0);
+		{_, false} ->
+			P0
+	end,
 	TransferMsg = #m3ua{class = ?TransferMessage,
 			type = ?TransferMessageData, params = P0},
 	Packet = m3ua_codec:m3ua(TransferMsg),
@@ -532,11 +541,6 @@ handle_event({'M-NOTIFY', NotifyFor, RC}, StateName,
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-handle_event({'M-RK_REG', {RC, RK}}, StateName,
-		#statedata{rks = RKs} = StateData) ->
-	NewRKs = [{RC, RK} | RKs],
-	NewStateData = StateData#statedata{rks = NewRKs},
-	{next_state, StateName, NewStateData};
 handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
 		#statedata{ep = EP, assoc = Assoc, socket = Socket} = StateData) ->
 	gen_server:cast(From,
@@ -703,6 +707,24 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+%% @hidden
+handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
+		StateName, #statedata{static = true, rks = RKs,
+		assoc = Assoc, ep = EP, callback = CbMod,
+		cb_state = CbState} = StateData) when is_integer(RC) ->
+	NewRKs = case lists:keymember(RC, 1, RKs) of
+		true ->
+			lists:keyreplace(RC, 1, RKs, {RC, {NA, Keys, Mode}});
+		false ->
+			[{RC, {NA, Keys, Mode}} | RKs]
+	end,
+	NewStateData = StateData#statedata{rks = NewRKs},
+	RegResult = [#registration_result{status = registered, rc = RC}],
+	gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(),
+			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
+	{next_state, StateName, NewStateData}.
+
 %% @hidden
 handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
@@ -764,11 +786,11 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 	end;
 handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, ep = EP,
-		assoc = Assoc, callback = CbMod, cb_state = State} = StateData) ->
+		assoc = Assoc, callback = CbMod, cb_state = CbState} = StateData) ->
 	Parameters = m3ua_codec:parameters(Params),
 	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
 	gen_server:cast(m3ua, {'M-RK_REG', indication,
-			RKs, Socket, EP, Assoc, self(), CbMod, State}),
+			RKs, Socket, EP, Assoc, self(), CbMod, CbState}),
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, inactive, StateData};
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},

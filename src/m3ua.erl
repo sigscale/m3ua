@@ -24,7 +24,7 @@
 -export([start/1, start/3, stop/1]).
 -export([sctp_release/2, sctp_status/2]).
 -export([getstat/1, getstat/2, getstat/3, getcount/2]).
--export([as_add/6, as_delete/1, register/5, register/6]).
+-export([as_add/6, as_delete/1, register/6, register/7]).
 -export([get_ep/0, get_ep/1, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
@@ -36,7 +36,7 @@
 -type option() :: {name, term()}
 		| {connect, inet:ip_address(), inet:port_number(), [gen_sctp:option()]}
 		| {role, sgp | asp}
-		| {static_keys, [{RC :: 0..4294967295, RK :: routing_key(), AS :: term()}]}
+		| {static, boolean()}
 		| {use_rc, boolean()}
 		| gen_sctp:option().
 %% Options used to configure SCTP endpoint and M3UA process behaviour.
@@ -189,10 +189,12 @@ getcount(EndPoint, Assoc)
 		when is_pid(EndPoint), is_integer(Assoc) ->
 	m3ua_lm_server:getcount(EndPoint, Assoc).
 
--spec register(EndPoint, Assoc, NA, Keys, Mode) -> Result
+-spec register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode) ->
+		Result
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
+		RoutingContext :: undefined | non_neg_integer(),
 		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -200,21 +202,19 @@ getcount(EndPoint, Assoc)
 		SI :: byte(),
 		OPC :: 0..16777215,
 		Mode :: override | loadshare | broadcast,
-		Result :: {ok, RoutingContext} | {error, Reason},
-		RoutingContext :: pos_integer(),
+		Result :: {ok, NewRoutingContext} | {error, Reason},
+		NewRoutingContext :: non_neg_integer(),
 		Reason :: term().
-%% @equiv register(EndPoint, Assoc, NA, Keys, Mode, undefined)
-register(EndPoint, Assoc, NA, Keys, Mode)
-		when is_pid(EndPoint), is_integer(Assoc), is_list(Keys),
-		((NA == undefined) or is_integer(NA)),
-		((Mode == override) orelse (Mode == loadshare)
-		orelse (Mode == broadcast)) ->
-	register(EndPoint, Assoc, NA, Keys, Mode, undefined).
+%% @equiv register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode, undefined)
+register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode) ->
+	register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode, undefined).
 
--spec register(EndPoint, Assoc, NA, Keys, Mode, AsName) -> Result
+-spec register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode, AsName) ->
+		Result
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
+		RoutingContext :: undefined | non_neg_integer(),
 		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -224,15 +224,22 @@ register(EndPoint, Assoc, NA, Keys, Mode)
 		Mode :: override | loadshare | broadcast,
 		AsName :: term(),
 		Result :: {ok, RoutingContext} | {error, Reason},
-		RoutingContext :: pos_integer(),
+		RoutingContext :: non_neg_integer(),
 		Reason :: term().
 %% @doc Register a routing key for an application server.
-register(EndPoint, Assoc, NA, Keys, Mode, AsName)
+%%
+%% 	Creates a new routing keys registration when `RoutingContext'
+%% 	is `undefined' or updates the routing keys for the existing
+%% 	registration of `RoutingContext'.
+%%
+register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode, AsName)
 		when is_pid(EndPoint), is_integer(Assoc), is_list(Keys),
+		((RoutingContext == undefined) or is_integer(RoutingContext)),
 		((NA == undefined) or is_integer(NA)),
 		((Mode == override) orelse (Mode == loadshare)
 		orelse (Mode == broadcast)) ->
-	m3ua_lm_server:register(EndPoint, Assoc, NA, Keys, Mode, AsName).
+	m3ua_lm_server:register(EndPoint, Assoc,
+			RoutingContext, NA, Keys, Mode, AsName).
 
 -spec sctp_release(EndPoint, Assoc) -> Result
 	when

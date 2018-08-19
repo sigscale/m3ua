@@ -40,8 +40,7 @@
 		socket :: undefined | gen_sctp:sctp_socket(),
 		options :: [tuple()],
 		role :: sgp | asp,
-		static_keys :: [{RC :: 0..4294967295,
-				RK :: routing_key(), AS :: term()}],
+		static :: boolean(),
 		use_rc :: boolean(),
 		local_addr :: undefined | inet:ip_address(),
 		local_port :: undefined | inet:port_number(),
@@ -83,11 +82,11 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{sgp, Opts1}
 	end,
-	{StaticKeys, Opts3} = case lists:keytake(static_keys, 1, Opts2) of
-		{value, {static_keys, R3}, O3} ->
+	{Static, Opts3} = case lists:keytake(static, 1, Opts2) of
+		{value, {static, R3}, O3} ->
 			{R3, O3};
 		false ->
-			{[], Opts2}
+			{false, Opts2}
 	end,
 	{UseRC, Opts4} = case lists:keytake(use_rc, 1, Opts3) of
 		{value, {use_rc, R4}, O4} ->
@@ -104,7 +103,7 @@ init([Sup, Callback, Opts] = _Args) ->
 					| O5],
 			process_flag(trap_exit, true),
 			StateData = #statedata{sup = Sup, role = Role, name = Name,
-					static_keys = StaticKeys, use_rc = UseRC,
+					static = Static, use_rc = UseRC,
 					options = Options, callback = Callback,
 					remote_addr = Raddr, remote_port = Rport,
 					remote_opts = Ropts},
@@ -322,10 +321,10 @@ get_sup(#statedata{role = sgp, sup = Sup} = StateData) ->
 %% @hidden
 handle_connect(AssocChange, #statedata{socket = Socket,
 		fsm_sup = Sup, remote_addr = Address, remote_port = Port,
-		name = Name, callback = Cb, static_keys = StaticKeys,
+		name = Name, callback = Cb, static = Static,
 		use_rc = UseRC} = StateData) ->
 	case supervisor:start_child(Sup, [[Socket, Address, Port,
-			AssocChange, self(), Name, Cb, StaticKeys, UseRC], []]) of
+			AssocChange, self(), Name, Cb, Static, UseRC], []]) of
 		{ok, Fsm} ->
 			case gen_sctp:controlling_process(Socket, Fsm) of
 				ok ->
