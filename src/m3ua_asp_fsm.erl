@@ -219,7 +219,8 @@
 		assoc :: gen_sctp:assoc_id(),
 		static = false :: boolean(),
 		use_rc = true :: boolean(),
-		rks = [] :: [{RC :: pos_integer(), RK :: routing_key()}],
+		rks = [] :: [{RC :: 0..4294967295,
+				RK :: routing_key(), Active :: boolean()}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
 		ep :: pid(),
@@ -766,7 +767,7 @@ terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
 %% @hidden
 terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData) ->
 	Fsm = self(),
-	Fdel = fun F([{_RC, RK} | T]) ->
+	Fdel = fun F([{_RC, RK, _Active} | T]) ->
 				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
 				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
 				mnesia:write(AS#m3ua_as{asp = L2}),
@@ -819,11 +820,11 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 		StateName, #statedata{static = true, rks = RKs, req = undefined,
 		assoc = Assoc, ep = EP, callback = CbMod,
 		cb_state = CbState} = StateData) when is_integer(RC) ->
-	NewRKs = case lists:keymember(RC, 1, RKs) of
-		true ->
-			lists:keyreplace(RC, 1, RKs, {RC, {NA, Keys, Mode}});
+	NewRKs = case lists:keytake(RC, 1, RKs) of
+		{value, {RC, _OldKeys, Active}, RKs1} ->
+			[{RC, {NA, Keys, Mode}, Active} | RKs1];
 		false ->
-			[{RC, {NA, Keys, Mode}} | RKs]
+			[{RC, {NA, Keys, Mode}, inactive} | RKs]
 	end,
 	NewStateData = StateData#statedata{rks = NewRKs},
 	RegResult = [#registration_result{status = registered, rc = RC}],
@@ -943,12 +944,12 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
    RegResult = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
 	NewRKs = case RegResult of
 		[#registration_result{status = registered, rc = RC}] ->
-			case lists:keymember(RC, 1, RKs) of
-				true ->
-					lists:keyreplace(RC, 1, RKs, {RC, {NA, Keys, Mode}});
+			case lists:keytake(RC, 1, RKs) of
+				{value, {RC, _OldKeys, Active}, RKs1} ->
+					[{RC, {NA, Keys, Mode}, Active} | RKs1];
 				false ->
-					[{RC, {NA, Keys, Mode}} | RKs]
-			end;
+					[{RC, {NA, Keys, Mode}, inactive} | RKs]
+	end,
 		[#registration_result{}] ->
 			RKs
 	end,
@@ -1064,15 +1065,16 @@ inet_getopts(Socket, Options) ->
 		DPC :: 0..4294967295,
 		OPC :: 0..4294967295,
 		SI :: 0..4294967295,
-		RKs :: [{RC, RK}],
+		RKs :: [{RC, RK, Active}],
 		RC :: 0..4294967295,
 		RK :: {NA, Keys, TMT},
 		NA :: byte(),
 		Keys :: [{DPC, [SI], [OPC]}],
-		TMT :: tmt().
+		TMT :: tmt(),
+		Active :: boolean().
 %% @doc Find routing context matching destination.
 %% @hidden
-get_rc(DPC, OPC, SI, [{RC, RK} | T] = _RoutingKeys)
+get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RoutingKeys)
 		when is_integer(DPC), is_integer(OPC), is_integer(SI) ->
 	case m3ua:keymember(DPC, OPC, SI, [RK]) of
 		true ->

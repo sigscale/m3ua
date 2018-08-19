@@ -218,6 +218,8 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		rks = [] :: [{RC :: 0..4294967295, RK :: routing_key()}],
+		rks = [] :: [{RC :: 0..4294967295,
+				RK :: routing_key(), Active :: boolean()}],
 		ual :: undefined | integer(),
 		stream :: undefined | pos_integer(),
 		ep :: pid(),
@@ -484,7 +486,7 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 			P0
 	end,
 	TransferMsg = #m3ua{class = ?TransferMessage,
-			type = ?TransferMessageData, params = P0},
+			type = ?TransferMessageData, params = P1},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
@@ -677,7 +679,7 @@ terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
 %% @hidden
 terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData) ->
 	Fsm = self(),
-	Fdel = fun F([{_RC, RK} | T]) ->
+	Fdel = fun F([{_RC, RK, _Active} | T]) ->
 				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
 				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
 				mnesia:write(AS#m3ua_as{asp = L2}),
@@ -713,11 +715,11 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 		StateName, #statedata{static = true, rks = RKs,
 		assoc = Assoc, ep = EP, callback = CbMod,
 		cb_state = CbState} = StateData) when is_integer(RC) ->
-	NewRKs = case lists:keymember(RC, 1, RKs) of
-		true ->
-			lists:keyreplace(RC, 1, RKs, {RC, {NA, Keys, Mode}});
+	NewRKs = case lists:keytake(RC, 1, RKs) of
+		{value, {RC, _OldKeys, Active}, RKs1} ->
+			[{RC, {NA, Keys, Mode}, Active} | RKs1];
 		false ->
-			[{RC, {NA, Keys, Mode}} | RKs]
+			[{RC, {NA, Keys, Mode}, inactive} | RKs]
 	end,
 	NewStateData = StateData#statedata{rks = NewRKs},
 	RegResult = [#registration_result{status = registered, rc = RC}],
