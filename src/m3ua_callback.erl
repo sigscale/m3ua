@@ -22,7 +22,7 @@
 
 %% export the m3ua_callback public API
 -export([init/5, transfer/8, pause/4, resume/4, status/4,
-		register/4, asp_up/1, asp_down/1, asp_active/1,
+		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, terminate/2]).
 
 %% export the m3ua_callback private API
@@ -49,11 +49,11 @@ init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
 -spec transfer(Stream, RC, OPC, DPC, SLS, SIO, Data, State) -> Result
 	when
 		Stream :: pos_integer(),
-		RC :: undefined | pos_integer(),
-		OPC :: pos_integer(),
-		DPC :: pos_integer(),
-		SLS :: non_neg_integer(),
-		SIO :: non_neg_integer(),
+		RC :: undefined | 0..4294967295,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
+		SLS :: byte(),
+		SIO :: byte(),
 		Data :: binary(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
@@ -66,8 +66,8 @@ transfer(_Stream, _RK, _OPC, _DPC, _SLS, _SIO, _Data, State) ->
 	when
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RC :: undefined | pos_integer(),
-		DPC :: pos_integer(),
+		RC :: undefined | 0..4294967295,
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -79,8 +79,8 @@ pause(_Stream, _RK, _DPCs, State) ->
 	when
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RC :: undefined | pos_integer(),
-		DPC :: pos_integer(),
+		RC :: undefined | 0..4294967295,
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -92,8 +92,8 @@ resume(_Stream, _RK, _DPCs, State) ->
 	when
 		Stream :: pos_integer(),
 		DPCs :: [DPC],
-		RC :: undefined | pos_integer(),
-		DPC :: pos_integer(),
+		RC :: undefined | 0..4294967295,
+		DPC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -101,16 +101,17 @@ resume(_Stream, _RK, _DPCs, State) ->
 status(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
--spec register(NA, Keys, TMT, State) -> Result
+-spec register(RC, NA, Keys, TMT, State) -> Result
 	when
-		NA :: pos_integer(),
+		RC :: undefined | 0..4294967295,
+		NA :: undefined | 0..4294967295,
 		Keys :: [key()],
 		TMT :: tmt(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
-register(_NA, _Keys, _TMT, State) ->
+register(_RC, _NA, _Keys, _TMT, State) ->
 	{ok, State}.
 
 -spec asp_up(State) -> Result
@@ -143,7 +144,7 @@ asp_inactive(State) ->
 
 -spec notify(RC, Status, AspID, State) -> Result
 	when
-		RC :: undefined | pos_integer(),
+		RC :: undefined | 0..4294967295,
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active
 				| asp_failure,
