@@ -820,16 +820,18 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 		StateName, #statedata{static = true, rks = RKs, req = undefined,
 		assoc = Assoc, ep = EP, callback = CbMod,
 		cb_state = CbState} = StateData) when is_integer(RC) ->
+	SortedKeys = m3ua:sort(Keys),
+	RK = {NA, SortedKeys, Mode},
 	NewRKs = case lists:keytake(RC, 1, RKs) of
 		{value, {RC, _OldKeys, Active}, RKs1} ->
-			[{RC, {NA, Keys, Mode}, Active} | RKs1];
+			[{RC, RK, Active} | RKs1];
 		false ->
-			[{RC, {NA, Keys, Mode}, inactive} | RKs]
+			[{RC, RK, inactive} | RKs]
 	end,
 	NewStateData = StateData#statedata{rks = NewRKs},
 	RegResult = [#registration_result{status = registered, rc = RC}],
 	gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
+			RegResult, NA, SortedKeys, Mode, AS, EP, Assoc, CbMod, CbState}),
 	{next_state, StateName, NewStateData}.
 
 %% @hidden
@@ -937,28 +939,71 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
 handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 		StateName, _Stream, #statedata{socket = Socket, rks = RKs,
 		req = {'M-RK_REG', request, Ref, From,
-		#m3ua_routing_key{na = NA, tmt = TMT, as = AS, key = Keys}},
+		#m3ua_routing_key{na = NA, tmt = Mode, as = AS, key = Keys}},
 		callback = CbMod, cb_state = CbState, ep = EP,
-		assoc = Assoc} = StateData) ->
+		assoc = Assoc} = StateData)
+		when StateName == inactive; StateName == active ->
    Parameters = m3ua_codec:parameters(Params),
    RegResult = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
-	NewRKs = case RegResult of
+	SortedKeys = m3ua:sort(Keys),
+	RK = {NA, SortedKeys, Mode},
+	Fsm = self(),
+	RKsResult = case RegResult of
 		[#registration_result{status = registered, rc = RC}] ->
-			case lists:keytake(RC, 1, RKs) of
-				{value, {RC, _OldKeys, Active}, RKs1} ->
-					[{RC, {NA, Keys, Mode}, Active} | RKs1];
-				false ->
-					[{RC, {NA, Keys, Mode}, inactive} | RKs]
-	end,
+			F = fun() ->
+					case mnesia:read(m3ua_as, RC, write) of
+						[] ->
+							ASPs = [#m3ua_as_asp{fsm = Fsm, state = inactive}],
+							AS = #m3ua_as{rc = RC, rk = RK, asp = ASPs},
+							ok = mnesia:write(AS),
+							ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
+							ok = mnesia:write(ASP);
+						[#m3ua_as{asp = ASPs} = AS] ->
+							NewASPs = case lists:keymember(Fsm, #m3ua_as_asp.fsm, ASPs) of
+								true ->
+									ASPs;
+								false ->
+									[#m3ua_as_asp{fsm = Fsm, state = inactive} | ASPs]
+							end,
+							NewAS = AS#m3ua_as{rk = RK, name = AS, asp = NewASPs},
+							ok = mnesia:write(NewAS),
+							ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
+							ok = mnesia:write(ASP)
+					end
+			end,
+			case mnesia:transaction(F) of
+				{atomic, ok} ->
+					case lists:keytake(RC, 1, RKs) of
+						{value, {RC, _OldKeys, Active}, RKs1} ->
+							{ok, RC, [{RC, RK, Active} | RKs1]};
+						false ->
+							{ok, RC, [{RC, RK, inactive} | RKs]}
+					end;
+				{aborted, Reason} ->
+					{error, Reason}
+			end;
 		[#registration_result{}] ->
-			RKs
+			ok
 	end,
-	gen_server:cast(From,
-			{'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, Keys, TMT, AS, EP, Assoc, CbMod, CbState}),
-	inet:setopts(Socket, [{active, once}]),
-	NewStateData = StateData#statedata{req = undefined, rks = NewRKs},
-	{next_state, StateName, NewStateData};
+	case RKsResult of
+		{ok, RC1, NewRKs} ->
+			CbArgs = [RC1, NA, Keys, Mode, CbState],
+			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
+			gen_server:cast(From, {'M-RK_REG', confirm,
+					Ref, Fsm, RegResult, NA, Keys, Mode, AS}),
+			inet:setopts(Socket, [{active, once}]),
+			NewStateData = StateData#statedata{req = undefined,
+					rks = NewRKs, cb_state = NewCbState},
+			{next_state, StateName, NewStateData};
+		ok ->
+			gen_server:cast(From, {'M-RK_REG', confirm,
+					Ref, Fsm, RegResult, NA, Keys, Mode, AS}),
+			inet:setopts(Socket, [{active, once}]),
+			NewStateData = StateData#statedata{req = undefined},
+			{next_state, StateName, NewStateData};
+		{error, Reason1} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason1}}, StateData}
+	end;
 handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
 		StateName, _Stream, #statedata{req = {AspOp, request, Ref, From},
 		socket = Socket} = StateData) ->
@@ -1041,7 +1086,7 @@ handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
 
 %% @hidden
 generate_lrk_id() ->
-	random:uniform(256).
+	rand:uniform(16#ffffffff).
 
 -dialyzer({[nowarn_function, no_contracts, no_return], inet_getopts/2}).
 -spec inet_getopts(Socket, Options) -> Result
