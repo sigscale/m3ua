@@ -77,7 +77,7 @@ as_state({error, Reason}) ->
 			{module, ?MODULE}, {error, Reason}]),
 	[].
 %% @hidden
-as_state([{Name, _, _, _, _, _, State} | T], Acc) ->
+as_state([{Name, _, _, _, _, _, _, State} | T], Acc) ->
 	NewAcc = as_state1(Name, State, Acc),
 	as_state(T, NewAcc);
 as_state([], Acc) ->
