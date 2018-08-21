@@ -128,12 +128,12 @@
 -record(m3ua_as_asp,
 		{id :: undefined | pos_integer(),
 		fsm :: pid(),
-		rc :: undefined | 0..4294967295,
 		state :: down | inactive | active,
 		info :: undefined | string()}).
 
 -record(m3ua_as,
-		{routing_key :: routing_key(),
+		{rc :: 0..4294967295,
+		rk :: routing_key(),
 		name :: term(),
 		min_asp = 1 :: pos_integer(),
 		max_asp :: undefined | pos_integer(),
