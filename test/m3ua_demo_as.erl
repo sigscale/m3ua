@@ -22,7 +22,7 @@
 -include("m3ua.hrl").
 
 -export([init/5, transfer/9, pause/4, resume/4, status/4,
-		register/4, terminate/2]).
+		register/5, terminate/2]).
 -export([asp_up/1, asp_down/1, asp_active/1, asp_inactive/1, notify/4]).
 
 %%----------------------------------------------------------------------
@@ -48,7 +48,7 @@ resume(_Stream, _RCs, _DPCs, State) ->
 status(_Stream, _RCs, _DPCs, State) ->
 	{ok, State}.
 
-register( _NA, _Keys, _TMT, State) ->
+register(_RC, _NA, _Keys, _TMT, State) ->
 	{ok, State}.
 
 asp_up(State) ->
