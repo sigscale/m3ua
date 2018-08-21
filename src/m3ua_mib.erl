@@ -402,10 +402,10 @@ as_table_get1(AS, [2 | T], Acc) ->
 	as_table_get1(AS, T, [{value, element(7, AS)} | Acc]);
 as_table_get1(AS, [3 | T], Acc) ->
 	as_table_get1(AS, T, [{value, element(4, AS)} | Acc]);
-as_table_get1({Name, _, _, _, _, _, _} = AS, [4 | T], Acc)
+as_table_get1({Name, _, _, _, _, _, _, _} = AS, [4 | T], Acc)
 		when is_atom(Name) ->
 	as_table_get1(AS, T, [{value, atom_to_list(Name)} | Acc]);
-as_table_get1({Name, _, _, _, _, _, _} = AS, [4 | T], Acc)
+as_table_get1({Name, _, _, _, _, _, _, _} = AS, [4 | T], Acc)
 		when is_list(Name) ->
 	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
 		Value when is_list(Value) ->
@@ -413,7 +413,7 @@ as_table_get1({Name, _, _, _, _, _, _} = AS, [4 | T], Acc)
 		_ ->
 			as_table_get1(AS, T, [{noValue, noSuchInstance} | Acc])
 	end;
-as_table_get1({Name, _, _, _, _, _, _} = AS, [4 | T], Acc)
+as_table_get1({Name, _, _, _, _, _, _, _} = AS, [4 | T], Acc)
 		when is_integer(Name) ->
 	as_table_get1(AS, T, [{value, integer_to_list(Name)} | Acc]);
 as_table_get1(AS, [4 | T], Acc) ->
