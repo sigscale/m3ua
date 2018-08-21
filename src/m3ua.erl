@@ -424,15 +424,7 @@ get_ep([], Acc) ->
 %% @doc Get SCTP endpoint details.
 %%
 get_ep(EP) when is_pid(EP) ->
-	case gen_fsm:sync_send_all_state_event(EP, getep) of
-		#m3ua_ep{name = Name, type = server, role = Role,
-				local_addr = Laddr, local_port = Lport} ->
-			{Name, server, Role, {Laddr, Lport}};
-		#m3ua_ep{name = Name, type = client, role = Role,
-				local_addr = Laddr, local_port = Lport,
-				remote_addr = Raddr, remote_port = Rport} ->
-			{Name, client, Role, {Laddr, Lport}, {Raddr, Rport}}
-	end.
+	gen_fsm:sync_send_all_state_event(EP, getep).
 
 -spec get_assoc() -> Result
 	when

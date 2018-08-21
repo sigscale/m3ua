@@ -179,12 +179,10 @@ handle_sync_event({getstat, Options}, _From, StateName,
 		#statedata{socket = Socket} = StateData) ->
 	{reply, inet:getstat(Socket, Options), StateName, StateData};
 handle_sync_event(getep, _From, StateName,
-		#statedata{name = Name, role = Role, local_addr = LocalAddr,
-		local_port = LocalPort, options = Options} = StateData) ->
-	EP = #m3ua_ep{name = Name, type = server, role = Role,
-			local_addr = LocalAddr, local_port = LocalPort,
-			options = Options},
-	{reply, EP, StateName, StateData}.
+		#statedata{name = Name, role = Role, local_addr = Laddr,
+		local_port = Lport, options = Options} = StateData) ->
+	Reply = {Name, server, Role, {Laddr, Lport}},
+	{reply, Reply, StateName, StateData}.
 
 -spec handle_info(Info :: term(), StateName :: atom(),
 		StateData :: #statedata{}) ->
