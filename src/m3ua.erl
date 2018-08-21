@@ -372,8 +372,9 @@ transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data, Timeout)
 -spec get_as() -> Result
 	when
 		Result :: {ok, [AS]} | {error, Reason},
-		AS :: {Name, NA, Keys, TMT, MinASP, MaxASP, State},
+		AS :: {Name, RC, NA, Keys, TMT, MinASP, MaxASP, State},
 		Name :: string(),
+		RC :: 0..4294967295,
 		NA :: 0..4294967295 | undefined,
 		Keys :: [key()],
 		TMT :: tmt(),
@@ -384,9 +385,9 @@ transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data, Timeout)
 %% @doc Get all Application Servers (AS).
 %%
 get_as() ->
-	Fold = fun(#m3ua_as{routing_key = {NA, Keys, TMT}, name = Name,
+	Fold = fun(#m3ua_as{rc = RC, rk = {NA, Keys, TMT}, name = Name,
 				min_asp = MinASP, max_asp = MaxASP, state = State}, Acc) ->
-				[{Name, NA, Keys, TMT, MinASP, MaxASP, State} | Acc] 
+				[{Name, RC, NA, Keys, TMT, MinASP, MaxASP, State} | Acc]
 	end,
 	case mnesia:transaction(fun() -> mnesia:foldl(Fold, [], m3ua_as) end) of
 		{atomic, ASs} ->
