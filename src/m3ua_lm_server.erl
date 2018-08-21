@@ -360,10 +360,10 @@ handle_call({'M-ASP_STATUS', request,  EndPoint, Assoc},
 		none ->
 			{reply, down, State}
 	end;
-handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
+handle_call({as_add, Name, RC, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 	F = fun() ->
 				SortedKeys = m3ua:sort(Keys),
-				AS = #m3ua_as{rk = {NA, SortedKeys, Mode},
+				AS = #m3ua_as{rc = RC, rk = {NA, SortedKeys, Mode},
 						name = Name, min_asp = MinASP, max_asp = MaxASP},
 				ok = mnesia:write(AS),
 				AS
@@ -374,10 +374,9 @@ handle_call({as_add, Name, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 		{aborted, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({as_delete, RoutingKey}, _From, State) ->
+handle_call({as_delete, RoutingContext}, _From, State) ->
 	F = fun() ->
-				SortedKey = m3ua:sort([RoutingKey]),
-				mnesia:delete(m3ua_as, SortedKey, write)
+				mnesia:delete(m3ua_as, RoutingContext, write)
 	end,
 	case mnesia:transaction(F) of
 		{atomic, ok} ->

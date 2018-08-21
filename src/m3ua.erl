@@ -24,7 +24,7 @@
 -export([start/1, start/3, stop/1]).
 -export([sctp_release/2, sctp_status/2]).
 -export([getstat/1, getstat/2, getstat/3, getcount/2]).
--export([as_add/6, as_delete/1, register/6, register/7]).
+-export([as_add/7, as_delete/1, register/6, register/7]).
 -export([get_ep/0, get_ep/1, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
@@ -85,9 +85,10 @@ start(Callback, Port, Options) when is_integer(Port), is_list(Options),
 stop(EP) when is_pid(EP) ->
 	m3ua_lm_server:stop(EP).
 
--spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
+-spec as_add(Name, RoutingContext, NA, Keys, Mode, MinASP, MaxASP) -> Result
 	when
 		Name :: term(),
+		RoutingContext :: 0..4294967295,
 		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		MinASP :: pos_integer(),
@@ -101,27 +102,21 @@ stop(EP) when is_pid(EP) ->
 		AS :: #m3ua_as{},
 		Reason :: term().
 %% @doc Add an Application Server (AS).
-as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
-		when ((NA == undefined) orelse is_integer(NA)),
+as_add(Name, RoutingContext, NA, Keys, Mode, MinASP, MaxASP)
+		when is_integer(RoutingContext),
+		((NA == undefined) orelse is_integer(NA)),
 		is_list(Keys), is_atom(Mode),
 		is_integer(MinASP), is_integer(MaxASP) ->
-	m3ua_lm_server:as_add(Name, NA, Keys, Mode, MinASP, MaxASP).
+	m3ua_lm_server:as_add(Name, RoutingContext, NA, Keys, Mode, MinASP, MaxASP).
 
--spec as_delete(RoutingKey) -> Result
+-spec as_delete(RoutingContext) -> Result
 	when
-		RoutingKey :: {NA, Keys, Mode},
-		NA :: 0..4294967295 | undefined,
-		Keys :: [Key],
-		Key :: {DPC, [SI], [OPC]},
-		DPC :: 0..16777215,
-		SI :: byte(),
-		OPC :: 0..16777215,
-		Mode :: override | loadshare | broadcast,
+		RoutingContext :: 0..4294967295,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Delete an Application Server (AS).
-as_delete(RoutingKey) ->
-	m3ua_lm_server:as_delete(RoutingKey).
+as_delete(RoutingContext) ->
+	m3ua_lm_server:as_delete(RoutingContext).
 
 -spec getstat(EndPoint) -> Result
 	when
