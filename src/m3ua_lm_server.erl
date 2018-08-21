@@ -27,7 +27,7 @@
 -export([start/2, stop/1]).
 -export([sctp_release/2, sctp_status/2]).
 -export([register/7]).
--export([as_add/6, as_delete/1]).
+-export([as_add/7, as_delete/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([getstat/2, getstat/3, getcount/2]).
@@ -75,10 +75,11 @@ start(Callback, Options) when is_list(Options) ->
 stop(EP) ->
 	gen_server:call(m3ua, {stop, EP}).
 
--spec as_add(Name, NA, Keys, Mode, MinASP, MaxASP) -> Result
+-spec as_add(Name, RC, NA, Keys, Mode, MinASP, MaxASP) -> Result
 	when
 		Name :: term(),
-		NA :: undefined | pos_integer(),
+		RC :: 0..4294967295,
+		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		MinASP :: pos_integer(),
 		MaxASP :: pos_integer(),
@@ -91,28 +92,22 @@ stop(EP) ->
 		AS :: #m3ua_as{},
 		Reason :: term().
 %% @doc Add an Application Server (AS).
-as_add(Name, NA, Keys, Mode, MinASP, MaxASP)
-		when ((NA == undefined) orelse is_integer(NA)),
+as_add(Name, RC, NA, Keys, Mode, MinASP, MaxASP)
+		when is_integer(RC),
+		((NA == undefined) orelse is_integer(NA)),
 		is_list(Keys), is_atom(Mode),
 		is_integer(MinASP), is_integer(MaxASP) ->
 	gen_server:call(m3ua, {as_add,
-			Name, NA, Keys, Mode, MinASP, MaxASP}).
+			Name, RC, NA, Keys, Mode, MinASP, MaxASP}).
 
--spec as_delete(RoutingKey) -> Result
+-spec as_delete(RC) -> Result
 	when
-		RoutingKey :: {NA, Keys, Mode},
-		NA :: undefined | pos_integer(),
-		Keys :: [Key],
-		Key :: {DPC, [SI], [OPC]},
-		DPC :: pos_integer(),
-		SI :: pos_integer(),
-		OPC :: pos_integer(),
-		Mode :: override | loadshare | broadcast,
+		RC :: 0..4294967295,
 		Result :: ok | {error, Reason},
 		Reason :: term().
 %% @doc Delete an Application Server (AS).
-as_delete(RoutingKey) ->
-	gen_server:call(m3ua, {as_delete, RoutingKey}).
+as_delete(RC) ->
+	gen_server:call(m3ua, {as_delete, RC}).
 
 -spec register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode, AsName) ->
 		Result
@@ -374,9 +369,9 @@ handle_call({as_add, Name, RC, NA, Keys, Mode, MinASP, MaxASP}, _From, State) ->
 		{aborted, Reason} ->
 			{reply, {error, Reason}, State}
 	end;
-handle_call({as_delete, RoutingContext}, _From, State) ->
+handle_call({as_delete, RC}, _From, State) ->
 	F = fun() ->
-				mnesia:delete(m3ua_as, RoutingContext, write)
+				mnesia:delete(m3ua_as, RC, write)
 	end,
 	case mnesia:transaction(F) of
 		{atomic, ok} ->
