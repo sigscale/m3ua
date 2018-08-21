@@ -426,9 +426,10 @@ as_table_get1(_, [], Acc) ->
 -spec as_table_get_next(GetAsResult, Index, Columns) -> Result
 	when
 		GetAsResult :: {ok, [AS]} | {error, Reason :: term()},
-		AS :: {Name, NA, Keys, TMT, MinASP, MaxASP, State},
+		AS :: {Name, RC, NA, Keys, TMT, MinASP, MaxASP, State},
 		Name :: term(),
-		NA :: undefined | pos_integer(),
+		RC :: 0..4294967295,
+		NA :: undefined | 0..4294967295,
 		Keys :: [tuple()],
 		TMT :: override | loadshare | broadcast,
 		MinASP :: pos_integer(),
@@ -456,14 +457,14 @@ as_table_get_next({error, _Reason}, _, [N | _]) ->
 as_table_get_next(ASs, AS, Index, [N | T], Acc) when N < 2 ->
 	as_table_get_next(ASs, AS, Index, [2 | T], Acc);
 as_table_get_next(ASs, AS, Index, [2 | T], Acc) ->
-	as_table_get_next(ASs, AS, Index, T, [{[2, Index], element(7, AS)} | Acc]);
+	as_table_get_next(ASs, AS, Index, T, [{[2, Index], element(8, AS)} | Acc]);
 as_table_get_next(ASs, AS, Index, [3 | T], Acc) ->
-	as_table_get_next(ASs, AS, Index, T, [{[3, Index], element(4, AS)} | Acc]);
-as_table_get_next(ASs, {Name, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
+	as_table_get_next(ASs, AS, Index, T, [{[3, Index], element(5, AS)} | Acc]);
+as_table_get_next(ASs, {Name, _, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
 		when is_atom(Name) ->
 	Value = atom_to_list(Name),
 	as_table_get_next(ASs, AS, Index, T, [{[4, Index], Value} | Acc]);
-as_table_get_next(ASs, {Name, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
+as_table_get_next(ASs, {Name, _, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
 		when is_list(Name) ->
 	case catch unicode:characters_to_list(list_to_binary(Name), utf8) of
 		Value when is_list(Value) ->
@@ -476,7 +477,7 @@ as_table_get_next(ASs, {Name, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
 					{genErr, C}
 			end
 	end;
-as_table_get_next(ASs, {Name, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
+as_table_get_next(ASs, {Name, _, _, _, _, _, _, _} = AS, Index, [4 | T], Acc)
 		when is_integer(Name) ->
 	Value = integer_to_list(Name),
 	as_table_get_next(ASs, AS, Index, T, [{[4, Index], Value} | Acc]);
