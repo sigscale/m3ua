@@ -227,7 +227,8 @@ getcount(_Config) ->
 	wait(Ref),
 	[Assoc] = m3ua:get_assoc(ClientEP),
 	ok = m3ua:asp_up(ClientEP, Assoc),
-	{ok, _RC} = m3ua:register(ClientEP, Assoc, NA, Keys, Mode),
+	{ok, _RC} = m3ua:register(ClientEP, Assoc,
+			undefined, undefined, NA, Keys, Mode),
 	{ok, #{up_out := 1, up_ack_in := 1}} = m3ua:getcount(ClientEP, Assoc),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	{ok, #{active_out := 1, active_ack_in := 1}} = m3ua:getcount(ClientEP, Assoc),
@@ -252,7 +253,7 @@ register(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [7,8], []}],
 	{ok, RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	true = is_integer(RoutingContext).
 
 asp_active() ->
@@ -269,7 +270,7 @@ asp_active(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc).
 
 asp_inactive_to_down() ->
@@ -300,7 +301,7 @@ asp_active_to_down(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	ok = m3ua:asp_down(ClientEP, Assoc).
 
@@ -318,7 +319,7 @@ asp_active_to_inactive(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	ok = m3ua:asp_inactive(ClientEP, Assoc).
 
@@ -388,7 +389,7 @@ mtp_transfer(_Config) ->
 	DPC = rand:uniform(16383),
 	Keys = [{DPC, [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	Asp = receive
 		{asp, active, PID1} ->
@@ -447,7 +448,7 @@ asp_active_indication(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	receive
 		{sgp, asp_active, indication} ->
@@ -474,7 +475,7 @@ asp_inactive_indication(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	ok = m3ua:asp_inactive(ClientEP, Assoc),
 	receive
@@ -501,7 +502,7 @@ asp_down_indication(_Config) ->
 	ok = m3ua:asp_up(ClientEP, Assoc),
 	Keys = [{rand:uniform(16383), [], []}],
 	{ok, _RoutingContext} = m3ua:register(ClientEP, Assoc,
-			undefined, Keys, loadshare),
+			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	ok = m3ua:asp_down(ClientEP, Assoc),
 	receive
