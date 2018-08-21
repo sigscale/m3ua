@@ -1002,7 +1002,7 @@ reg_request1(#m3ua_routing_key{rc = RC, na = NA, key = Keys, tmt = Mode, lrk_id 
 					status = rk_change_refused, rc = RC}},
 			{not_reg, RegRes};
 		[#m3ua_as{rk = RK, asp = SGPs} = AS] ->
-			case lists:keymember(SGP, #m3ua_asp.fsm, SGPs) of	
+			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
 					RegRes = {?RegistrationResult,
 							#registration_result{lrk_id = LrkId,
@@ -1018,7 +1018,7 @@ reg_request1(#m3ua_routing_key{rc = RC, na = NA, key = Keys, tmt = Mode, lrk_id 
 					{reg, RegRes}
 			end;
 		[#m3ua_as{asp = SGPs} = AS] ->
-			case lists:keymember(SGP, #m3ua_asp.fsm, SGPs) of	
+			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
 					mnesia:write(AS#m3ua_as{rk = RK}),
 					RegRes = {?RegistrationResult,
@@ -1042,8 +1042,8 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, 
 	case mnesia:index_read(m3ua_as, RK, #m3ua_as.rk) of
 		[] ->
 			RC = rand:uniform(16#FFFFFFFF), % @todo better RC assignment
-			SGP = #m3ua_as_asp{fsm = SGP, state = inactive},
-			AS = #m3ua_as{rc = RC, rk = RK, state = inactive, asp = [SGP]},
+			ASASP = #m3ua_as_asp{fsm = SGP, state = inactive},
+			AS = #m3ua_as{rc = RC, rk = RK, state = inactive, asp = [ASASP]},
 			mnesia:write(AS),
 			ASP = #m3ua_asp{fsm = SGP, rc = RC, rk = RK},
 			mnesia:write(ASP),
@@ -1051,7 +1051,7 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, 
 					#registration_result{lrk_id = LrkId, status = registered, rc = RC}},
 			{reg, RegRes, {inactive, RC}};
 		[#m3ua_as{rc = RC, asp = SGPs} = AS] ->
-			case lists:keymember(SGP, #m3ua_asp.fsm, SGPs) of	
+			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
 					RegRes = {?RegistrationResult,
 							#registration_result{lrk_id = LrkId,
