@@ -822,17 +822,24 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 		cb_state = CbState} = StateData) when is_integer(RC) ->
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
-	NewRKs = case lists:keytake(RC, 1, RKs) of
-		{value, {RC, _OldKeys, Active}, RKs1} ->
-			[{RC, RK, Active} | RKs1];
-		false ->
-			[{RC, RK, inactive} | RKs]
-	end,
-	NewStateData = StateData#statedata{rks = NewRKs},
-	RegResult = [#registration_result{status = registered, rc = RC}],
-	gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(),
-			RegResult, NA, SortedKeys, Mode, AS, EP, Assoc, CbMod, CbState}),
-	{next_state, StateName, NewStateData}.
+	case reg_tables(RC, RK, AS) of
+		{ok, RC} ->
+			NewRKs = case lists:keytake(RC, 1, RKs) of
+				{value, {RC, _OldKeys, Active}, RKs1} ->
+					[{RC, RK, Active} | RKs1];
+				false ->
+					[{RC, RK, inactive} | RKs]
+			end,
+			CbArgs = [RC, NA, SortedKeys, Mode, CbState],
+			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
+			NewStateData = StateData#statedata{rks = NewRKs,
+					cb_state = NewCbState},
+			gen_server:cast(From,
+					{'M-RK_REG', confirm, Ref, self(), {ok, RC}}),
+			{next_state, StateName, NewStateData};
+		{stop, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+	end.
 
 %% @hidden
 handle_asp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
@@ -947,61 +954,35 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
    RegResult = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
-	Fsm = self(),
 	RKsResult = case RegResult of
 		[#registration_result{status = registered, rc = RC}] ->
-			F = fun() ->
-					case mnesia:read(m3ua_as, RC, write) of
-						[] ->
-							ASPs = [#m3ua_as_asp{fsm = Fsm, state = inactive}],
-							AS = #m3ua_as{rc = RC, rk = RK, asp = ASPs},
-							ok = mnesia:write(AS),
-							ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
-							ok = mnesia:write(ASP);
-						[#m3ua_as{asp = ASPs} = AS] ->
-							NewASPs = case lists:keymember(Fsm, #m3ua_as_asp.fsm, ASPs) of
-								true ->
-									ASPs;
-								false ->
-									[#m3ua_as_asp{fsm = Fsm, state = inactive} | ASPs]
-							end,
-							NewAS = AS#m3ua_as{rk = RK, name = AS, asp = NewASPs},
-							ok = mnesia:write(NewAS),
-							ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
-							ok = mnesia:write(ASP)
-					end
-			end,
-			case mnesia:transaction(F) of
-				{atomic, ok} ->
-					case lists:keytake(RC, 1, RKs) of
-						{value, {RC, _OldKeys, Active}, RKs1} ->
-							{ok, RC, [{RC, RK, Active} | RKs1]};
-						false ->
-							{ok, RC, [{RC, RK, inactive} | RKs]}
-					end;
-				{aborted, Reason} ->
-					{error, Reason}
-			end;
-		[#registration_result{}] ->
-			ok
+			reg_tables(RC, RK, AS);
+		[#registration_result{status = Status}] ->
+			{error, Status}
 	end,
 	case RKsResult of
-		{ok, RC1, NewRKs} ->
+		{ok, RC1} ->
+			NewRKs = case lists:keytake(RC1, 1, RKs) of
+				{value, {RC1, _OldKeys, Active}, RKs1} ->
+					[{RC1, RK, Active} | RKs1];
+				false ->
+					[{RC1, RK, inactive} | RKs]
+			end,
 			CbArgs = [RC1, NA, Keys, Mode, CbState],
 			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 			gen_server:cast(From, {'M-RK_REG', confirm,
-					Ref, Fsm, RegResult, NA, Keys, Mode, AS}),
+					Ref, self(), {ok, RC1}}),
 			inet:setopts(Socket, [{active, once}]),
 			NewStateData = StateData#statedata{req = undefined,
 					rks = NewRKs, cb_state = NewCbState},
 			{next_state, StateName, NewStateData};
-		ok ->
+		{error, Status1} ->
 			gen_server:cast(From, {'M-RK_REG', confirm,
-					Ref, Fsm, RegResult, NA, Keys, Mode, AS}),
+					Ref, self(), {error, Status1}}),
 			inet:setopts(Socket, [{active, once}]),
 			NewStateData = StateData#statedata{req = undefined},
 			{next_state, StateName, NewStateData};
-		{error, Reason1} ->
+		{stop, Reason1} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason1}}, StateData}
 	end;
 handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
@@ -1126,5 +1107,36 @@ get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RoutingKeys)
 			RC;
 		false ->
 			get_rc(DPC, OPC, SI, T)
+	end.
+
+%% @hidden
+reg_tables(RC, RK, Name) ->
+	Fsm = self(),
+	F = fun() ->
+			case mnesia:read(m3ua_as, RC, write) of
+				[] ->
+					ASPs = [#m3ua_as_asp{fsm = Fsm, state = inactive}],
+					AS = #m3ua_as{rc = RC, rk = RK, name = Name, asp = ASPs},
+					mnesia:write(AS),
+					ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
+					mnesia:write(ASP);
+				[#m3ua_as{asp = ASPs} = AS] ->
+					NewASPs = case lists:keymember(Fsm, #m3ua_as_asp.fsm, ASPs) of
+						true ->
+							ASPs;
+						false ->
+							[#m3ua_as_asp{fsm = Fsm, state = inactive} | ASPs]
+					end,
+					NewAS = AS#m3ua_as{rk = RK, name = Name, asp = NewASPs},
+					mnesia:write(NewAS),
+					ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
+					mnesia:write(ASP)
+			end
+	end,
+	case mnesia:transaction(F) of
+		{atomic, ok} ->
+			{ok, RC};
+		{aborted, Reason} ->
+			{stop, Reason}
 	end.
 
