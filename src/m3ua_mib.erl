@@ -399,9 +399,9 @@ as_table_get({error, _Reason}, _, _) ->
 as_table_get1(AS, [N | T], Acc) when N < 2 ->
 	as_table_get1(AS, [2 | T], Acc);
 as_table_get1(AS, [2 | T], Acc) ->
-	as_table_get1(AS, T, [{value, element(7, AS)} | Acc]);
+	as_table_get1(AS, T, [{value, element(8, AS)} | Acc]);
 as_table_get1(AS, [3 | T], Acc) ->
-	as_table_get1(AS, T, [{value, element(4, AS)} | Acc]);
+	as_table_get1(AS, T, [{value, element(5, AS)} | Acc]);
 as_table_get1({Name, _, _, _, _, _, _, _} = AS, [4 | T], Acc)
 		when is_atom(Name) ->
 	as_table_get1(AS, T, [{value, atom_to_list(Name)} | Acc]);
