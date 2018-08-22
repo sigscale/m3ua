@@ -629,8 +629,8 @@ terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
 %% @hidden
 terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData) ->
 	Fsm = self(),
-	Fdel = fun F([{_RC, RK, _Active} | T]) ->
-				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
+	Fdel = fun F([{RC, _RK, _Active} | T]) ->
+				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RC, write),
 				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
 				mnesia:write(AS#m3ua_as{asp = L2}),
 				mnesia:delete(m3ua_asp, Fsm, write),
