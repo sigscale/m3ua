@@ -604,8 +604,8 @@ handle_cast({'M-NOTIFY', indication, ASP, _EP, _Assoc,
 			[] ->
 				ok;
 			ASPs ->
-				F1 = fun(#m3ua_asp{rc = RC}) ->
-					case mnesia:read(m3ua_as, RC, write) of
+				F1 = fun(#m3ua_asp{rc = RC1}) ->
+					case mnesia:read(m3ua_as, RC1, write) of
 						[] ->
 							ok;
 						[#m3ua_as{} = AS] ->
