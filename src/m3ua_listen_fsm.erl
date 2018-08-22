@@ -180,7 +180,7 @@ handle_sync_event({getstat, Options}, _From, StateName,
 	{reply, inet:getstat(Socket, Options), StateName, StateData};
 handle_sync_event(getep, _From, StateName,
 		#statedata{name = Name, role = Role, local_addr = Laddr,
-		local_port = Lport, options = Options} = StateData) ->
+		local_port = Lport} = StateData) ->
 	Reply = {Name, server, Role, {Laddr, Lport}},
 	{reply, Reply, StateName, StateData}.
 
