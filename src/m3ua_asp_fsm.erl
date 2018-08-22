@@ -197,9 +197,6 @@
 
 -behaviour(gen_fsm).
 
-%% export the m3ua_asp_fsm public API
--export([transfer/8]).
-
 %% export the callbacks needed for gen_fsm behaviour
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3,
 			terminate/3, code_change/4]).
@@ -333,32 +330,6 @@
 		Reason :: term(),
 		State :: term(),
 		Result :: any().
-
-%%----------------------------------------------------------------------
-%%  The m3ua_asp_fsm public API
-%%----------------------------------------------------------------------
-
--spec transfer(ASP, Stream, OPC, DPC, NI, SI, SLS, Data) -> Result
-	when
-		ASP :: pid(),
-		Stream :: pos_integer(),
-		OPC :: 0..16777215,
-		DPC :: 0..16777215,
-		NI :: byte(),
-		SI :: byte(),
-		SLS :: byte(),
-		Data :: binary(),
-		Result :: ok | {error, Reason},
-		Reason :: term().
-%% @doc MTP-TRANSFER request.
-%%
-%% Called by an MTP user to transfer data using the MTP service.
-transfer(ASP, Stream, OPC, DPC, NI, SI, SLS, Data)
-		when is_pid(ASP), is_integer(Stream), Stream =/= 0,
-		is_integer(OPC), is_integer(DPC), is_integer(NI),
-		is_integer(SI), is_integer(SLS), is_binary(Data) ->
-	Params = {Stream, OPC, DPC, NI, SI, SLS, Data},
-	gen_fsm:sync_send_event(ASP, {'MTP-TRANSFER', request, Params}).
 
 %%----------------------------------------------------------------------
 %%  The m3ua_asp_fsm gen_fsm callbacks
@@ -582,16 +553,18 @@ active({AspOp, request, Ref, From},
 %% 	gen_fsm:sync_send_event/2,3} in the <b>active</b> state.
 %% @private
 %%
-active({'MTP-TRANSFER', request, {Stream, OPC, DPC, NI, SI, SLS, Data}},
+active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 		_From, #statedata{socket = Socket, assoc = Assoc, count = Count,
 		ep = EP, rks = RKs, use_rc = UseRC} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
 			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
 	P1 = case UseRC of
-		true ->
-			RC = get_rc(DPC, OPC, SI, RKs),
+		true when is_integer(RC) ->
 			m3ua_codec:add_parameter(?RoutingContext, [RC], P0);
+		true ->
+			RC1 = get_rc(DPC, OPC, SI, RKs),
+			m3ua_codec:add_parameter(?RoutingContext, [RC1], P0);
 		false ->
 			P0
 	end,

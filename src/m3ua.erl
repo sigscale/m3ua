@@ -28,7 +28,7 @@
 -export([get_ep/0, get_ep/1, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
--export([transfer/8, transfer/9]).
+-export([transfer/9, transfer/10]).
 
 %% export the m3ua private API
 -export([sort/1, keymember/4, keymember/5]).
@@ -189,7 +189,7 @@ getcount(EndPoint, Assoc)
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
-		RoutingContext :: undefined | non_neg_integer(),
+		RoutingContext :: 0..4294967295 | undefined,
 		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -209,7 +209,7 @@ register(EndPoint, Assoc, RoutingContext, NA, Keys, Mode) ->
 	when
 		EndPoint :: pid(),
 		Assoc :: gen_sctp:assoc_id(),
-		RoutingContext :: undefined | non_neg_integer(),
+		RoutingContext :: 0..4294967295 | undefined,
 		NA :: 0..4294967295 | undefined,
 		Keys :: [Key],
 		Key :: {DPC, [SI], [OPC]},
@@ -318,10 +318,11 @@ asp_active(EndPoint, Assoc) ->
 asp_inactive(EndPoint, Assoc) ->
 	m3ua_lm_server:asp_inactive(EndPoint, Assoc).
 
--spec transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data) -> Result
+-spec transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data) -> Result
 	when
 		Fsm :: pid(),
 		Stream :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
 		OPC :: 0..16777215,
 		DPC :: 0..16777215,
 		NI :: byte(),
@@ -333,17 +334,19 @@ asp_inactive(EndPoint, Assoc) ->
 %% @doc MTP-TRANSFER request.
 %%
 %% Called by an MTP user to transfer data using the MTP service.
-transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data)
+transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
 		when is_pid(Fsm), is_integer(Stream), Stream =/= 0,
+		((RC == undefined) or is_integer(RC)),
 		is_integer(OPC), is_integer(DPC), is_integer(NI),
 		is_integer(SI), is_integer(SLS), is_binary(Data) ->
-	Params = {Stream, OPC, DPC, NI, SI, SLS, Data},
+	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
 	gen_fsm:sync_send_event(Fsm, {'MTP-TRANSFER', request, Params}).
 
--spec transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data, Timeout) -> Result
+-spec transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout) -> Result
 	when
 		Fsm :: pid(),
 		Stream :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
 		OPC :: 0..16777215,
 		DPC :: 0..16777215,
 		NI :: byte(),
@@ -356,12 +359,13 @@ transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data)
 %% @doc MTP-TRANSFER request.
 %%
 %% Called by an MTP user to transfer data using the MTP service.
-transfer(Fsm, Stream, OPC, DPC, NI, SI, SLS, Data, Timeout)
+transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout)
 		when is_pid(Fsm), is_integer(Stream), Stream =/= 0,
+		((RC == undefined) or is_integer(RC)),
 		is_integer(OPC), is_integer(DPC), is_integer(NI),
 		is_integer(SI), is_integer(SLS), is_binary(Data),
 		(is_integer(Timeout) or (Timeout == infinity))->
-	Params = {Stream, OPC, DPC, NI, SI, SLS, Data},
+	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
 	gen_fsm:sync_send_event(Fsm, {'MTP-TRANSFER', request, Params}, Timeout).
 
 -spec get_as() -> Result
@@ -456,7 +460,7 @@ get_assoc(EP) when is_pid(EP) ->
 	when
 		Keys :: [{DPC, [SI], [OPC]}],
 		DPC :: 0..16777215,
-		SI :: pos_integer(),
+		SI :: byte(),
 		OPC :: 0..16777215.
 %% @doc Uniquely sort list of routing keys.
 %% @private
@@ -486,7 +490,7 @@ keymember(DPC, OPC, SI, RoutingKeys) ->
 
 -spec keymember(NA, DPC, OPC, SI, RoutingKeys) -> boolean()
 	when
-		NA :: undefined | byte(),
+		NA :: 0..4294967295 | undefined,
 		DPC :: 0..4294967295,
 		SI :: 0..4294967295,
 		OPC :: 0..4294967295,

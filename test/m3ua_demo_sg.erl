@@ -35,7 +35,7 @@
 init(_Module, _Asp, _EP, _EpName, _Assoc) ->
 	{ok, []}.
 
-transfer(Stream, _RK, OPC, DPC, NI, SI, SLS, Data, State) ->
+transfer(Stream, _RC, OPC, DPC, NI, SI, SLS, Data, State) ->
 	Args = [Stream, DPC, OPC, NI, SI, SLS, Data],
 	proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
 	{ok, State}.
