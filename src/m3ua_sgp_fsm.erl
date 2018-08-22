@@ -1071,7 +1071,7 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, 
 %% @hidden
 send_notify([{Status, RC} | T] = _Notifies, StateName, #statedata{socket = Socket, ep = EP, assoc = Assoc, callback = CbMod, cb_state = CbState, count = Count} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?Status, Status, []),
-	P1 = m3ua_codec:add_parameter(?RoutingContext, RC, P0),
+	P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 	Message = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = P1},
 	Packet = m3ua_codec:m3ua(Message),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
