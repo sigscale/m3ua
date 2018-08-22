@@ -1049,7 +1049,7 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, 
 			mnesia:write(ASP),
 			RegRes = {?RegistrationResult,
 					#registration_result{lrk_id = LrkId, status = registered, rc = RC}},
-			{reg, RegRes, {inactive, RC}};
+			{reg, RegRes, {as_inactive, RC}};
 		[#m3ua_as{rc = RC, asp = SGPs} = AS] ->
 			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
