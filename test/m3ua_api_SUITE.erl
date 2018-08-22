@@ -521,8 +521,9 @@ sg_state_active(_Config) ->
 	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
 	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
-	RK = {NA, Keys, Mode},
-	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
+	RC = rand:uniform(4294967295),
+	Name = make_ref(),
+	{ok, _AS} = m3ua:as_add(Name, RC, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(64511) + 1024,
 	Ref = make_ref(),
 	{ok, _ServerEP} = m3ua:start(callback(Ref), Port, []),
@@ -549,30 +550,30 @@ sg_state_active(_Config) ->
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP1, Assoc1]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP2, Assoc2]),
 	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP3, Assoc3]),
-	#m3ua_as{state = down, asp = []} = get_as(RK),
+	#m3ua_as{state = down, asp = []} = get_as(RC),
 	{ok, _RoutingContext1} = rpc:call(AsNode, m3ua, register,
 			[ClientEP1, Assoc1, undefined, NA, Keys, Mode]),
-	#m3ua_as{state = inactive, asp = Asps1} = get_as(RK),
+	#m3ua_as{state = inactive, asp = Asps1} = get_as(RC),
 	true = is_all_state(inactive, Asps1),
 	1 = length(Asps1),
 	{ok, _RoutingContext2} = rpc:call(AsNode, m3ua, register,
 			[ClientEP2, Assoc2, undefined, NA, Keys, Mode]),
-	#m3ua_as{state = inactive, asp = Asps2} = get_as(RK),
+	#m3ua_as{state = inactive, asp = Asps2} = get_as(RC),
 	true = is_all_state(inactive, Asps2),
 	2 = length(Asps2),
 	{ok, _RoutingContext3} = rpc:call(AsNode, m3ua, register,
 			[ClientEP3, Assoc3, undefined, NA, Keys, Mode]),
-	#m3ua_as{state = inactive, asp = Asps3} = get_as(RK),
+	#m3ua_as{state = inactive, asp = Asps3} = get_as(RC),
 	true = is_all_state(inactive, Asps3),
 	3 = length(Asps3),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP1, Assoc1]),
-	#m3ua_as{state = inactive, asp = Asps4} = get_as(RK),
+	#m3ua_as{state = inactive, asp = Asps4} = get_as(RC),
 	1 = count_state(active, Asps4),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP2, Assoc2]),
-	#m3ua_as{state = inactive, asp = Asps5} = get_as(RK),
+	#m3ua_as{state = inactive, asp = Asps5} = get_as(RC),
 	2 = count_state(active, Asps5),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP3, Assoc3]),
-	#m3ua_as{state = active, asp = Asps6} = get_as(RK),
+	#m3ua_as{state = active, asp = Asps6} = get_as(RC),
 	3 = count_state(active, Asps6).
 
 as_state_active() ->
@@ -587,7 +588,9 @@ as_state_active(_Config) ->
 	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
 	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
-	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
+	RC = rand:uniform(4294967295),
+	Name = make_ref(),
+	{ok, _AS} = m3ua:as_add(Name, RC, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:start(#m3ua_fsm_cb{}, Port, []),
 	Path1 = filename:dirname(code:which(m3ua)),
@@ -641,8 +644,9 @@ sg_state_down(_Config) ->
 	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
 	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
-	RK = {NA, Keys, Mode},
-	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
+	RC = rand:uniform(4294967295),
+	Name = make_ref(),
+	{ok, _AS} = m3ua:as_add(Name, RC, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(64511) + 1024,
 	Ref = make_ref(),
 	{ok, _ServerEP} = m3ua:start(callback(Ref), Port, []),
@@ -678,14 +682,14 @@ sg_state_down(_Config) ->
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP1, Assoc1]),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP2, Assoc2]),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP3, Assoc3]),
-	#m3ua_as{state = active, asp = Asps1} = get_as(RK),
+	#m3ua_as{state = active, asp = Asps1} = get_as(RC),
 	true = is_all_state(active, Asps1),
 	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP1, Assoc1]),
 	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP2, Assoc2]),
-	#m3ua_as{state = active, asp = Asps2} = get_as(RK),
+	#m3ua_as{state = active, asp = Asps2} = get_as(RC),
 	1 = count_state(active, Asps2),
 	ok = rpc:call(AsNode, m3ua, asp_down, [ClientEP3, Assoc3]),
-	#m3ua_as{state = down, asp = Asps3} = get_as(RK),
+	#m3ua_as{state = down, asp = Asps3} = get_as(RC),
 	true = is_all_state(down, Asps3).
 
 as_state_down() ->
@@ -700,7 +704,9 @@ as_state_down(_Config) ->
 	SIs = [rand:uniform(255) || _ <- lists:seq(1, 5)],
 	OPCs = [rand:uniform(16777215) || _ <- lists:seq(1, 5)],
 	Keys = m3ua:sort([{DPC, SIs, OPCs}]),
-	{ok, _AS} = m3ua:as_add(undefined, NA, Keys, Mode, MinAsps, MaxAsps),
+	RC = rand:uniform(4294967295),
+	Name = make_ref(),
+	{ok, _AS} = m3ua:as_add(Name, RC, NA, Keys, Mode, MinAsps, MaxAsps),
 	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:start(#m3ua_fsm_cb{}, Port, []),
 	Path1 = filename:dirname(code:which(m3ua)),
@@ -795,9 +801,9 @@ count_state(IsAspState, Asps) ->
 	end,
 	lists:foldl(F, 0, Asps).
 
-get_as(RK) ->
+get_as(RC) ->
 	F = fun() ->
-			[#m3ua_as{}] = mnesia:read(m3ua_as, RK, read)
+			[#m3ua_as{}] = mnesia:read(m3ua_as, RC, read)
 	end,
 	case mnesia:transaction(F) of
 		{atomic, [AS]} ->
