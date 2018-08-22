@@ -629,8 +629,8 @@ terminate(Reason, StateName, #statedata{socket = Socket} = StateData) ->
 %% @hidden
 terminate1(Reason, _StateName, #statedata{rks = RKs} = StateData) ->
 	Fsm = self(),
-	Fdel = fun F([{_RC, RK, _Active} | T]) ->
-				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RK, write),
+	Fdel = fun F([{RC, _RK, _Active} | T]) ->
+				[#m3ua_as{asp = L1} = AS] = mnesia:read(m3ua_as, RC, write),
 				L2 = lists:keydelete(Fsm, #m3ua_as_asp.fsm, L1),
 				mnesia:write(AS#m3ua_as{asp = L2}),
 				mnesia:delete(m3ua_asp, Fsm, write),
@@ -1021,7 +1021,7 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, 
 			RegRes = {?RegistrationResult,
 					#registration_result{lrk_id = LrkId, status = registered, rc = RC}},
 			{reg, RegRes, {as_inactive, RC}};
-		[#m3ua_as{rc = RC, asp = SGPs} = AS] ->
+		[#m3ua_as{rc = RC, asp = SGPs, state = AsState} = AS] ->
 			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
 					RegRes = {?RegistrationResult,
@@ -1030,7 +1030,13 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, 
 					{not_reg, RegRes};
 				false ->
 					NewSGPs = [#m3ua_as_asp{fsm = SGP, state = inactive} | SGPs],
-					mnesia:write(AS#m3ua_as{asp = NewSGPs}),
+					NewAS = case AsState of
+						active ->
+							AS#m3ua_as{asp = NewSGPs};
+						_ ->
+							AS#m3ua_as{asp = NewSGPs, state = inactive}
+					end,
+					mnesia:write(NewAS),
 					mnesia:write(#m3ua_asp{fsm = SGP, rc = RC, rk = RK}),
 					RegRes = {?RegistrationResult,
 							#registration_result{lrk_id = LrkId,

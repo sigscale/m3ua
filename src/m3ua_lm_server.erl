@@ -553,8 +553,8 @@ handle_cast({AspOp, confirm, Ref,
 				[] ->
 					ok;
 				AspEntries ->
-					F1 = fun(#m3ua_asp{rk = RK}) ->
-						case mnesia:read(m3ua_as, RK, write) of
+					F1 = fun(#m3ua_asp{rc = RC}) ->
+						case mnesia:read(m3ua_as, RC, write) of
 							[] ->
 								ok;
 							[#m3ua_as{asp = ASPs} = AS] ->
@@ -604,8 +604,8 @@ handle_cast({'M-NOTIFY', indication, ASP, _EP, _Assoc,
 			[] ->
 				ok;
 			ASPs ->
-				F1 = fun(#m3ua_asp{rk = RK}) ->
-					case mnesia:read(m3ua_as, RK, write) of
+				F1 = fun(#m3ua_asp{rc = RC}) ->
+					case mnesia:read(m3ua_as, RC, write) of
 						[] ->
 							ok;
 						[#m3ua_as{} = AS] ->
