@@ -54,10 +54,15 @@ start(normal = _StartType, _Args) ->
 	case mnesia:wait_for_tables(Tables, 60000) of
 		ok ->
 			start1();
-		{timeout, _} ->
-			error_logger:error_report(["m3ua application failed to start",
-						{reason, timeout}, {module, ?MODULE}]),
-			{error, timeout};
+		{timeout, BadTabList} ->
+			case force(BadTabList) of
+				ok ->
+					start1();
+				{error, Reason} ->
+					error_logger:error_report(["m3ua application failed to start",
+							{reason, Reason}, {module, ?MODULE}]),
+					{error, Reason}
+			end;
 		{error, Reason} ->
 			{error, Reason}
 	end.
@@ -258,8 +263,24 @@ install4(Nodes, Tables) ->
 			{error, Reason}
 	end.
 
-
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+-spec force(Tables) -> Result
+	when
+		Tables :: [TableName],
+		Result :: ok | {error, Reason},
+		TableName :: atom(),
+		Reason :: term().
+%% @doc Try to force load bad tables.
+force([H | T]) ->
+	case mnesia:force_load_table(H) of
+		yes ->
+			force(T);
+		ErrorDescription ->
+			{error, ErrorDescription}
+	end;
+force([]) ->
+	ok.
 
