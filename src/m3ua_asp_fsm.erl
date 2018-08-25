@@ -436,7 +436,8 @@ inactive(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	gen_server:cast(From, {AspOp, confirm, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
-inactive({'M-RK_REG', request, _, _, _, _, _, _, _} = Event, StateData) ->
+inactive({'M-RK_REG', request, _, _, _, _, _, _, _} = Event,
+		#statedata{req = undefined} = StateData) ->
 	handle_reg(Event, inactive, StateData);
 inactive({'M-ASP_ACTIVE', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
@@ -545,7 +546,8 @@ active({'M-ASP_DOWN', request, Ref, From},
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-active({'M-RK_REG', request, _, _, _, _, _, _, _} = Event, StateData) ->
+active({'M-RK_REG', request, _, _, _, _, _, _, _} = Event,
+		#statedata{req = undefined} = StateData) ->
 	handle_reg(Event, active, StateData);
 active({AspOp, request, Ref, From},
 		#statedata{req = Req} = StateData) when Req /= undefined ->
