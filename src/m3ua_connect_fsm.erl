@@ -232,7 +232,7 @@ handle_sync_event({getstat, Options}, _From, connected,
 		#statedata{socket = Socket} = StateData) ->
 	{reply, inet:getstat(Socket, Options), connected, StateData};
 handle_sync_event(getep, _From, StateName,
-		#statedata{name = Name, role = Role, options = Options,
+		#statedata{name = Name, role = Role,
 		local_addr = Laddr, local_port = Lport,
 		remote_addr = Raddr, remote_port = Rport} = StateData) ->
 	Reply = {Name, client, Role, {Laddr, Lport}, {Raddr, Rport}},
