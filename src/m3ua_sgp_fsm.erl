@@ -680,8 +680,7 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 			NewStateData = StateData#statedata{rks = NewRKs,
 					cb_state = NewCbState},
 			RegResult = [#registration_result{status = registered, rc = RC}],
-			gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(),
-					RegResult, NA, Keys, Mode, AS, EP, Assoc, CbMod, CbState}),
+			gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(), RegResult}),
 			{next_state, StateName, NewStateData};
 		{stop, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
