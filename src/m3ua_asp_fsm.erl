@@ -783,7 +783,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 
 %% @hidden
 handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
-		StateName, #statedata{req = undefined, socket = Socket,
+		StateName, #statedata{static = false, socket = Socket,
 		assoc = Assoc, ep = EP} = StateData)  ->
 	RK = #m3ua_routing_key{rc = RC, na = NA, tmt = Mode, key = Keys,
 			lrk_id = generate_lrk_id(), as = AS},
