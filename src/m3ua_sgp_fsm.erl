@@ -1165,13 +1165,13 @@ state_traffic_maint2(RC, Event) ->
 			case lists:keytake(self(), #m3ua_as_asp.fsm, Asps) of
 				{value, Asp, RemAsp} ->
 					AspState = case Event of
-						as_down ->
+						asp_down ->
 							down;
-						as_up ->
+						asp_up ->
 							inactive;
-						as_inactive ->
+						asp_inactive ->
 							inactive;
-						as_active ->
+						asp_active ->
 							active
 					end,
 					NewAsp = Asp#m3ua_as_asp{state = AspState},
