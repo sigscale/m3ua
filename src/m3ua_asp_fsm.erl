@@ -820,10 +820,9 @@ handle_asp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_asp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
 		StateName, _Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = CbState, ep = EP, assoc = Assoc,
-		count = Count} = StateData) ->
+		cb_state = CbState, count = Count} = StateData) ->
 	Parameters = m3ua_codec:parameters(Params),
-	RCs = m3ua_codec:get_parameter(?RoutingContext, AspUpAck, undefined),
+	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, undefined),
 	Status = m3ua_codec:fetch_parameter(?Status, Parameters),
 	AspId = proplists:get_value(?ASPIdentifier, Parameters),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
