@@ -892,7 +892,7 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK, params = Params},
 		assoc = Assoc, count = Count} = StateData) ->
 	AspActiveAck = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspActiveAck, undefined),
-	NewState = down,
+	NewState = active,
 	case state_traffic_maint(RCs, NewState, StateData) of
 		ok ->
 			CbArgs = [CbState],
@@ -918,7 +918,7 @@ handle_asp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK, params = Params},
 		assoc = Assoc, count = Count} = StateData) ->
 	AspInactiveAck = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspInactiveAck, undefined),
-	NewState = down,
+	NewState = inactive,
 	case state_traffic_maint(RCs, NewState, StateData) of
 		ok ->
 			CbArgs = [CbState],
