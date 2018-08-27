@@ -534,7 +534,7 @@ handle_cast({'M-SCTP_ESTABLISH', indication, Fsm, EP, Assoc},
 handle_cast({AspOp, confirm, Ref, Result},
 		#state{reqs = Reqs} = State)
 		when AspOp == 'M-ASP_DOWN'; AspOp == 'M-ASP_UP';
-		AspOp == 'M-ASP_INACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
+		AspOp == 'M-ASP_INACTIVE'; AspOp == 'M-ASP_ACTIVE' ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
 			gen_server:reply(From, Result),
