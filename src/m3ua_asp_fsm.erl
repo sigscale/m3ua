@@ -1148,7 +1148,7 @@ reg_tables(RC, RK, Name) ->
 
 %% @hidden
 state_traffic_maint(undefined, Event, #statedata{rks = RKs} = StateData) ->
-	RCs = [RC || {RC, _} <- RKs],
+	RCs = [RC || {RC, _, _} <- RKs],
 	state_traffic_maint(RCs, Event, StateData);
 state_traffic_maint(RCs, AspState, _StateData) ->
 	state_traffic_maint1(RCs, AspState).
