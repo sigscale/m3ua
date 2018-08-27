@@ -541,53 +541,7 @@ handle_cast({AspOp, confirm, Ref, Result}, #state{reqs = Reqs} = State)
 			{noreply, State#state{reqs = NewReqs}};
 		none ->
 			{noreply, State}
-	end;
-handle_cast({'M-NOTIFY', indication, ASP, _EP, _Assoc,
-		RC, Status, AspID, CbMod, CbState}, State)
-		when (Status == as_inactive) orelse (Status == as_active)
-		orelse (Status == as_pending) ->
-	F = fun() ->
-		case mnesia:read(m3ua_asp, ASP, read) of
-			[] ->
-				ok;
-			ASPs ->
-				F1 = fun(#m3ua_asp{rc = RC1}) ->
-					case mnesia:read(m3ua_as, RC1, write) of
-						[] ->
-							ok;
-						[#m3ua_as{} = AS] ->
-							F2 = fun(as_active) ->
-										active;
-									(as_inactive) ->
-										inactive;
-									(as_pending) ->
-										pending
-							end,
-							NewAS = AS#m3ua_as{state = F2(Status)},
-							ok = mnesia:write(NewAS)
-					end
-				end,
-				lists:foreach(F1, ASPs)
-		end
-	end,
-	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			CbArgs = [RC, Status, AspID, CbState],
-			{ok, NewCbState} = m3ua_callback:cb(notify, CbMod, CbArgs),
-			ok = gen_fsm:send_all_state_event(ASP, {'M-NOTIFY', NewCbState}),
-			{noreply, State};
-		{aborted, Reason} ->
-			{stop, Reason, State}
-	end;
-handle_cast({'M-NOTIFY', indication, ASP, _EP, _Assoc,
-		RC, Status, AspID, CbMod, CbState}, State)
-		when (Status == insufficient_asp_active)
-		orelse (Status == alternate_asp_active)
-		orelse (Status == asp_failure) ->
-	CbArgs = [RC, Status, AspID, CbState],
-	{ok, NewCbState} = m3ua_callback:cb(notify, CbMod, CbArgs),
-	ok = gen_fsm:send_all_state_event(ASP, {notify, NewCbState}),
-	{noreply, State}.
+	end.
 
 -spec handle_info(Info :: timeout | term(), State::#state{}) ->
 	{noreply, NewState :: #state{}}

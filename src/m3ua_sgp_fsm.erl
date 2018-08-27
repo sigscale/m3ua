@@ -483,16 +483,6 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 %% @see //stdlib/gen_fsm:handle_event/3
 %% @private
 %%
-handle_event({'M-NOTIFY', NotifyFor, RC}, StateName, StateData) ->
-	Status = case NotifyFor of
-		'AS_ACTIVE' ->
-			as_active;
-		'AS_INACTIVE' ->
-			as_inactive;
-		'AS_PENDING' ->
-			as_pending
-	end,
-	send_notify([{Status, RC}], StateName, StateData);
 handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
 		#statedata{ep = EP, assoc = Assoc, socket = Socket} = StateData) ->
 	gen_server:cast(From,
@@ -1141,8 +1131,7 @@ state_traffic_maint1([RC | T], Event, #statedata{ep = EP, assoc = Assoc,
 					({Fsm, inactive}) ->
 						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC});
 					({Fsm, down}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC})
-% @todo AS_DOWN? AS_ACTIVE? send to self?
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_DOWN', RC})
 			end,
 			ok = lists:foreach(F3, NotifyFsms),
 			state_traffic_maint1(T, Event, StateData#statedata{cb_state = NewCbState});
