@@ -504,7 +504,7 @@ handle_cast({'M-SCTP_RELEASE', confirm, Ref, Result},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({_AspOp, confirm, Ref, _ASP, {error, Reason}},
+handle_cast({_AspOp, confirm, Ref, {error, Reason}},
 		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
@@ -515,7 +515,7 @@ handle_cast({_AspOp, confirm, Ref, _ASP, {error, Reason}},
 		none ->
 			{noreply, State}
 	end;
-handle_cast({'M-RK_REG', confirm, Ref, _ASP, Result},
+handle_cast({'M-RK_REG', confirm, Ref, Result},
 		#state{reqs = Reqs} = State) ->
 	case gb_trees:lookup(Ref, Reqs) of
 		{value, From} ->
@@ -531,7 +531,8 @@ handle_cast({'M-SCTP_ESTABLISH', indication, Fsm, EP, Assoc},
 	NewFsms = gb_trees:insert({EP, Assoc}, Fsm, Fsms),
 	link(Fsm),
 	{noreply, State#state{fsms = NewFsms}};
-handle_cast({AspOp, confirm, Ref, Result}, #state{reqs = Reqs} = State)
+handle_cast({AspOp, confirm, Ref, Result},
+		#state{reqs = Reqs} = State)
 		when AspOp == 'M-ASP_DOWN'; AspOp == 'M-ASP_UP';
 		AspOp == 'M-ASP_INACTIVE'; AspOp == 'M-ASP_INACTIVE' ->
 	case gb_trees:lookup(Ref, Reqs) of

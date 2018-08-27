@@ -663,7 +663,7 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 			NewStateData = StateData#statedata{rks = NewRKs,
 					cb_state = NewCbState},
-			gen_server:cast(From, {'M-RK_REG', confirm, Ref, self(), {ok, RC}}),
+			gen_server:cast(From, {'M-RK_REG', confirm, Ref, {ok, RC}}),
 			{next_state, StateName, NewStateData};
 		{stop, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
