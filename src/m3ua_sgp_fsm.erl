@@ -667,7 +667,9 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 			{next_state, StateName, NewStateData};
 		{stop, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
-	end.
+	end;
+handle_reg(_, _, #statedata{ep = EP, assoc = Assoc} = StateData) ->
+	{stop, {shutdown, {{EP, Assoc}, bad_routing_context}}, StateData}.
 
 %% @hidden
 handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
@@ -896,10 +898,13 @@ inet_getopts(Socket, Options) ->
 reg_request(RoutingKeys, StateName, StateData) ->
 	reg_request(RoutingKeys, StateName, StateData, [], []).
 %% @hidden
-reg_request([RK | T], StateName, #statedata{socket = Socket, ep = EP, assoc = Assoc, callback = CbMod, cb_state = CbState, count = Count} = StateData, RegResults, Notifies) ->
+reg_request([RK | T], StateName, #statedata{socket = Socket,
+		ep = EP, assoc = Assoc, callback = CbMod, cb_state = CbState,
+		count = Count} = StateData, RegResults, Notifies) ->
 	try m3ua_codec:routing_key(RK)
 	of
-		#m3ua_routing_key{rc = RC, na = NA, key = Keys, tmt = Mode, lrk_id = LrkId} = RoutingKey ->
+		#m3ua_routing_key{rc = RC, na = NA, key = Keys,
+				tmt = Mode, lrk_id = LrkId} = RoutingKey ->
 			F = fun() -> catch reg_request1(RoutingKey) end,
 			case mnesia:transaction(F) of
 				{atomic, {reg, RegResult}} ->
@@ -939,7 +944,8 @@ reg_request([RK | T], StateName, #statedata{socket = Socket, ep = EP, assoc = As
 					{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 			end
 	end;
-reg_request([], StateName, #statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData, RegResults, Notifies) ->
+reg_request([], StateName, #statedata{socket = Socket,
+		ep = EP, assoc = Assoc} = StateData, RegResults, Notifies) ->
 	RegResMsg = #m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = lists:reverse(RegResults)},
 	RegResPacket = m3ua_codec:m3ua(RegResMsg),
 	case gen_sctp:send(Socket, Assoc, 0, RegResPacket) of
@@ -952,7 +958,8 @@ reg_request([], StateName, #statedata{socket = Socket, ep = EP, assoc = Assoc} =
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end.
 %% @hidden
-reg_request1(#m3ua_routing_key{rc = RC, na = NA, key = Keys, tmt = Mode, lrk_id = LrkId}) when is_integer(RC) ->
+reg_request1(#m3ua_routing_key{rc = RC, na = NA, key = Keys,
+		tmt = Mode, lrk_id = LrkId}) when is_integer(RC) ->
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
 	SGP = self(),
@@ -995,7 +1002,8 @@ reg_request1(#m3ua_routing_key{rc = RC, na = NA, key = Keys, tmt = Mode, lrk_id 
 					{reg, RegRes}
 			end
 	end;
-reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, lrk_id = LrkId}) ->
+reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys,
+		tmt = Mode, lrk_id = LrkId}) ->
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
 	SGP = self(),
@@ -1035,7 +1043,9 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys, tmt = Mode, 
 	end.
 
 %% @hidden
-send_notify([{Status, RC} | T] = _Notifies, StateName, #statedata{socket = Socket, ep = EP, assoc = Assoc, callback = CbMod, cb_state = CbState, count = Count} = StateData) ->
+send_notify([{Status, RC} | T] = _Notifies, StateName,
+		#statedata{socket = Socket, ep = EP, assoc = Assoc,
+		callback = CbMod, cb_state = CbState, count = Count} = StateData) ->
 	P0 = m3ua_codec:add_parameter(?Status, Status, []),
 	P1 = m3ua_codec:add_parameter(?RoutingContext, [RC], P0),
 	Message = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = P1},
