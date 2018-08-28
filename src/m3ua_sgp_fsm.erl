@@ -36,9 +36,16 @@
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>EpName = term()</tt></li>
 %%%    <li><tt>Assoc = gen_sctp:assoc_id()</tt></li>
-%%%    <li><tt>Result = {ok, State} | {error, Reason} </tt></li>
-%%%    <li><tt>State = term() </tt></li>
-%%%    <li><tt>Reason = term() </tt></li>
+%%%    <li><tt>Result = {ok, State} | {ok, State, RKs} | {error, Reason}</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>RKs = [{RC, RK, AsName}]</tt></li>
+%%%    <li><tt>RC = 0..4294967295 | undefined</tt></li>
+%%%    <li><tt>RK = {NA, Keys, TMT}</tt></li>
+%%%    <li><tt>NA = 0..4294967295 | undefined</tt></li>
+%%%    <li><tt>Keys = [key()]</tt></li>
+%%%    <li><tt>Mode = tmt()</tt></li>
+%%%    <li><tt>AsName = term()</tt></li>
+%%%    <li><tt>Reason = term()</tt></li>
 %%%  </ul></p>
 %%%  </div><p>Initialize SGP callback handler.</p>
 %%%  <p>Called when SGP is started.</p>
@@ -237,8 +244,15 @@
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: gen_sctp:assoc_id(),
-		Result :: {ok, State} | {error, Reason},
+		Result :: {ok, State} | {ok, State, ASs} | {error, Reason},
 		State :: term(),
+		ASs :: [{RC, RK, AsName}],
+		RC :: 0..4294967295,
+		RK :: {NA, Keys, TMT},
+		NA :: 0..4294967295 | undefined,
+		Keys :: [key()],
+		TMT :: tmt(),
+		AsName :: term(),
 		Reason :: term().
 -callback transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
@@ -349,17 +363,36 @@ init([Socket, Address, Port,
 	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, CbState} ->
-			Statedata = #statedata{socket = Socket, assoc = Assoc,
+			StateData = #statedata{socket = Socket, assoc = Assoc,
 					peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
 					callback = Cb, cb_state = CbState,
 					ep = EP, ep_name = EpName,
 					static = Static, use_rc = UseRC},
-			{ok, down, Statedata, 0};
+			{ok, down, StateData, 0};
+		{ok, CbState, RKs} ->
+			StateData = #statedata{socket = Socket, assoc = Assoc,
+					peer_addr = Address, peer_port = Port,
+					in_streams = InStreams, out_streams = OutStreams,
+					callback = Cb, cb_state = CbState,
+					ep = EP, ep_name = EpName,
+					static = Static, use_rc = UseRC},
+			init1(RKs, StateData, []);
 		{error, Reason} ->
 			gen_sctp:close(Socket),
 			{stop, Reason}
 	end.
+%% @hidden
+init1([{RC, RK, Name} | T], StateData, Acc) ->
+	case reg_tables(RC, RK, Name, down) of
+		{ok, RC} ->
+			init1(T, StateData, [{RC, RK, inactive} | Acc]);
+		{stop, Reason} ->
+			{stop, Reason}
+	end;
+init1([], StateData, Acc) ->
+	NewStateData = StateData#statedata{rks = lists:reverse(Acc)},
+	{ok, down, NewStateData}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
@@ -651,7 +684,7 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 		cb_state = CbState} = StateData) when is_integer(RC) ->
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
-	case reg_tables(RC, RK, AS) of
+	case reg_tables(RC, RK, AS, inactive) of
 		{ok, RC} ->
 			NewRKs = case lists:keytake(RC, 1, RKs) of
 				{value, {RC, _OldKeys, Active}, RKs1} ->
@@ -1070,13 +1103,13 @@ send_notify([], StateName, #statedata{socket = Socket} = StateData) ->
 
 -spec get_rc(DPC, OPC, SI, RKs) -> RC
 	when
-		DPC :: 0..4294967295,
-		OPC :: 0..4294967295,
-		SI :: 0..4294967295,
+		DPC :: 0..16777215,
+		OPC :: 0..16777215,
+		SI :: byte(),
 		RKs :: [{RC, RK, Active}],
 		RC :: 0..4294967295,
 		RK :: {NA, Keys, TMT},
-		NA :: byte(),
+		NA :: 0..4294967295,
 		Keys :: [{DPC, [SI], [OPC]}],
 		TMT :: tmt(),
 		Active :: boolean().
@@ -1092,12 +1125,12 @@ get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RoutingKeys)
 	end.
 
 %% @hidden
-reg_tables(RC, RK, Name) ->
+reg_tables(RC, RK, Name, AspState) ->
 	Fsm = self(),
 	F = fun() ->
 			case mnesia:read(m3ua_as, RC, write) of
 				[] ->
-					ASPs = [#m3ua_as_asp{fsm = Fsm, state = inactive}],
+					ASPs = [#m3ua_as_asp{fsm = Fsm, state = AspState}],
 					AS = #m3ua_as{rc = RC, rk = RK, name = Name, asp = ASPs},
 					mnesia:write(AS),
 					ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
@@ -1107,7 +1140,7 @@ reg_tables(RC, RK, Name) ->
 						true ->
 							ASPs;
 						false ->
-							[#m3ua_as_asp{fsm = Fsm, state = inactive} | ASPs]
+							[#m3ua_as_asp{fsm = Fsm, state = AspState} | ASPs]
 					end,
 					NewAS = AS#m3ua_as{rk = RK, name = Name, asp = NewASPs},
 					mnesia:write(NewAS),
