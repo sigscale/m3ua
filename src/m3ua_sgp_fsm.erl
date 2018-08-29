@@ -392,7 +392,7 @@ init1([{RC, RK, Name} | T], StateData, Acc) ->
 	end;
 init1([], StateData, Acc) ->
 	NewStateData = StateData#statedata{rks = lists:reverse(Acc)},
-	{ok, down, NewStateData}.
+	{ok, down, NewStateData, 0}.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
@@ -535,6 +535,25 @@ handle_event({'M-SCTP_STATUS', request, Ref, From},
 			gen_server:cast(From,
 					{'M-SCTP_STATUS', confirm, Ref, {error, Reason}}),
 			{next_state, StateName, StateData}
+	end;
+handle_event({'M-NOTIFY', AsState, _RC}, StateName,
+		#statedata{socket = Socket, ep = EP, assoc = Assoc,
+		count = Count} = StateData) ->
+	Params = m3ua_codec:store_parameter(?Status, AsState, []),
+	Notify = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
+	Packet = m3ua_codec:m3ua(Notify),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, once}]),
+			NotifyIn = maps:get(notify_out, Count, 0),
+			NewCount = maps:put(notify_out, NotifyIn + 1, Count),
+			NewStateData = StateData#statedata{count = NewCount},
+			{next_state, StateName, NewStateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
+		{error, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_event({'M-ASP_STATUS', request, Ref, From}, StateName, StateData) ->
 	gen_server:cast(From, {'M-ASP_STATUS', confirm, Ref, StateName}),
@@ -1170,11 +1189,13 @@ state_traffic_maint1([RC | T], Event, #statedata{ep = EP, assoc = Assoc,
 			CbArgs = [CbState],
 			{ok, NewCbState} = m3ua_callback:cb(Event, CbMod, CbArgs),
 			F3 = fun({Fsm, pending}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_PENDING', RC});
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_pending, RC});
 					({Fsm, inactive}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_INACTIVE', RC});
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_inactive, RC});
+					({Fsm, active}) ->
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_active, RC});
 					({Fsm, down}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', 'AS_DOWN', RC})
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_down, RC})
 			end,
 			ok = lists:foreach(F3, NotifyFsms),
 			state_traffic_maint1(T, Event, StateData#statedata{cb_state = NewCbState});
