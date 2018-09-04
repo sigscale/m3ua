@@ -15,7 +15,7 @@
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% @doc This library module implements the default callback for the
-%%%		m3ua_[asp | sgp]_fsm
+%%%		m3ua_[asp|sgp]_fsm.
 %%%
 -module(m3ua_callback).
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
@@ -40,11 +40,12 @@
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: gen_sctp:assoc_id(),
-		Result :: {ok, State} | {error, Reason},
+		Result :: {ok, Active, State} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
 		State :: term(),
 		Reason :: term().
 init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
-	{ok, []}.
+	{ok, once, []}.
 
 -spec transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
@@ -57,11 +58,12 @@ init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
 		SLS :: byte(),
 		Data :: binary(),
 		State :: term(),
-		Result :: {ok, NewState} | {error, Reason},
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
 transfer(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
-	{ok, State}.
+	{ok, once, State}.
 
 -spec pause(Stream, RC, DPCs, State) -> Result
 	when

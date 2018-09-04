@@ -325,7 +325,6 @@ handle_connect(AssocChange, #statedata{socket = Socket,
 		{ok, Fsm} ->
 			case gen_sctp:controlling_process(Socket, Fsm) of
 				ok ->
-					inet:setopts(Socket, [{active, once}]),
 					link(Fsm),
 					NewStateData = StateData#statedata{fsm = Fsm},
 					{next_state, connected, NewStateData};

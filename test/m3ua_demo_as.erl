@@ -34,10 +34,10 @@
 %%----------------------------------------------------------------------
 
 init(_Module, _Asp, _EP, _EpName, _Assoc) ->
-	{ok, []}.
+	{ok, once, []}.
 
 transfer(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
-	{ok, State}.
+	{ok, once, State}.
 
 pause(_Stream, _RCs, _DPCs, State) ->
 	{ok, State}.

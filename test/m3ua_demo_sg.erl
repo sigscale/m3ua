@@ -33,12 +33,12 @@
 %%  The m3ua_sgp_fsm callback
 %%----------------------------------------------------------------------
 init(_Module, _Asp, _EP, _EpName, _Assoc) ->
-	{ok, []}.
+	{ok, once, []}.
 
 transfer(Stream, _RC, OPC, DPC, NI, SI, SLS, Data, State) ->
 	Args = [Stream, DPC, OPC, NI, SI, SLS, Data],
 	proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
-	{ok, State}.
+	{ok, once, State}.
 
 pause(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.

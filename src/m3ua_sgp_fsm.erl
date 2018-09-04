@@ -36,7 +36,8 @@
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>EpName = term()</tt></li>
 %%%    <li><tt>Assoc = gen_sctp:assoc_id()</tt></li>
-%%%    <li><tt>Result = {ok, State} | {ok, State, RKs} | {error, Reason}</tt></li>
+%%%    <li><tt>Result = {ok, Active, State} | {ok, Active, State, RKs} | {error, Reason}</tt></li>
+%%%    <li><tt>Active = true | false | once | pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>RKs = [{RC, RK, AsName}]</tt></li>
 %%%    <li><tt>RC = 0..4294967295 | undefined</tt></li>
@@ -64,7 +65,8 @@
 %%%    <li><tt>SLS = byte() </tt></li>
 %%%    <li><tt>Data = binary() </tt></li>
 %%%    <li><tt>State = term() </tt></li>
-%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
+%%%    <li><tt>Result = {ok, Active, NewState} | {error, Reason}</tt></li>
+%%%    <li><tt>Active = true | false | once | pos_integer()</tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
@@ -216,6 +218,7 @@
 
 -record(statedata,
 		{socket :: gen_sctp:sctp_socket() | undefined,
+		active :: true | false | once | pos_integer(),
 		peer_addr :: inet:ip_address(),
 		peer_port :: inet:port_number(),
 		in_streams :: non_neg_integer(),
@@ -244,7 +247,8 @@
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: gen_sctp:assoc_id(),
-		Result :: {ok, State} | {ok, State, ASs} | {error, Reason},
+		Result :: {ok, Active, State} | {ok, Active, State, ASs} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
 		State :: term(),
 		ASs :: [{RC, RK, AsName}],
 		RC :: 0..4294967295,
@@ -265,7 +269,8 @@
 		SLS :: byte(),
 		Data :: binary(),
 		State :: term(),
-		Result :: {ok, NewState} | {error, Reason},
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
 -callback pause(Stream, RCs, DPCs, State) -> Result
@@ -362,17 +367,22 @@ init([Socket, Address, Port,
 	process_flag(trap_exit, true),
 	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
-		{ok, CbState} ->
-			StateData = #statedata{socket = Socket, assoc = Assoc,
-					peer_addr = Address, peer_port = Port,
-					in_streams = InStreams, out_streams = OutStreams,
-					callback = Cb, cb_state = CbState,
-					ep = EP, ep_name = EpName,
-					static = Static, use_rc = UseRC},
-			{ok, down, StateData, 0};
-		{ok, CbState, RKs} ->
-			StateData = #statedata{socket = Socket, assoc = Assoc,
-					peer_addr = Address, peer_port = Port,
+		{ok, Active, CbState} ->
+			case inet:setopts(Socket, [{active, Active}]) of
+				ok ->
+					Statedata = #statedata{socket = Socket, active = Active,
+							assoc = Assoc, peer_addr = Address, peer_port = Port,
+							in_streams = InStreams, out_streams = OutStreams,
+							ep = EP, ep_name = EpName,
+							callback = Cb, cb_state = CbState,
+							static = Static, use_rc = UseRC},
+					{ok, down, Statedata, 0};
+				{error, Reason} ->
+					{stop, Reason}
+			end;
+		{ok, Active, CbState, RKs} ->
+			StateData = #statedata{socket = Socket, active = Active,
+					assoc = Assoc, peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
 					callback = Cb, cb_state = CbState,
 					ep = EP, ep_name = EpName,
@@ -390,9 +400,14 @@ init1([{RC, RK, Name} | T], StateData, Acc) ->
 		{stop, Reason} ->
 			{stop, Reason}
 	end;
-init1([], StateData, Acc) ->
-	NewStateData = StateData#statedata{rks = lists:reverse(Acc)},
-	{ok, down, NewStateData, 0}.
+init1([], #statedata{socket = Socket, active = Active} = StateData, Acc) ->
+	case inet:setopts(Socket, [{active, Active}]) of
+		ok ->
+			NewStateData = StateData#statedata{rks = lists:reverse(Acc)},
+			{ok, down, NewStateData, 0};
+		{error, Reason} ->
+			{stop, Reason}
+	end.
 
 -spec down(Event :: timeout | term(), StateData :: #statedata{}) ->
 	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
@@ -537,14 +552,14 @@ handle_event({'M-SCTP_STATUS', request, Ref, From},
 			{next_state, StateName, StateData}
 	end;
 handle_event({'M-NOTIFY', AsState, _RC}, StateName,
-		#statedata{socket = Socket, ep = EP, assoc = Assoc,
-		count = Count} = StateData) ->
+		#statedata{socket = Socket, active = Active, ep = EP,
+		assoc = Assoc, count = Count} = StateData) ->
 	Params = m3ua_codec:store_parameter(?Status, AsState, []),
 	Notify = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
 	Packet = m3ua_codec:m3ua(Notify),
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
-			inet:setopts(Socket, [{active, once}]),
+			inet:setopts(Socket, [{active, Active}]),
 			NotifyIn = maps:get(notify_out, Count, 0),
 			NewCount = maps:put(notify_out, NotifyIn + 1, Count),
 			NewStateData = StateData#statedata{count = NewCount},
@@ -604,15 +619,17 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 	{stop, {shutdown, {{EP, Assoc}, comm_lost}}, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = Assoc}}},
-		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
+		StateName, #statedata{socket = Socket, active = Active,
+		assoc = Assoc} = StateData) ->
+	inet:setopts(Socket, [{active, Active}]),
 	{next_state, StateName, StateData#statedata{ual = UAL}};
 % @todo Track peer address states.
 handle_info({sctp, Socket, _, _,
 		{[], #sctp_paddr_change{addr = {PeerAddr, PeerPort},
 		state = addr_confirmed, assoc_id = Assoc}}}, StateName,
-		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
+		#statedata{socket = Socket, active = Active,
+		assoc = Assoc} = StateData) ->
+	inet:setopts(Socket, [{active, Active}]),
 	NewStateData = StateData#statedata{peer_addr = PeerAddr,
 			peer_port = PeerPort},
 	{next_state, StateName, NewStateData};
@@ -727,8 +744,8 @@ handle_reg(_, _, #statedata{ep = EP, assoc = Assoc} = StateData) ->
 handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP, params = Params},
-		down, _Stream, #statedata{socket = Socket, assoc = Assoc,
-		ep = EP, count = Count} = StateData) ->
+		down, _Stream, #statedata{socket = Socket, active = Active,
+		assoc = Assoc, ep = EP, count = Count} = StateData) ->
 	AspUp = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspUp, undefined),
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
@@ -736,7 +753,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_up, StateData),
-			inet:setopts(Socket, [{active, once}]),
+			inet:setopts(Socket, [{active, Active}]),
 			UpIn = maps:get(up_in, Count, 0),
 			UpAckOut = maps:get(up_ack_out, Count, 0),
 			NewCount = maps:put(up_in, UpIn + 1, Count),
@@ -750,7 +767,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP, params = Params},
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
-		inactive, _Stream, #statedata{socket = Socket,
+		inactive, _Stream, #statedata{socket = Socket, active = Active,
 		assoc = Assoc, ep = EP, count = Count} = StateData) ->
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
 	Packet = m3ua_codec:m3ua(AspUpAck),
@@ -763,7 +780,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
 			Packet2 = m3ua_codec:m3ua(ErrorMsg),
 			case gen_sctp:send(Socket, Assoc, 0, Packet2) of
 				ok ->
-					inet:setopts(Socket, [{active, once}]),
+					inet:setopts(Socket, [{active, Active}]),
 					UpIn = maps:get(up_in, Count, 0),
 					UpAckOut = maps:get(up_ack_out, Count, 0),
 					NewCount = maps:put(up_in, UpIn + 1, Count),
@@ -789,8 +806,8 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 	RKs = m3ua_codec:get_all_parameter(?RoutingKey, Parameters),
 	reg_request(RKs, StateName, StateData);
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
-		inactive, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
-		count = Count} = StateData) ->
+		inactive, _Stream, #statedata{socket = Socket, active = Active,
+		assoc = Assoc, ep = EP, count = Count} = StateData) ->
 	AspActive = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspActive, undefined),
 	AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
@@ -798,7 +815,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_active, StateData),
-			inet:setopts(Socket, [{active, once}]),
+			inet:setopts(Socket, [{active, Active}]),
 			ActiveIn = maps:get(active_in, Count, 0),
 			ActiveAckOut = maps:get(active_ack_out, Count, 0),
 			NewCount = maps:put(active_in, ActiveIn + 1, Count),
@@ -812,8 +829,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN, params = Params},
-		StateName, _Stream, #statedata{socket = Socket, assoc = Assoc,
-		ep = EP, count = Count} = StateData)
+		StateName, _Stream, #statedata{socket = Socket, active = Active,
+		assoc = Assoc, ep = EP, count = Count} = StateData)
 		when StateName == inactive; StateName == active ->
 	AspDown = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspDown, undefined),
@@ -822,7 +839,7 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_down, StateData),
-			inet:setopts(Socket, [{active, once}]),
+			inet:setopts(Socket, [{active, Active}]),
 			DownIn = maps:get(down_in, Count, 0),
 			DownAckOut = maps:get(down_ack_out, Count, 0),
 			NewCount = maps:put(down_in, DownIn + 1, Count),
@@ -836,8 +853,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN, params = Params},
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
-		active, _Stream, #statedata{socket = Socket, assoc = Assoc, ep = EP,
-		count = Count} = StateData) ->
+		active, _Stream, #statedata{socket = Socket, active = Active,
+		assoc = Assoc, ep = EP, count = Count} = StateData) ->
 	AspInActive = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspInActive, undefined),
 	AspInActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
@@ -845,7 +862,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_inactive, StateData),
-			inet:setopts(Socket, [{active, once}]),
+			inet:setopts(Socket, [{active, Active}]),
 			InactiveIn = maps:get(inactive_in, Count, 0),
 			InactiveAckOut = maps:get(inactive_ack_out, Count, 0),
 			NewCount = maps:put(inactive_in, InactiveIn + 1, Count),
@@ -861,6 +878,7 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 handle_sgp(#m3ua{class = ?TransferMessage,
 		type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket,
+		active = Active, ep = EP, assoc = Assoc,
 		callback = CbMod, cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
@@ -873,60 +891,66 @@ handle_sgp(#m3ua{class = ?TransferMessage,
 	#protocol_data{opc = OPC, dpc = DPC, ni = NI, si = SI, sls = SLS,
 			data = Data} = m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
 	CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
-	{ok, NewCbState} = m3ua_callback:cb(transfer, CbMod, CbArgs),
-	inet:setopts(Socket, [{active, once}]),
-	TransferIn = maps:get(transfer_in, Count, 0),
-	NewCount = maps:put(transfer_in, TransferIn + 1, Count),
-	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
-	{next_state, active, NewStateData};
+	case m3ua_callback:cb(transfer, CbMod, CbArgs) of
+		{ok, Active, NewCbState} ->
+			inet:setopts(Socket, [{active, Active}]),
+			TransferIn = maps:get(transfer_in, Count, 0),
+			NewCount = maps:put(transfer_in, TransferIn + 1, Count),
+			NewStateData = StateData#statedata{active = Active,
+					cb_state = NewCbState, count = NewCount},
+			{next_state, active, NewStateData};
+		{error, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+	end;
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = CbState, count = Count} = StateData)
+		StateName, Stream, #statedata{socket = Socket, active = Active,
+		callback = CbMod, cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RCs, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
-	inet:setopts(Socket, [{active, once}]),
+	inet:setopts(Socket, [{active, Active}]),
 	DunaIn = maps:get(duna_in, Count, 0),
 	NewCount = maps:put(duna_in, DunaIn + 1, Count),
 	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
 	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = CbState, count = Count} = StateData)
+		StateName, Stream, #statedata{socket = Socket, active = Active,
+		callback = CbMod, cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RCs, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
-	inet:setopts(Socket, [{active, once}]),
+	inet:setopts(Socket, [{active, Active}]),
 	DavaIn = maps:get(dava_in, Count, 0),
 	NewCount = maps:put(dava_in, DavaIn + 1, Count),
 	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
 	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
-		StateName, Stream, #statedata{socket = Socket, callback = CbMod,
-		cb_state = CbState} = StateData) when CbMod /= undefined ->
+		StateName, Stream, #statedata{socket = Socket, active = Active,
+		callback = CbMod, cb_state = CbState} = StateData)
+		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RCs, APCs, CbState],
 	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
-	inet:setopts(Socket, [{active, once}]),
+	inet:setopts(Socket, [{active, Active}]),
 	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
-		StateName, _Stream,
-		#statedata{assoc = Assoc, ep = EP, socket = Socket} = StateData) ->
+		StateName, _Stream, #statedata{assoc = Assoc, ep = EP,
+		socket = Socket, active = Active} = StateData) ->
 	Parameters = m3ua_codec:parameters(Params),
 	ErrorCode = proplists:get_value(?ErrorCode, Parameters),
 	error_logger:error_report(["M3UA protocol error",
 			{module, ?MODULE}, {state, StateName}, {endpoint, EP},
 			{association, Assoc}, {error, ErrorCode}]),
-	inet:setopts(Socket, [{active, once}]),
+	inet:setopts(Socket, [{active, Active}]),
 	{next_state, StateName, StateData}.
 
 -dialyzer({[nowarn_function, no_contracts], inet_getopts/2}).
@@ -951,7 +975,8 @@ reg_request(RoutingKeys, StateName, StateData) ->
 	reg_request(RoutingKeys, StateName, StateData, [], []).
 %% @hidden
 reg_request([RK | T], StateName, #statedata{socket = Socket,
-		ep = EP, assoc = Assoc, callback = CbMod, cb_state = CbState,
+		active = Active, ep = EP, assoc = Assoc,
+		callback = CbMod, cb_state = CbState,
 		count = Count} = StateData, RegResults, Notifies) ->
 	try m3ua_codec:routing_key(RK)
 	of
@@ -987,7 +1012,7 @@ reg_request([RK | T], StateName, #statedata{socket = Socket,
 					ErrorOut = maps:get(error_out, Count, 0),
 					NewCount = maps:put(eror_out, ErrorOut + 1, Count),
 					NewStateData = StateData#statedata{count = NewCount},
-					inet:setopts(Socket, [{active, once}]),
+					inet:setopts(Socket, [{active, Active}]),
 					{next_state, StateName, NewStateData};
 				{error, eagain} ->
 					% @todo flow control
@@ -1116,8 +1141,9 @@ send_notify([{Status, RC} | T] = _Notifies, StateName,
 	{error, Reason} ->
 		{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-send_notify([], StateName, #statedata{socket = Socket} = StateData) ->
-	inet:setopts(Socket, [{active, once}]),
+send_notify([], StateName,
+		#statedata{socket = Socket, active = Active} = StateData) ->
+	inet:setopts(Socket, [{active, Active}]),
 	{next_state, StateName, StateData}.
 
 -spec get_rc(DPC, OPC, SI, RKs) -> RC

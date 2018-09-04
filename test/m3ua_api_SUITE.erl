@@ -360,21 +360,20 @@ mtp_transfer(_Config) ->
 				{ok, []}
 	end,
 	AspInit = fun(_, ASP, _, _, _, _) ->
-				{ok, ASP}
+				{ok, once, ASP}
 	end,
 	Ref = make_ref(),
 	SgpInit = fun(_, SGP, _, _, _, Pid) ->
 				Pid ! Ref,
-				{ok, SGP}
+				{ok, once, SGP}
 	end,
-	SgpTransfer = fun(STREAM, RC1, OPC1, DPC1, NI1, SI1, SLS1, Data1, SGP, _) ->
-			Args = [SGP, STREAM, RC1, DPC1, OPC1, NI1, SI1, SLS1, Data1],
-			proc_lib:spawn(m3ua_sgp_fsm, transfer, Args),	
-		{ok, []}
+	SgpTransfer = fun(Stream, RC, OPC, DPC, NI, SI, SLS, Data, _State, Pid) ->
+				Pid !  {sgp, transfer, {Stream, RC, DPC, OPC, NI, SI, SLS, Data}},
+				{ok, once, []}
 	end,
-	AspTransfer = fun(STREAM1, RC1, OPC1, DPC1, NI1, SI1, SLS1, Data1, _, Pid) ->
-		Pid ! {asp, transfer, {STREAM1, RC1, OPC1, DPC1, NI1, SI1, SLS1, Data1}},
-		{ok, []}
+	AspTransfer = fun(Stream, RC, OPC, DPC, NI, SI, SLS, Data, _, Pid) ->
+				Pid ! {asp, transfer, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
+				{ok, once, []}
 	end,
 	Port = rand:uniform(64511) + 1024,
 	{ok, _ServerEP} = m3ua:start(#m3ua_fsm_cb{init = SgpInit,
@@ -391,8 +390,8 @@ mtp_transfer(_Config) ->
 			undefined, undefined, Keys, loadshare),
 	ok = m3ua:asp_active(ClientEP, Assoc),
 	Asp = receive
-		{asp, active, PID1} ->
-			PID1
+		{asp, active, Pid} ->
+			Pid
 	end,
 	Stream = 1,
 	OPC = rand:uniform(16383),
@@ -402,7 +401,7 @@ mtp_transfer(_Config) ->
 	Data = crypto:strong_rand_bytes(100),
 	proc_lib:spawn(m3ua, transfer, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
 	receive
-		{asp, transfer, {Stream, RC, DPC, OPC, NI, SI, SLS, Data}} ->
+		{sgp, transfer, {Stream, RC, DPC, OPC, NI, SI, SLS, Data}} ->
 			ok
 	end.
 
@@ -758,7 +757,7 @@ as_state_down(_Config) ->
 callback(Ref) ->
 	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, Pid) ->
 				Pid ! Ref,
-				{ok, []}
+				{ok, once, []}
 	end,
 	Fnotify = fun(RC, Status, _AspID, State, Pid) ->
 				Pid ! {Ref, RC, Status},

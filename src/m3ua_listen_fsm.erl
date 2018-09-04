@@ -274,7 +274,6 @@ accept(Socket, Address, Port,
 				{ok, Fsm} ->
 					case gen_sctp:controlling_process(NewSocket, Fsm) of
 						ok ->
-							inet:setopts(NewSocket, [{active, once}]),
 							inet:setopts(Socket, [{active, once}]),
 							NewFsms = gb_trees:insert(Assoc, Fsm, Fsms),
 							link(Fsm),
