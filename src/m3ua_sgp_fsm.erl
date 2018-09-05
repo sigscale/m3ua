@@ -1240,8 +1240,8 @@ state_traffic_maint1([RC | T], Event,
 						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_inactive, RC});
 					({Fsm, active}) ->
 						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_active, RC});
-					({_, down}) ->
-						ok
+					({Fsm, down}) ->
+						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_inactive, RC})
 			end,
 			ok = lists:foreach(F3, NotifyFsms),
 			state_traffic_maint1(T, Event, StateData);
