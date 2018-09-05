@@ -749,11 +749,12 @@ handle_info({'EXIT', EP, {shutdown, {EP, Reason}}}, _StateName,
 handle_info({'EXIT', Socket, Reason}, _StateName,
 		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
 	{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData};
-handle_info(Info, StateName #statedata{ep = EP, assoc = Assoc,
-		callback = CbMod, cb_state = CbState} = StateData) ->
-	case m3ua_callback:cb(info, CbMod, [Info, CbState) of
+handle_info(Info, StateName, #statedata{socket = Socket,
+		ep = EP, assoc = Assoc, callback = CbMod,
+		cb_state = CbState} = StateData) ->
+	case m3ua_callback:cb(info, CbMod, [Info, CbState]) of
 		{ok, Active, NewCbState} ->
-			NewStatedata = StateData#statedata{cb_state = NewCbState},
+			NewStateData = StateData#statedata{cb_state = NewCbState},
 			case inet:setopts(Socket, [{active, Active}]) of
 				ok ->
 					{next_state, StateName, NewStateData};

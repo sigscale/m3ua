@@ -165,7 +165,7 @@ notify(_RC, _Status, _AspID, State) ->
 		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
-info(Info, State) ->
+info(_Info, State) ->
 	{ok, once, State}.
 
 -spec terminate(Reason, State) -> Result
