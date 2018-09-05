@@ -23,7 +23,7 @@
 %% export the m3ua_callback public API
 -export([init/5, transfer/9, pause/4, resume/4, status/4,
 		register/5, asp_up/1, asp_down/1, asp_active/1,
-		asp_inactive/1, notify/4, terminate/2]).
+		asp_inactive/1, notify/4, info/2, terminate/2]).
 
 %% export the m3ua_callback private API
 -export([cb/3]).
@@ -157,6 +157,17 @@ asp_inactive(State) ->
 notify(_RC, _Status, _AspID, State) ->
 	{ok, State}.
 
+-spec info(Info, State) -> Result
+	when
+		Info :: term(),
+		State :: term(),
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
+		NewState :: term(),
+		Reason :: term().
+info(Info, State) ->
+	{ok, once, State}.
+
 -spec terminate(Reason, State) -> Result
 	when
 		Reason :: term(),
@@ -221,6 +232,10 @@ cb(asp_inactive, #m3ua_fsm_cb{asp_inactive = F, extra = E}, Args) ->
 cb(notify, #m3ua_fsm_cb{notify = false}, Args) ->
 	apply(?MODULE, notify, Args);
 cb(notify, #m3ua_fsm_cb{notify = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(info, #m3ua_fsm_cb{info = false}, Args) ->
+	apply(?MODULE, info, Args);
+cb(info, #m3ua_fsm_cb{info = F, extra = E}, Args) ->
 	apply(F, Args ++ E);
 cb(terminate, #m3ua_fsm_cb{terminate = false}, Args) ->
 	apply(?MODULE, terminate, Args);

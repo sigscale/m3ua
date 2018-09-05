@@ -184,6 +184,19 @@
 %%%  </ul></p>
 %%%  </div>
 %%%
+%%%  <h3 class="function"><a name="info-2">info/2</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>info(Info, State) -&gt; Result </tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Info = term()</tt></li>
+%%%    <li><tt>State = term()</tt></li>
+%%%    <li><tt>Result = {ok, Active, NewState} | {error, Reason}</tt></li>
+%%%    <li><tt>Active = true | false | once | pos_integer()</tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
+%%%  </ul></p>
+%%%  </div>
+%%%
 %%%  <h3 class="function"><a name="terminate-2">terminate/2</a></h3>
 %%%  <div class="spec">
 %%%  <p><tt>terminate(Reason, State)</tt>
@@ -330,6 +343,14 @@
 		AspID :: 0..4294967295,
 		State :: term(),
 		Result :: {ok, State}.
+-callback info(Info, State) -> Result
+	when
+		Info :: term(),
+		State :: term(),
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
+		NewState :: term(),
+		Reason :: term().
 -callback terminate(Reason, State) -> Result
 	when
 		Reason :: term(),
@@ -722,15 +743,26 @@ handle_info({sctp_error, Socket, PeerAddr, PeerPort,
 		{assoc, Assoc}, {info, Info}, {data, Data}, {socket, Socket},
 		{peer, {PeerAddr, PeerPort}}]),
 	{stop, {shutdown, {{EP, Assoc}, Error}}, StateData};
-handle_info({Ref, ok}, StateName, StateData) when is_reference(Ref) ->
-	% late result arrival of timed out transfer request
-	{next_state, StateName, StateData};
 handle_info({'EXIT', EP, {shutdown, {EP, Reason}}}, _StateName,
 		#statedata{ep = EP, assoc = Assoc} = StateData) ->
 	{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData};
 handle_info({'EXIT', Socket, Reason}, _StateName,
 		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
-	{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}.
+	{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData};
+handle_info(Info, StateName #statedata{ep = EP, assoc = Assoc,
+		callback = CbMod, cb_state = CbState} = StateData) ->
+	case m3ua_callback:cb(info, CbMod, [Info, CbState) of
+		{ok, Active, NewCbState} ->
+			NewStatedata = StateData#statedata{cb_state = NewCbState},
+			case inet:setopts(Socket, [{active, Active}]) of
+				ok ->
+					{next_state, StateName, NewStateData};
+				{error, Reason} ->
+					{stop, {shutdown, {{EP, Assoc}, Reason}}, NewStateData}
+			end;
+		{error, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+	end.
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) -> any().

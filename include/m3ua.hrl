@@ -157,6 +157,7 @@
 		asp_active = false :: fun() | false,
 		asp_inactive = false :: fun() | false,
 		notify = false :: fun() | false,
+		info = false :: fun() | false,
 		terminate = false :: fun() | false,
 		extra = [] :: [Args :: term()]}).
 
