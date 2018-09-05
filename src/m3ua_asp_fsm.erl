@@ -578,6 +578,49 @@ active(timeout, #statedata{req = {AspOp, Ref, From}} = StateData)
 	gen_server:cast(From, {AspOp, Ref, self(), {error, timeout}}),
 	NewStateData = StateData#statedata{req = undefined},
 	{next_state, down, NewStateData};
+active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
+		#statedata{socket = Socket, assoc = Assoc, ep = EP,
+		rks = RKs, use_rc = UseRC, callback = CbMod, cb_state = CbState,
+		count = Count} = StateData) ->
+	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
+			ni = NI, si = SI, sls = SLS, data = Data},
+	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
+	P1 = case UseRC of
+		true when is_integer(RC) ->
+			m3ua_codec:add_parameter(?RoutingContext, [RC], P0);
+		true ->
+			RC1 = get_rc(DPC, OPC, SI, RKs),
+			m3ua_codec:add_parameter(?RoutingContext, [RC1], P0);
+		false ->
+			P0
+	end,
+	TransferMsg = #m3ua{class = ?TransferMessage,
+			type = ?TransferMessageData, params = P1},
+	Packet = m3ua_codec:m3ua(TransferMsg),
+	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
+		ok ->
+			CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
+			case m3ua_callback:cb(send, CbMod, CbArgs) of
+				{ok, Active, NewCbState} ->
+					NewStateData = StateData#statedata{cb_state = NewCbState},
+					case inet:setopts(Socket, [{active, Active}]) of
+						ok ->
+							TransferOut = maps:get(transfer_out, Count, 0),
+							NewCount = maps:put(transfer_out, TransferOut + 1, Count),
+							NextStateData = NewStateData#statedata{count = NewCount},
+							{next_state, active, NextStateData};
+						{error, Reason} ->
+							{stop, {shutdown, {{EP, Assoc}, Reason}}, NewStateData}
+					end;
+				{error, Reason} ->
+					{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+			end;
+		{error, eagain} ->
+			% @todo flow control
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
+		{error, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+	end;
 active({'M-ASP_INACTIVE', request, Ref, From},
 		#statedata{req = undefined, socket = Socket,
 		assoc = Assoc, ep = EP, count = Count} = StateData) ->

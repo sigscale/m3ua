@@ -28,7 +28,7 @@
 -export([get_ep/0, get_ep/1, get_as/0, get_assoc/0, get_assoc/1]).
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
--export([transfer/9, transfer/10]).
+-export([transfer/9, transfer/10, cast/9]).
 
 %% export the m3ua private API
 -export([sort/1, keymember/4, keymember/5]).
@@ -367,6 +367,30 @@ transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout)
 		(is_integer(Timeout) or (Timeout == infinity))->
 	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
 	gen_fsm:sync_send_event(Fsm, {'MTP-TRANSFER', request, Params}, Timeout).
+
+-spec cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data) -> Result
+	when
+		Fsm :: pid(),
+		Stream :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
+		NI :: byte(),
+		SI :: byte(),
+		SLS :: byte(),
+		Data :: binary(),
+		Result :: ok | {error, Reason},
+		Reason :: term().
+%% @doc MTP-TRANSFER request.
+%%
+%% Called by an MTP user to transfer data asynchronously.
+cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
+		when is_pid(Fsm), is_integer(Stream), Stream =/= 0,
+		((RC == undefined) or is_integer(RC)),
+		is_integer(OPC), is_integer(DPC), is_integer(NI),
+		is_integer(SI), is_integer(SLS), is_binary(Data) ->
+	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
+	gen_fsm:send_event(Fsm, {'MTP-TRANSFER', request, Params}).
 
 -spec get_as() -> Result
 	when
