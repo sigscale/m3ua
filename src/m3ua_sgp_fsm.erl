@@ -722,12 +722,7 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 	RK = {NA, SortedKeys, Mode},
 	case reg_tables(RC, RK, AS, inactive) of
 		{ok, RC} ->
-			NewRKs = case lists:keytake(RC, 1, RKs) of
-				{value, {RC, _OldKeys, Active}, RKs1} ->
-					[{RC, RK, Active} | RKs1];
-				false ->
-					[{RC, RK, inactive} | RKs]
-			end,
+			NewRKs = update_rks(RC, RK, inactive, RKs),
 			CbArgs = [RC, NA, SortedKeys, Mode, CbState],
 			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 			NewStateData = StateData#statedata{rks = NewRKs,
@@ -745,7 +740,8 @@ handle_sgp(M3UA, StateName, Stream, StateData) when is_binary(M3UA) ->
 	handle_sgp(m3ua_codec:m3ua(M3UA), StateName, Stream, StateData);
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP, params = Params},
 		down, _Stream, #statedata{socket = Socket, active = Active,
-		assoc = Assoc, ep = EP, count = Count} = StateData) ->
+		assoc = Assoc, ep = EP, callback = CbMod, cb_state = CbState,
+		count = Count} = StateData) ->
 	AspUp = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspUp, undefined),
 	AspUpAck = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK},
@@ -753,12 +749,15 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_up, StateData),
+			CbArgs = [CbState],
+			{ok, NewCbState} = m3ua_callback:cb(asp_up, CbMod, CbArgs),
 			inet:setopts(Socket, [{active, Active}]),
 			UpIn = maps:get(up_in, Count, 0),
 			UpAckOut = maps:get(up_ack_out, Count, 0),
 			NewCount = maps:put(up_in, UpIn + 1, Count),
 			NextCount = maps:put(up_ack_out, UpAckOut + 1, NewCount),
-			NextStateData = NewStateData#statedata{count = NextCount},
+			NextStateData = NewStateData#statedata{cb_state = NewCbState,
+					count = NextCount},
 			{next_state, inactive, NextStateData};
 		{error, eagain} ->
 			% @todo flow control
@@ -807,7 +806,8 @@ handle_sgp(#m3ua{class = ?RKMMessage, type = ?RKMREGREQ, params = Params},
 	reg_request(RKs, StateName, StateData);
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 		inactive, _Stream, #statedata{socket = Socket, active = Active,
-		assoc = Assoc, ep = EP, count = Count} = StateData) ->
+		assoc = Assoc, ep = EP, callback = CbMod, cb_state = CbState,
+		count = Count} = StateData) ->
 	AspActive = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspActive, undefined),
 	AspActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPACACK},
@@ -815,12 +815,15 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_active, StateData),
+			CbArgs = [CbState],
+			{ok, NewCbState} = m3ua_callback:cb(asp_active, CbMod, CbArgs),
 			inet:setopts(Socket, [{active, Active}]),
 			ActiveIn = maps:get(active_in, Count, 0),
 			ActiveAckOut = maps:get(active_ack_out, Count, 0),
 			NewCount = maps:put(active_in, ActiveIn + 1, Count),
 			NextCount = maps:put(active_ack_out, ActiveAckOut + 1, NewCount),
-			NextStateData = NewStateData#statedata{count = NextCount},
+			NextStateData = NewStateData#statedata{cb_state = NewCbState,
+					count = NextCount},
 			{next_state, active, NextStateData};
 		{error, eagain} ->
 			% @todo flow control
@@ -830,7 +833,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPAC, params = Params},
 	end;
 handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN, params = Params},
 		StateName, _Stream, #statedata{socket = Socket, active = Active,
-		assoc = Assoc, ep = EP, count = Count} = StateData)
+		assoc = Assoc, ep = EP, callback = CbMod, cb_state = CbState,
+		count = Count} = StateData)
 		when StateName == inactive; StateName == active ->
 	AspDown = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspDown, undefined),
@@ -839,12 +843,15 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_down, StateData),
+			CbArgs = [CbState],
+			{ok, NewCbState} = m3ua_callback:cb(asp_down, CbMod, CbArgs),
 			inet:setopts(Socket, [{active, Active}]),
 			DownIn = maps:get(down_in, Count, 0),
 			DownAckOut = maps:get(down_ack_out, Count, 0),
 			NewCount = maps:put(down_in, DownIn + 1, Count),
 			NextCount = maps:put(down_ack_out, DownAckOut + 1, NewCount),
-			NextStateData = NewStateData#statedata{count = NextCount},
+			NextStateData = NewStateData#statedata{cb_state = NewCbState,
+					count = NextCount},
 			{next_state, down, NextStateData};
 		{error, eagain} ->
 			% @todo flow control
@@ -854,7 +861,8 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPDN, params = Params},
 	end;
 handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		active, _Stream, #statedata{socket = Socket, active = Active,
-		assoc = Assoc, ep = EP, count = Count} = StateData) ->
+		assoc = Assoc, ep = EP, callback = CbMod, cb_state = CbState,
+		count = Count} = StateData) ->
 	AspInActive = m3ua_codec:parameters(Params),
 	RCs = m3ua_codec:get_parameter(?RoutingContext, AspInActive, undefined),
 	AspInActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
@@ -862,12 +870,15 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 	case gen_sctp:send(Socket, Assoc, 0, Packet) of
 		ok ->
 			NewStateData = state_traffic_maint(RCs, asp_inactive, StateData),
+			CbArgs = [CbState],
+			{ok, NewCbState} = m3ua_callback:cb(asp_inactive, CbMod, CbArgs),
 			inet:setopts(Socket, [{active, Active}]),
 			InactiveIn = maps:get(inactive_in, Count, 0),
 			InactiveAckOut = maps:get(inactive_ack_out, Count, 0),
 			NewCount = maps:put(inactive_in, InactiveIn + 1, Count),
 			NextCount = maps:put(inactive_ack_out, InactiveAckOut + 1, NewCount),
-			NextStateData = NewStateData#statedata{count = NextCount},
+			NextStateData = NewStateData#statedata{cb_state = NewCbState,
+					count = NextCount},
 			{next_state, inactive, NextStateData};
 		{error, eagain} ->
 			% @todo flow control
@@ -974,27 +985,41 @@ inet_getopts(Socket, Options) ->
 reg_request(RoutingKeys, StateName, StateData) ->
 	reg_request(RoutingKeys, StateName, StateData, [], []).
 %% @hidden
-reg_request([RK | T], StateName, #statedata{socket = Socket,
-		active = Active, ep = EP, assoc = Assoc,
+reg_request([H | T], StateName, #statedata{socket = Socket,
+		active = Active, ep = EP, assoc = Assoc, rks = RKs,
 		callback = CbMod, cb_state = CbState,
 		count = Count} = StateData, RegResults, Notifies) ->
-	try m3ua_codec:routing_key(RK)
+	try m3ua_codec:routing_key(H)
 	of
-		#m3ua_routing_key{rc = RC, na = NA, key = Keys,
-				tmt = Mode, lrk_id = LrkId} = RoutingKey ->
-			F = fun() -> catch reg_request1(RoutingKey) end,
+		#m3ua_routing_key{rc = RC, na = NA,
+				key = Keys, tmt = Mode, lrk_id = LrkId} ->
+			SortedKeys = m3ua:sort(Keys),
+			RK = {NA, SortedKeys, Mode},
+			F = fun() -> reg_request1(RC, RK, LrkId) end,
 			case mnesia:transaction(F) of
-				{atomic, {reg, RegResult}} ->
-					CbArgs = [RC, NA, m3ua:sort(Keys), Mode, CbState],
+				{atomic, {reg, AsState, #registration_result{rc = NewRC} = RR}} ->
+					NewRKs = update_rks(NewRC, RK, AsState, RKs),
+					CbArgs = [NewRC, NA, SortedKeys, Mode, CbState],
 					{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
-					NewStateData = StateData#statedata{cb_state = NewCbState},
+					NewStateData = StateData#statedata{rks = NewRKs,
+							cb_state = NewCbState},
+					RegResult = {?RegistrationResult, RR},
 					reg_request(T, StateName, NewStateData, [RegResult | RegResults], Notifies);
-				{atomic, {reg, RegResult, Notify}} ->
-					CbArgs = [RC, NA, m3ua:sort(Keys), Mode, CbState],
+				{atomic, {reg, AsState, #registration_result{rc = NewRC} = RR, Notify}} ->
+					NewRKs = update_rks(NewRC, RK, AsState, RKs),
+					CbArgs = [NewRC, NA, SortedKeys, Mode, CbState],
 					{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
-					NewStateData = StateData#statedata{cb_state = NewCbState},
+					NewStateData = StateData#statedata{rks = NewRKs,
+							cb_state = NewCbState},
+					RegResult = {?RegistrationResult, RR},
 					reg_request(T, StateName, NewStateData, [RegResult | RegResults], [Notify | Notifies]);
-				{atomic, {not_reg, RegResult}} ->
+				{atomic, {not_reg, AsState, #registration_result{rc = NewRC} = RR}} ->
+					NewRKs = update_rks(NewRC, RK, AsState, RKs),
+					NewStateData = StateData#statedata{rks = NewRKs},
+					RegResult = {?RegistrationResult, RR},
+					reg_request(T, StateName, NewStateData, [RegResult | RegResults], Notifies);
+				{atomic, {not_reg, #registration_result{} = RR}} ->
+					RegResult = {?RegistrationResult, RR},
 					reg_request(T, StateName, StateData, [RegResult | RegResults], Notifies);
 				{aborted, _Reason} ->
 					RegResult = {?RegistrationResult, #registration_result{lrk_id = LrkId,
@@ -1002,7 +1027,7 @@ reg_request([RK | T], StateName, #statedata{socket = Socket,
 					reg_request(T, StateName, StateData, [RegResult | RegResults], Notifies)
 			end
 	catch
-		_:_ ->
+		_:_Reason ->
 			P0 = m3ua_codec:add_parameter(?ErrorCode, unexpected_parameter, []),
 			ErrorParams = m3ua_codec:parameters(P0),
 			ErrorMsg = #m3ua{class = ?MGMTMessage, type = ?MGMTError, params = ErrorParams},
@@ -1035,54 +1060,44 @@ reg_request([], StateName, #statedata{socket = Socket,
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end.
 %% @hidden
-reg_request1(#m3ua_routing_key{rc = RC, na = NA, key = Keys,
-		tmt = Mode, lrk_id = LrkId}) when is_integer(RC) ->
-	SortedKeys = m3ua:sort(Keys),
-	RK = {NA, SortedKeys, Mode},
+reg_request1(RC, RK, LrkId) when is_integer(RC) ->
 	SGP = self(),
 	case mnesia:read(m3ua_as, RC, write) of
 		[] ->
-			RegRes = {?RegistrationResult, #registration_result{lrk_id = LrkId,
-					status = rk_change_refused, rc = RC}},
+			RegRes = #registration_result{lrk_id = LrkId,
+					status = rk_change_refused, rc = RC},
 			{not_reg, RegRes};
-		[#m3ua_as{rk = RK, asp = SGPs} = AS] ->
+		[#m3ua_as{rk = RK, state = AsState, asp = SGPs} = AS] ->
 			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
-					RegRes = {?RegistrationResult,
-							#registration_result{lrk_id = LrkId,
-							status = rk_already_registered, rc = RC}},
-					{not_reg, RegRes};
+					RegRes = #registration_result{lrk_id = LrkId,
+							status = rk_already_registered, rc = RC},
+					{not_reg, AsState, RegRes};
 				false ->
 					NewSGPs = [#m3ua_as_asp{fsm = SGP, state = inactive} | SGPs],
 					mnesia:write(AS#m3ua_as{asp = NewSGPs}),
 					mnesia:write(#m3ua_asp{fsm = SGP, rc = RC, rk = RK}),
-					RegRes = {?RegistrationResult,
-							#registration_result{lrk_id = LrkId,
-							status = registered, rc = RC}},
-					{reg, RegRes}
+					RegRes = #registration_result{lrk_id = LrkId,
+							status = registered, rc = RC},
+					{reg, AsState, RegRes}
 			end;
-		[#m3ua_as{asp = SGPs} = AS] ->
+		[#m3ua_as{state = AsState, asp = SGPs} = AS] ->
 			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
 					mnesia:write(AS#m3ua_as{rk = RK}),
-					RegRes = {?RegistrationResult,
-							#registration_result{lrk_id = LrkId,
-							status = registered, rc = RC}},
-					{reg, RegRes};
+					RegRes = #registration_result{lrk_id = LrkId,
+							status = registered, rc = RC},
+					{reg, AsState, RegRes};
 				false ->
 					NewSGPs = [#m3ua_as_asp{fsm = SGP, state = inactive} | SGPs],
 					mnesia:write(AS#m3ua_as{rk = RK, asp = NewSGPs}),
 					mnesia:write(#m3ua_asp{fsm = SGP, rc = RC, rk = RK}),
-					RegRes = {?RegistrationResult,
-							#registration_result{lrk_id = LrkId,
-							status = registered, rc = RC}},
-					{reg, RegRes}
+					RegRes = #registration_result{lrk_id = LrkId,
+							status = registered, rc = RC},
+					{reg, AsState, RegRes}
 			end
 	end;
-reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys,
-		tmt = Mode, lrk_id = LrkId}) ->
-	SortedKeys = m3ua:sort(Keys),
-	RK = {NA, SortedKeys, Mode},
+reg_request1(undefined, RK, LrkId) ->
 	SGP = self(),
 	case mnesia:index_read(m3ua_as, RK, #m3ua_as.rk) of
 		[] ->
@@ -1092,16 +1107,15 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys,
 			mnesia:write(AS),
 			ASP = #m3ua_asp{fsm = SGP, rc = RC, rk = RK},
 			mnesia:write(ASP),
-			RegRes = {?RegistrationResult,
-					#registration_result{lrk_id = LrkId, status = registered, rc = RC}},
-			{reg, RegRes, {as_inactive, RC}};
-		[#m3ua_as{rc = RC, asp = SGPs, state = AsState} = AS] ->
+			RegRes = #registration_result{lrk_id = LrkId,
+					status = registered, rc = RC},
+			{reg, inactive, RegRes, {as_inactive, RC}};
+		[#m3ua_as{rc = RC, state = AsState, asp = SGPs} = AS] ->
 			case lists:keymember(SGP, #m3ua_as_asp.fsm, SGPs) of
 				true ->
-					RegRes = {?RegistrationResult,
-							#registration_result{lrk_id = LrkId,
-							status = rk_already_registered, rc = RC}},
-					{not_reg, RegRes};
+					RegRes = #registration_result{lrk_id = LrkId,
+							status = rk_already_registered, rc = RC},
+					{not_reg, AsState, RegRes};
 				false ->
 					NewSGPs = [#m3ua_as_asp{fsm = SGP, state = inactive} | SGPs],
 					NewAS = case AsState of
@@ -1112,10 +1126,9 @@ reg_request1(#m3ua_routing_key{rc = undefined, na = NA, key = Keys,
 					end,
 					mnesia:write(NewAS),
 					mnesia:write(#m3ua_asp{fsm = SGP, rc = RC, rk = RK}),
-					RegRes = {?RegistrationResult,
-							#registration_result{lrk_id = LrkId,
-							status = registered, rc = RC}},
-					{reg, RegRes}
+					RegRes = #registration_result{lrk_id = LrkId,
+							status = registered, rc = RC},
+					{reg, NewAS#m3ua_as.state, RegRes}
 			end
 	end.
 
@@ -1201,30 +1214,37 @@ reg_tables(RC, RK, Name, AspState) ->
 	end.
 
 %% @hidden
+update_rks(RC, RK, Active, RKs) ->
+	case lists:keytake(RC, 1, RKs) of
+		{value, {RC, _OldKeys, Active}, RKs1} ->
+			[{RC, RK, Active} | RKs1];
+		false ->
+			[{RC, RK, inactive} | RKs]
+	end.
+
+%% @hidden
 state_traffic_maint(undefined, Event, #statedata{rks = RKs} = StateData) ->
 	RCs = [RC || {RC, _, _} <- RKs],
 	state_traffic_maint1(RCs, Event, StateData);
 state_traffic_maint(RCs, Event, StateData) ->
 	state_traffic_maint1(RCs, Event, StateData).
 %% @hidden
-state_traffic_maint1([RC | T], Event, #statedata{ep = EP, assoc = Assoc,
-		callback = CbMod, cb_state = CbState} = StateData) ->
+state_traffic_maint1([RC | T], Event,
+		#statedata{ep = EP, assoc = Assoc} = StateData) ->
 	F = fun() -> state_traffic_maint2(RC, Event) end,
 	case mnesia:transaction(F) of
 		{atomic, NotifyFsms} ->
-			CbArgs = [CbState],
-			{ok, NewCbState} = m3ua_callback:cb(Event, CbMod, CbArgs),
 			F3 = fun({Fsm, pending}) ->
 						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_pending, RC});
 					({Fsm, inactive}) ->
 						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_inactive, RC});
 					({Fsm, active}) ->
 						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_active, RC});
-					({Fsm, down}) ->
-						ok = gen_fsm:send_all_state_event(Fsm, {'M-NOTIFY', as_down, RC})
+					({_, down}) ->
+						ok
 			end,
 			ok = lists:foreach(F3, NotifyFsms),
-			state_traffic_maint1(T, Event, StateData#statedata{cb_state = NewCbState});
+			state_traffic_maint1(T, Event, StateData);
 		{aborted, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
