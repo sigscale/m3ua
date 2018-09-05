@@ -1,5 +1,6 @@
 2018-09-05  Vance Shipley <vances@sigscale.org>
 
+	* seperate api callbacks for mtp transfer: send & recv
 	* new callback api for handling other info
 	* handle socket active state from callback
 	* handle notify of as state change
