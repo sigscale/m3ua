@@ -1,3 +1,15 @@
+2018-09-05  Vance Shipley <vances@sigscale.org>
+
+	* new callback api for handling other info
+	* handle socket active state from callback
+	* handle notify of as state change
+	* change init callback for static registration
+	* correct finding routing contexts
+	* move notify to sgp fsm
+	* move state/traffic maintenance handling into asp/sgp fsm
+	* correct register result value
+	* handle registration when outstanding request pending
+
 2018-08-07  Vance Shipley <vances@sigscale.org>
 
 	* improve as state and traffic management
