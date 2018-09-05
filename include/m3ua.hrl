@@ -147,7 +147,8 @@
 
 -record(m3ua_fsm_cb,
 		{init = false :: fun() | false,
-		transfer = false :: fun() | false,
+		recv = false :: fun() | false,
+		send = false :: fun() | false,
 		pause = false :: fun() | false,
 		resume = false :: fun() | false,
 		status = false :: fun() | false,

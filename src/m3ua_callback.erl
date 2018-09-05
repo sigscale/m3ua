@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua_callback public API
--export([init/5, transfer/9, pause/4, resume/4, status/4,
+-export([init/5, recv/9, send/9, pause/4, resume/4, status/4,
 		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, info/2, terminate/2]).
 
@@ -47,7 +47,7 @@
 init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
 	{ok, once, []}.
 
--spec transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+-spec recv(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
 		Stream :: pos_integer(),
 		RC :: undefined | 0..4294967295,
@@ -62,7 +62,25 @@ init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
 		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
-transfer(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
+recv(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
+	{ok, once, State}.
+
+-spec send(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+	when
+		Stream :: pos_integer(),
+		RC :: undefined | 0..4294967295,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
+		NI :: byte(),
+		SI :: byte(),
+		SLS :: byte(),
+		Data :: binary(),
+		State :: term(),
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
+		NewState :: term(),
+		Reason :: term().
+send(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
 	{ok, once, State}.
 
 -spec pause(Stream, RC, DPCs, State) -> Result
@@ -193,9 +211,13 @@ cb(init, #m3ua_fsm_cb{init = false}, Args) ->
 	apply(?MODULE, init, Args);
 cb(init, #m3ua_fsm_cb{init = F, extra = E}, Args) ->
 	apply(F, Args ++ E);
-cb(transfer, #m3ua_fsm_cb{transfer = false}, Args) ->
-	apply(?MODULE, transfer, Args);
-cb(transfer, #m3ua_fsm_cb{transfer = F, extra = E}, Args) ->
+cb(recv, #m3ua_fsm_cb{recv = false}, Args) ->
+	apply(?MODULE, recv, Args);
+cb(recv, #m3ua_fsm_cb{recv = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(send, #m3ua_fsm_cb{send = false}, Args) ->
+	apply(?MODULE, send, Args);
+cb(send, #m3ua_fsm_cb{send = F, extra = E}, Args) ->
 	apply(F, Args ++ E);
 cb(pause, #m3ua_fsm_cb{pause = false}, Args) ->
 	apply(?MODULE, pause, Args);

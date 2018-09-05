@@ -422,13 +422,13 @@ mtp_transfer() ->
 mtp_transfer(_Config) ->
 	Port = rand:uniform(64511) + 1024,
 	RefTS = make_ref(),
-	SgpTransfer = fun(Stream, RC, OPC, DPC, NI, SI, SLS, Data, _State, Pid) ->
+	SgpRecv = fun(Stream, RC, OPC, DPC, NI, SI, SLS, Data, _State, Pid) ->
 				Pid !  {RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]},
 				{ok, once, []}
 	end,
 	RefS = make_ref(),
 	CbS = callback(RefS),
-	{ok, ServerEP} = m3ua:start(CbS#m3ua_fsm_cb{transfer = SgpTransfer},
+	{ok, ServerEP} = m3ua:start(CbS#m3ua_fsm_cb{recv = SgpRecv},
 			Port, []),
 	{ok, AsNode} = slave_as(),
 	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),

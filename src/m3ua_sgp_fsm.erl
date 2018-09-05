@@ -51,9 +51,9 @@
 %%%  </div><p>Initialize SGP callback handler.</p>
 %%%  <p>Called when SGP is started.</p>
 %%%
-%%%  <h3 class="function"><a name="transfer-9">transfer/9</a></h3>
+%%%  <h3 class="function"><a name="recv-9">recv/9</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>transfer(Stream, RC, OPC, DPC, NI, SI, SLS,
+%%%  <p><tt>recv(Stream, RC, OPC, DPC, NI, SI, SLS,
 %%%         Data, State) -&gt; Result</tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
@@ -72,6 +72,28 @@
 %%%  </ul></p>
 %%%  </div><p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
+%%%
+%%%  <h3 class="function"><a name="send-9">send/9</a></h3>
+%%%  <div class="spec">
+%%%  <p><tt>send(Stream, RC, OPC, DPC, NI, SI, SLS,
+%%%        Data, State) -&gt; Result</tt>
+%%%  <ul class="definitions">
+%%%    <li><tt>Stream = pos_integer() </tt></li>
+%%%    <li><tt>RC = 0..4294967295 | undefined</tt></li>
+%%%    <li><tt>OPC = 0..16777215</tt></li>
+%%%    <li><tt>DPC = 0..16777215</tt></li>
+%%%    <li><tt>NI = byte() </tt></li>
+%%%    <li><tt>SI = byte() </tt></li>
+%%%    <li><tt>SLS = byte() </tt></li>
+%%%    <li><tt>Data = binary() </tt></li>
+%%%    <li><tt>State = term() </tt></li>
+%%%    <li><tt>Result = {ok, Active, NewState} | {error, Reason}</tt></li>
+%%%    <li><tt>Active = true | false | once | pos_integer()</tt></li>
+%%%    <li><tt>NewState = term() </tt></li>
+%%%    <li><tt>Reason = term() </tt></li>
+%%%  </ul></p>
+%%%  </div><p>MTP-TRANSFER request.</p>
+%%%  <p>Called when data has been sent by the MTP user.</p>
 %%%
 %%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
 %%%  <div class="spec">
@@ -271,7 +293,22 @@
 		TMT :: tmt(),
 		AsName :: term(),
 		Reason :: term().
--callback transfer(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+-callback recv(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+	when
+		Stream :: pos_integer(),
+		RC :: 0..4294967295 | undefined,
+		OPC :: 0..16777215,
+		DPC :: 0..16777215,
+		NI :: byte(),
+		SI :: byte(),
+		SLS :: byte(),
+		Data :: binary(),
+		State :: term(),
+		Result :: {ok, Active, NewState} | {error, Reason},
+		Active :: true | false | once | pos_integer(),
+		NewState :: term(),
+		Reason :: term().
+-callback send(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
 		Stream :: pos_integer(),
 		RC :: 0..4294967295 | undefined,
@@ -511,7 +548,8 @@ active(_Event, StateData) ->
 %%
 active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP,
-		rks = RKs, use_rc = UseRC, count = Count} = StateData) ->
+		rks = RKs, use_rc = UseRC, callback = CbMod, cb_state = CbState,
+		count = Count} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
 			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
@@ -529,10 +567,22 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
-			TransferOut = maps:get(transfer_out, Count, 0),
-			NewCount = maps:put(transfer_out, TransferOut + 1, Count),
-			NewStateData = StateData#statedata{count = NewCount},
-			{reply, ok, active, NewStateData};
+			CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
+			case m3ua_callback:cb(send, CbMod, CbArgs) of
+				{ok, Active, NewCbState} ->
+					NewStateData = StateData#statedata{cb_state = NewCbState},
+					case inet:setopts(Socket, [{active, Active}]) of
+						ok ->
+							TransferOut = maps:get(transfer_out, Count, 0),
+							NewCount = maps:put(transfer_out, TransferOut + 1, Count),
+							NextStateData = NewStateData#statedata{count = NewCount},
+							{reply, ok, active, NextStateData};
+						{error, Reason} ->
+							{stop, {shutdown, {{EP, Assoc}, Reason}}, NewStateData}
+					end;
+				{error, Reason} ->
+					{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+			end;
 		{error, eagain} ->
 			% @todo flow control
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
@@ -935,7 +985,7 @@ handle_sgp(#m3ua{class = ?TransferMessage,
 	#protocol_data{opc = OPC, dpc = DPC, ni = NI, si = SI, sls = SLS,
 			data = Data} = m3ua_codec:fetch_parameter(?ProtocolData, Parameters),
 	CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
-	case m3ua_callback:cb(transfer, CbMod, CbArgs) of
+	case m3ua_callback:cb(recv, CbMod, CbArgs) of
 		{ok, Active, NewCbState} ->
 			inet:setopts(Socket, [{active, Active}]),
 			TransferIn = maps:get(transfer_in, Count, 0),
