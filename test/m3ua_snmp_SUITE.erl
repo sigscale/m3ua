@@ -218,44 +218,54 @@ get_asp_stat() ->
 
 get_asp_stat(_Config) ->
 	Port = rand:uniform(64511) + 1024,
-	Ref = make_ref(),
-	Finit = fun(_, _, _, _, _, Pid) ->
-			Pid ! Ref,
-			{ok, []}
-	end,
-   CB = #m3ua_fsm_cb{init = Finit, extra = [self()]},
-	{ok, _EP1} = m3ua:start(CB, Port, [{role, sgp}]),
-	{ok, EP2} = m3ua:start(#m3ua_fsm_cb{}, 0,
+	RefS = make_ref(),
+	RefC = make_ref(),
+	{ok, ServerEP} = m3ua:start(callback(RefS), Port, [{role, sgp}]),
+	{ok, ClientEP} = m3ua:start(callback(RefC), 0,
 			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	receive Ref -> ok end,
-	{EP2, Assoc} = lists:keyfind(EP2, 1, m3ua:get_assoc()),
+	wait(RefS),
+	wait(RefC),
+	{_, Assoc} = lists:keyfind(ClientEP, 1, m3ua:get_assoc()),
 	{value, AspupOut} = snmpa:name_to_oid(m3uaAspStatAspupOut),
 	AspupOutOID = AspupOut ++ [Assoc],
 	{noError, _, Varbinds} = ct_snmp:get_values(m3ua_mibs_test,
 			[AspupOutOID], snmp_mgr_agent),
-	[{varbind, AspupOutOID, 'Counter32', _, _}] = Varbinds.
+	[{varbind, AspupOutOID, 'Counter32', _, _}] = Varbinds,
+	ok = m3ua:stop(ServerEP),
+	ok = m3ua:stop(ClientEP).
 
 get_next_asp_stat() ->
 	[{userdata, [{doc, "Get next on ASP statistics table"}]}].
 
 get_next_asp_stat(_Config) ->
 	Port = rand:uniform(64511) + 1024,
-	Ref = make_ref(),
-	Finit = fun(_, _, _, _, _, Pid) ->
-			Pid ! Ref,
-			{ok, []}
-	end,
-   CB = #m3ua_fsm_cb{init = Finit, extra = [self()]},
-	{ok, _EP1} = m3ua:start(CB, Port, [{role, sgp}]),
-	{ok, _EP2} = m3ua:start(#m3ua_fsm_cb{}, 0,
+	RefS = make_ref(),
+	RefC = make_ref(),
+	{ok, ServerEP} = m3ua:start(callback(RefS), Port, [{role, sgp}]),
+	{ok, ClientEP} = m3ua:start(callback(RefC), 0,
 			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
-	receive Ref -> ok end,
+	wait(RefS),
+	wait(RefC),
 	{value, AspStatTableOID} = snmpa:name_to_oid(m3uaAspStatTable),
 	{noError, _, Varbinds} = ct_snmp:get_next_values(m3ua_mibs_test,
 			[AspStatTableOID], snmp_mgr_agent),
-	[{varbind, _OID, 'Counter32', _, _}] = Varbinds.
+	[{varbind, _OID, 'Counter32', _, _}] = Varbinds,
+	ok = m3ua:stop(ServerEP),
+	ok = m3ua:stop(ClientEP).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
 
+callback(Ref) ->
+	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, Pid) ->
+				Pid ! Ref,
+				{ok, once, []}
+	end,
+	#m3ua_fsm_cb{init = Finit, extra = [self()]}.
+
+wait(Ref) ->
+	receive
+		Ref ->
+			ok
+	end.
