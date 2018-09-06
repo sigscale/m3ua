@@ -9,7 +9,7 @@
 ==Introduction==
 The Signaling Transport (SIGTRAN) protocol suite provides for transport
 of telephony signaling protocol messages over Internet Protocol (IP) networks.
-The Stream Control Transmission Protocol (SCTP) is used for resilience and
+The Stream Control Transmission Protocol (SCTP) is defined for resilience and
 reliability. User layer adaptations are defined for Signaling System 7 (SS7)
 and ISDN communications protocols.
 
