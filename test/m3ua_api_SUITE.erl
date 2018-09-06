@@ -497,7 +497,7 @@ mtp_cast(_Config) ->
 	SI = rand:uniform(10),
 	SLS = rand:uniform(10),
 	Data = crypto:strong_rand_bytes(100),
-	ok = rpc:call(AsNode, m3ua, casrt, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
+	ok = rpc:call(AsNode, m3ua, cast, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
 	receive
 		{RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
 			ok
