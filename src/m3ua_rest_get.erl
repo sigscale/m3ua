@@ -47,7 +47,7 @@
 		Fun :: fun((Arg) -> sent| close | Body),
 		Arg :: [term()].
 %% @doc Callback handler for inets httpd.
-do(#mod{method = Method, parsed_header = Headers, request_uri = Uri,
+do(#mod{method = Method, parsed_header = _Headers, request_uri = Uri,
 		data = Data} = ModData) ->
 	case Method of
 		"GET" ->
