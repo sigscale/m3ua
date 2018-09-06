@@ -90,7 +90,8 @@ all() ->
 	[start, stop, listen, connect, release, getstat_ep, getstat_assoc,
 			getcount, asp_up, asp_down, register, asp_active,
 			asp_inactive_to_down, asp_active_to_down,
-			asp_active_to_inactive, get_sctp_status, get_ep, mtp_transfer,
+			asp_active_to_inactive, get_sctp_status, get_ep,
+			mtp_transfer, mtp_cast,
 			asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
 			sg_state_active, as_state_active, sg_state_down, as_state_down].
@@ -419,6 +420,7 @@ get_ep(_Config) ->
 
 mtp_transfer() ->
 	[{userdata, [{doc, "Send MTP Transfer Message"}]}].
+
 mtp_transfer(_Config) ->
 	Port = rand:uniform(64511) + 1024,
 	RefTS = make_ref(),
@@ -452,6 +454,50 @@ mtp_transfer(_Config) ->
 	SLS = rand:uniform(10),
 	Data = crypto:strong_rand_bytes(100),
 	ok = rpc:call(AsNode, m3ua, transfer, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
+	receive
+		{RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
+			ok
+	end,
+	ok = rpc:call(AsNode, m3ua, stop, [ClientEP]),
+	ok = m3ua:stop(ServerEP),
+	ok = slave:stop(AsNode).
+
+mtp_cast() ->
+	[{userdata, [{doc, "Send MTP Transfer Message asynchronously"}]}].
+
+mtp_cast(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	RefTS = make_ref(),
+	SgpRecv = fun(Stream, RC, OPC, DPC, NI, SI, SLS, Data, _State, Pid) ->
+				Pid !  {RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]},
+				{ok, once, []}
+	end,
+	RefS = make_ref(),
+	CbS = callback(RefS),
+	{ok, ServerEP} = m3ua:start(CbS#m3ua_fsm_cb{recv = SgpRecv},
+			Port, []),
+	{ok, AsNode} = slave_as(),
+	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
+	ok = rpc:call(AsNode, application, start, [m3ua]),
+	RefC = make_ref(),
+	{ok, ClientEP} = rpc:call(AsNode, m3ua, start,
+			[remote_cb(RefC), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	wait(RefS),
+	Asp = wait(RefC),
+	[Assoc] = m3ua:get_assoc(ClientEP),
+	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP, Assoc]),
+	DPC = rand:uniform(16383),
+	Keys = [{DPC, [], []}],
+	{ok, RC} = rpc:call(AsNode, m3ua, register,
+			[ClientEP, Assoc, undefined, undefined, Keys, loadshare]),
+	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP, Assoc]),
+	Stream = 1,
+	OPC = rand:uniform(16383),
+	NI = rand:uniform(4),
+	SI = rand:uniform(10),
+	SLS = rand:uniform(10),
+	Data = crypto:strong_rand_bytes(100),
+	ok = rpc:call(AsNode, m3ua, casrt, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
 	receive
 		{RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
 			ok
