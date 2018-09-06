@@ -9,6 +9,14 @@
 ==Introduction==
 The Signaling Transport (SIGTRAN) protocol suite provides for transport
 of telephony signaling protocol messages over Internet Protocol (IP) networks.
+The Stream Control Transmission Protocol (SCTP) is used for resilience and
+reliability. User layer adaptations are defined for Signaling System 7 (SS7)
+and ISDN communications protocols.
+
+The MTP3 user adaptation (M3UA) defines a protocol for supporting the
+transport of any SS7 MTP3-User signalling (e.g. ISUP or SCCP) over IP
+using the services of SCTP. This protocol is used to interconnect an SS7
+Signaling Gateway (SG) with Application Servers (AS).
 
 ==Installation==
 Before starting the application for the first time, {@link //mnesia/mnesia. mnesia}
