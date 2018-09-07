@@ -60,8 +60,13 @@ end_per_suite(_Config) ->
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
 %% Initiation before each test case.
 %%
-init_per_testcase(TC, Config) when TC == sg_state_active; TC == as_state_active;
-		TC == sg_state_down; TC == as_state_down ->
+init_per_testcase(TC, Config)
+		when TC == getcount; TC == asp_active; TC == asp_active_to_down;
+		TC == asp_active_to_inactive; TC == mtp_transfer;
+		TC == mtp_cast; TC == asp_up_indication;
+		TC == asp_active_indication; TC == asp_inactive_indication;
+		TC == asp_down_indication; TC == sg_state_active;
+		TC == as_state_active; TC == sg_state_down; TC == as_state_down ->
 	case is_alive() of
 			true ->
 				Config;
