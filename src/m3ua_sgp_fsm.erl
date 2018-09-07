@@ -73,11 +73,13 @@
 %%%  </div><p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
-%%%  <h3 class="function"><a name="send-9">send/9</a></h3>
+%%%  <h3 class="function"><a name="send-11">send/11</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>send(Stream, RC, OPC, DPC, NI, SI, SLS,
+%%%  <p><tt>send(From, Ref, Stream, RC, OPC, DPC, NI, SI, SLS,
 %%%        Data, State) -&gt; Result</tt>
 %%%  <ul class="definitions">
+%%%    <li><tt>From = pid()</tt></li>
+%%%    <li><tt>Ref = reference()</tt></li>
 %%%    <li><tt>Stream = pos_integer() </tt></li>
 %%%    <li><tt>RC = 0..4294967295 | undefined</tt></li>
 %%%    <li><tt>OPC = 0..16777215</tt></li>
@@ -308,8 +310,10 @@
 		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
--callback send(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+-callback send(From, Ref, Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
+		From :: pid(),
+		Ref :: reference(),
 		Stream :: pos_integer(),
 		RC :: 0..4294967295 | undefined,
 		OPC :: 0..16777215,
@@ -506,8 +510,8 @@ down({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %%
 inactive({'M-RK_REG', request, _, _, _, _, _, _, _} = Event, StateData) ->
 	handle_reg(Event, inactive, StateData);
-inactive(_Event, StateData) ->
-	{stop, unexpected_message, StateData}.
+inactive({'MTP-TRANSFER', request, _Ref, _From, _Params}, StateData) ->
+	{next_state, inactive, StateData}.
 
 -spec inactive(Event :: timeout | term(),
 		From :: {pid(), Tag :: term()}, StateData :: #statedata{}) ->
@@ -533,7 +537,8 @@ inactive({'MTP-TRANSFER', request, _Params}, _From, StateData) ->
 %%
 active({'M-RK_REG', request, _, _, _, _, _, _, _} = Event, StateData) ->
 	handle_reg(Event, active, StateData);
-active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
+active({'MTP-TRANSFER', request, Ref, From,
+		{Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 		#statedata{socket = Socket, assoc = Assoc, ep = EP,
 		rks = RKs, use_rc = UseRC, callback = CbMod, cb_state = CbState,
 		count = Count} = StateData) ->
@@ -554,7 +559,8 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
-			CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
+			CbArgs = [From, Ref, Stream,
+					RC, OPC, DPC, NI, SI, SLS, Data, CbState],
 			case m3ua_callback:cb(send, CbMod, CbArgs) of
 				{ok, Active, NewCbState} ->
 					NewStateData = StateData#statedata{cb_state = NewCbState},
@@ -588,7 +594,7 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 %% @private
 %%
 active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
-		_From, #statedata{socket = Socket, assoc = Assoc, ep = EP,
+		{From, Ref}, #statedata{socket = Socket, assoc = Assoc, ep = EP,
 		rks = RKs, use_rc = UseRC, callback = CbMod, cb_state = CbState,
 		count = Count} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
@@ -608,7 +614,8 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 	Packet = m3ua_codec:m3ua(TransferMsg),
 	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
 		ok ->
-			CbArgs = [Stream, RC, OPC, DPC, NI, SI, SLS, Data, CbState],
+			CbArgs = [From, Ref, Stream,
+					RC, OPC, DPC, NI, SI, SLS, Data, CbState],
 			case m3ua_callback:cb(send, CbMod, CbArgs) of
 				{ok, Active, NewCbState} ->
 					NewStateData = StateData#statedata{cb_state = NewCbState},

@@ -368,7 +368,7 @@ transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout)
 	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
 	gen_fsm:sync_send_event(Fsm, {'MTP-TRANSFER', request, Params}, Timeout).
 
--spec cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data) -> Result
+-spec cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data) -> Ref
 	when
 		Fsm :: pid(),
 		Stream :: pos_integer(),
@@ -379,8 +379,7 @@ transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout)
 		SI :: byte(),
 		SLS :: byte(),
 		Data :: binary(),
-		Result :: ok | {error, Reason},
-		Reason :: term().
+		Ref :: reference().
 %% @doc MTP-TRANSFER request.
 %%
 %% Called by an MTP user to transfer data asynchronously.
@@ -389,8 +388,10 @@ cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
 		((RC == undefined) or is_integer(RC)),
 		is_integer(OPC), is_integer(DPC), is_integer(NI),
 		is_integer(SI), is_integer(SLS), is_binary(Data) ->
+	Ref = make_ref(),
 	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
-	gen_fsm:send_event(Fsm, {'MTP-TRANSFER', request, Params}).
+	gen_fsm:send_event(Fsm, {'MTP-TRANSFER', request, Ref, self(), Params}),
+	Ref.
 
 -spec get_as() -> Result
 	when

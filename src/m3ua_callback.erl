@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua_callback public API
--export([init/5, recv/9, send/9, pause/4, resume/4, status/4,
+-export([init/5, recv/9, send/11, pause/4, resume/4, status/4,
 		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, info/2, terminate/2]).
 
@@ -65,8 +65,10 @@ init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
 recv(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
 	{ok, once, State}.
 
--spec send(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
+-spec send(From, Ref, Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
 	when
+		From :: pid(),
+		Ref :: reference(),
 		Stream :: pos_integer(),
 		RC :: undefined | 0..4294967295,
 		OPC :: 0..16777215,
@@ -80,7 +82,7 @@ recv(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
 		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
-send(_Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
+send(_From, _Ref, _Stream, _RC, _OPC, _DPC, _NI, _SI, _SLS, _Data, State) ->
 	{ok, once, State}.
 
 -spec pause(Stream, RC, DPCs, State) -> Result

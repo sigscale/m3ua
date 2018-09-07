@@ -425,7 +425,7 @@ mtp_transfer(_Config) ->
 	Port = rand:uniform(64511) + 1024,
 	RefTS = make_ref(),
 	SgpRecv = fun(Stream, RC, OPC, DPC, NI, SI, SLS, Data, _State, Pid) ->
-				Pid !  {RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]},
+				Pid ! {RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]},
 				{ok, once, []}
 	end,
 	RefS = make_ref(),
@@ -467,21 +467,16 @@ mtp_cast() ->
 
 mtp_cast(_Config) ->
 	Port = rand:uniform(64511) + 1024,
-	RefTS = make_ref(),
-	SgpRecv = fun(Stream, RC, OPC, DPC, NI, SI, SLS, Data, _State, Pid) ->
-				Pid !  {RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]},
-				{ok, once, []}
-	end,
 	RefS = make_ref(),
-	CbS = callback(RefS),
-	{ok, ServerEP} = m3ua:start(CbS#m3ua_fsm_cb{recv = SgpRecv},
-			Port, []),
+	{ok, ServerEP} = m3ua:start(callback(RefS), Port, []),
 	{ok, AsNode} = slave_as(),
 	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
 	ok = rpc:call(AsNode, application, start, [m3ua]),
 	RefC = make_ref(),
+	CbC = remote_cb(RefC),
 	{ok, ClientEP} = rpc:call(AsNode, m3ua, start,
-			[remote_cb(RefC), 0, [{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+			[CbC#m3ua_fsm_cb{send = fun ?MODULE:cb_send/13}, 0,
+			[{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
 	wait(RefS),
 	Asp = wait(RefC),
 	[Assoc] = m3ua:get_assoc(ClientEP),
@@ -497,9 +492,9 @@ mtp_cast(_Config) ->
 	SI = rand:uniform(10),
 	SLS = rand:uniform(10),
 	Data = crypto:strong_rand_bytes(100),
-	ok = rpc:call(AsNode, m3ua, cast, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
+	RefCast = m3ua:cast(Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data),
 	receive
-		{RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
+		{RefCast, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
 			ok
 	end,
 	ok = rpc:call(AsNode, m3ua, stop, [ClientEP]),
@@ -929,6 +924,15 @@ cb_init(_Module, _Asp, _EP, _EpName, _Assoc, Ref, Pid) ->
 cb_notify(RC, Status, _AspID, State, Ref, Pid) ->
 	Pid ! {Ref, RC, Status},
 	{ok, State}.
+
+cb_send(From, Ref, Stream,
+		RC, OPC, DPC, NI, SI, SLS, Data, _State, _Ref, _Pid) ->
+	From ! {Ref, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]},
+	{ok, once, []}.
+
+cb_send(_Module, _Asp, _EP, _EpName, _Assoc, Ref, Pid) ->
+	Pid ! {Ref, self()},
+	{ok, once, []}.
 
 is_all_state(IsAspState, Asps) ->
 	F = fun(#m3ua_as_asp{state = AspState}) when AspState == IsAspState ->
