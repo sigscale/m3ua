@@ -1020,8 +1020,8 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 handle_sgp(#m3ua{class = ?TransferMessage,
 		type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket,
-		active = Active, ep = EP, assoc = Assoc,
-		callback = CbMod, cb_state = CbState, count = Count} = StateData)
+		ep = EP, assoc = Assoc, callback = CbMod,
+		cb_state = CbState, count = Count} = StateData)
 		when CbMod /= undefined ->
 	Parameters = m3ua_codec:parameters(Params),
 	RC = case m3ua_codec:find_parameter(?RoutingContext, Parameters) of
