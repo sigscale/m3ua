@@ -201,6 +201,14 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
 	inet:setopts(Socket, [{active, once}]),
 	{next_state, StateName, StateData};
+handle_info({sctp_error, Socket, PeerAddr, PeerPort,
+		{_AncData, #sctp_remote_error{error = Error,
+		assoc_id = Assoc, data = Data}}}, StateName, StateData) ->
+	error_logger:warning_report(["SCTP Remote Error",
+			{error, gen_sctp:error_string(Error)},
+			{assoc, Assoc}, {data, Data}, {socket, Socket},
+			{peer, {PeerAddr, PeerPort}}]),
+	{next_state, StateName, StateData};
 handle_info({'EXIT', _Pid, {shutdown, {{_EP, Assoc}, _Reason}}},
 		StateName, #statedata{fsms = Fsms} = StateData) ->
 	NewFsms = gb_trees:delete(Assoc, Fsms),
