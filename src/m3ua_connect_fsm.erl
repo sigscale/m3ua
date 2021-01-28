@@ -94,13 +94,20 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{true, Opts3}
 	end,
-	case lists:keytake(connect, 1, Opts4) of
-		{value, {connect, Raddr, Rport, Ropts}, O5} ->
-			Options = [{active, once}, {reuseaddr, true},
-					{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
-					{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
-					{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
-					| O5],
+	PpiOptions = [{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
+			{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
+			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}],
+	Opts5 = case lists:keytake(ppi, 1, Opts4) of
+		{value, {ppi, false}, O5} ->
+			O5;
+		{value, {ppi, true}, O5} ->
+			[O5] ++ PpiOptions;
+		false ->
+			Opts4 ++ PpiOptions
+	end,
+	case lists:keytake(connect, 1, Opts5) of
+		{value, {connect, Raddr, Rport, Ropts}, O6} ->
+			Options = [{active, once}, {reuseaddr, true} | O6],
 			process_flag(trap_exit, true),
 			StateData = #statedata{sup = Sup, role = Role, name = Name,
 					static = Static, use_rc = UseRC,

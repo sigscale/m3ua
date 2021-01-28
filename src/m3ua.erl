@@ -38,6 +38,7 @@
 		| {role, sgp | asp}
 		| {static, boolean()}
 		| {use_rc, boolean()}
+		| {ppi, boolean()}
 		| gen_sctp:option().
 %% Options used to configure SCTP endpoint and M3UA process behaviour.
 -export_type([option/0]).

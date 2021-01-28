@@ -88,11 +88,18 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{true, Opts3}
 	end,
-	Options = [{active, once}, {reuseaddr, true},
-			{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
+	PpiOptions = [{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
 			{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
-			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}
-			| Opts4],
+			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}],
+	Opts5 = case lists:keytake(ppi, 1, Opts4) of
+		{value, {ppi, false}, O5} ->
+			O5;
+		{value, {ppi, true}, O5} ->
+			[O5] ++ PpiOptions;
+		false ->
+			Opts4 ++ PpiOptions
+	end,
+	Options = [{active, once}, {reuseaddr, true} | Opts5],
 	try
 		case gen_sctp:open(Options) of
 			{ok, Socket} ->
