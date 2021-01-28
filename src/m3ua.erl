@@ -175,7 +175,8 @@ getstat(EndPoint, Assoc, Options)
 				| inactive_out | inactive_in | inactive_ack_in | inactive_ack_out
 				| notify_out | notify_in | daud_out | daud_in
 				| duna_out | duna_in | dava_in | dava_out 
-				| dupu_out | dupu_in | transfer_in | transfer_out,
+				| dupu_out | dupu_in | transfer_in | transfer_out
+				| beat_in | beat_ack_out,
 		Total :: non_neg_integer(),
 		Reason :: term().
 %% @doc Get M3UA message statistics counters.

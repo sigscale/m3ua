@@ -1093,7 +1093,28 @@ handle_sgp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
 			{module, ?MODULE}, {state, StateName}, {endpoint, EP},
 			{association, Assoc}, {error, ErrorCode}]),
 	inet:setopts(Socket, [{active, Active}]),
-	{next_state, StateName, StateData}.
+	{next_state, StateName, StateData};
+handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMBEAT, params = Params},
+		StateName, _Stream, #statedata{socket = Socket, active = Active,
+		assoc = Assoc, ep = EP, count = Count} = StateData) ->
+	BeatAck = #m3ua{class = ?ASPSMMessage,
+			type = ?ASPSMBEATACK, params = Params},
+	Packet = m3ua_codec:m3ua(BeatAck),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, Active}]),
+			UpIn = maps:get(beat_in, Count, 0),
+			UpAckOut = maps:get(beat_ack_out, Count, 0),
+			NewCount = maps:put(beat_in, UpIn + 1, Count),
+			NextCount = maps:put(beat_ack_out, UpAckOut + 1, NewCount),
+			NewStateData = StateData#statedata{count = NextCount},
+			{next_state, StateName, NewStateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
+		{error, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+	end.
 
 -dialyzer({[nowarn_function, no_contracts], inet_getopts/2}).
 -spec inet_getopts(Socket, Options) -> Result
