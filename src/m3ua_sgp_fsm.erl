@@ -43,8 +43,8 @@
 %%%    <li><tt>RC = 0..4294967295 | undefined</tt></li>
 %%%    <li><tt>RK = {NA, Keys, TMT}</tt></li>
 %%%    <li><tt>NA = 0..4294967295 | undefined</tt></li>
-%%%    <li><tt>Keys = [key()]</tt></li>
-%%%    <li><tt>Mode = tmt()</tt></li>
+%%%    <li><tt>Keys = [m3ua:key()]</tt></li>
+%%%    <li><tt>Mode = m3ua:tmt()</tt></li>
 %%%    <li><tt>AsName = term()</tt></li>
 %%%    <li><tt>Reason = term()</tt></li>
 %%%  </ul></p>
@@ -154,8 +154,8 @@
 %%%  <ul class="definitions">
 %%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>NA = 0..4294967295</tt></li>
-%%%    <li><tt>Keys = [key()]</tt></li>
-%%%    <li><tt>TMT = tmt()</tt></li>
+%%%    <li><tt>Keys = [m3ua:key()]</tt></li>
+%%%    <li><tt>TMT = m3ua:tmt()</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -262,7 +262,7 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: routing_key(), Active :: boolean()}],
+				RK :: m3ua:routing_key(), Active :: boolean()}],
 		ual :: undefined | integer(),
 		stream :: undefined | pos_integer(),
 		ep :: pid(),
@@ -291,8 +291,8 @@
 		RC :: 0..4294967295,
 		RK :: {NA, Keys, TMT},
 		NA :: 0..4294967295 | undefined,
-		Keys :: [key()],
-		TMT :: tmt(),
+		Keys :: [m3ua:key()],
+		TMT :: m3ua:tmt(),
 		AsName :: term(),
 		Reason :: term().
 -callback recv(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
@@ -364,8 +364,8 @@
 	when
 		RC :: 0..4294967295,
 		NA :: 0..4294967295 | undefined,
-		Keys :: [key()],
-		TMT :: tmt(),
+		Keys :: [m3ua:key()],
+		TMT :: m3ua:tmt(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -1321,7 +1321,7 @@ send_notify([], StateName,
 		RK :: {NA, Keys, TMT},
 		NA :: 0..4294967295,
 		Keys :: [{DPC, [SI], [OPC]}],
-		TMT :: tmt(),
+		TMT :: m3ua:tmt(),
 		Active :: boolean().
 %% @doc Find routing context matching destination.
 %% @hidden

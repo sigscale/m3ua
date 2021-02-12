@@ -91,10 +91,6 @@
 -define(RegistrationStatus,         530).
 -define(DeregistrationStatus,       531).
 
--type tmt() :: override | loadshare | broadcast.
--type key() :: {DPC :: 0..16777215, [SI :: byte()], [OPC :: 0..16777215]}.
--type routing_key() :: {NA :: 0..4294967295, Keys :: [key()], TMT :: tmt()}.
-
 %% M3UA Common Header -- RFC4666, Section-1.3.1
 -record(m3ua,
 		{version = 1 :: byte(),
@@ -114,11 +110,11 @@
 -record(m3ua_routing_key,
 		{rc :: undefined | 0..4294967295,
 		na :: undefined | 0..4294967295,
-		tmt :: undefined | tmt(),
+		tmt :: undefined | m3ua:tmt(),
 		status :: undefined | atom(),
 		as :: undefined | term(),
 		lrk_id :: undefined | 0..4294967295,
-		key :: undefined | [key()]}).
+		key :: undefined | [m3ua:key()]}).
 
 -record(registration_result,
 		{lrk_id :: undefined |0..4294967295,
@@ -133,7 +129,7 @@
 
 -record(m3ua_as,
 		{rc :: 0..4294967295,
-		rk :: routing_key(),
+		rk :: m3ua:routing_key(),
 		name :: term(),
 		min_asp = 1 :: pos_integer(),
 		max_asp :: undefined | pos_integer(),
@@ -143,7 +139,7 @@
 -record(m3ua_asp,
 		{fsm :: pid() | '$1',
 		rc :: undefined | 0..4294967295 | '_',
-		rk :: routing_key() | '_'}).
+		rk :: m3ua:routing_key() | '_'}).
 
 -record(m3ua_fsm_cb,
 		{init = false :: fun() | false,

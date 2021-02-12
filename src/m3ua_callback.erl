@@ -128,8 +128,8 @@ status(_Stream, _RK, _DPCs, State) ->
 	when
 		RC :: undefined | 0..4294967295,
 		NA :: undefined | 0..4294967295,
-		Keys :: [key()],
-		TMT :: tmt(),
+		Keys :: [m3ua:key()],
+		TMT :: m3ua:tmt(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),

@@ -41,7 +41,11 @@
 		| {ppi, boolean()}
 		| gen_sctp:option().
 %% Options used to configure SCTP endpoint and M3UA process behaviour.
--export_type([option/0]).
+
+-type tmt() :: override | loadshare | broadcast.
+-type key() :: {DPC :: 0..16777215, [SI :: byte()], [OPC :: 0..16777215]}.
+-type routing_key() :: {NA :: 0..4294967295, Keys :: [key()], TMT :: tmt()}.
+-export_type([option/0, tmt/0, key/0, routing_key/0]).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").

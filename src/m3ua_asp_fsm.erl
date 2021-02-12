@@ -147,8 +147,8 @@
 %%%  <ul class="definitions">
 %%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>NA = 0..4294967295</tt></li>
-%%%    <li><tt>Keys = [key()]</tt></li>
-%%%    <li><tt>TMT = tmt()</tt></li>
+%%%    <li><tt>Keys = [m3ua:key()]</tt></li>
+%%%    <li><tt>TMT = m3ua:tmt()</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -257,7 +257,7 @@
 		static = false :: boolean(),
 		use_rc = true :: boolean(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: routing_key(), Active :: boolean()}],
+				RK :: m3ua:routing_key(), Active :: boolean()}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
 		ep :: pid(),
@@ -353,8 +353,8 @@
 	when
 		RC :: 0..4294967295,
 		NA :: 0..4294967295 | undefined,
-		Keys :: [key()],
-		TMT :: tmt(),
+		Keys :: [m3ua:key()],
+		TMT :: m3ua:tmt(),
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
@@ -1263,15 +1263,15 @@ inet_getopts(Socket, Options) ->
 
 -spec get_rc(DPC, OPC, SI, RKs) -> RC
 	when
-		DPC :: 0..4294967295,
-		OPC :: 0..4294967295,
-		SI :: 0..4294967295,
+		DPC :: 0..16777215,
+		OPC :: 0..16777215,
+		SI :: byte(),
 		RKs :: [{RC, RK, Active}],
 		RC :: 0..4294967295,
 		RK :: {NA, Keys, TMT},
 		NA :: byte(),
 		Keys :: [{DPC, [SI], [OPC]}],
-		TMT :: tmt(),
+		TMT :: m3ua:tmt(),
 		Active :: boolean().
 %% @doc Find routing context matching destination.
 %% @hidden
