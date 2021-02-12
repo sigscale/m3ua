@@ -507,11 +507,11 @@ sort([], Acc) ->
 
 -spec keymember(DPC, OPC, SI, RoutingKeys) -> boolean()
 	when
-		NA :: byte(),
-		DPC :: 0..4294967295,
-		SI :: 0..4294967295,
-		OPC :: 0..4294967295,
+		DPC :: 0..16777215,
+		OPC :: 0..16777215,
+		SI :: byte(),
 		RoutingKeys :: [{NA, Keys, TMT}],
+		NA :: 0..4294967295 | undefined,
 		Keys :: [{DPC, [SI], [OPC]}],
 		TMT :: tmt().
 %% @equiv keymember(undefined, DPC, OPC, SI, RoutingKeys)
@@ -522,9 +522,9 @@ keymember(DPC, OPC, SI, RoutingKeys) ->
 -spec keymember(NA, DPC, OPC, SI, RoutingKeys) -> boolean()
 	when
 		NA :: 0..4294967295 | undefined,
-		DPC :: 0..4294967295,
-		SI :: 0..4294967295,
-		OPC :: 0..4294967295,
+		DPC :: 0..16777215,
+		OPC :: 0..16777215,
+		SI :: byte(),
 		RoutingKeys :: [{NA, Keys, TMT}],
 		Keys :: [{DPC, [SI], [OPC]}],
 		TMT :: tmt().
