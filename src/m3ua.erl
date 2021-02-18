@@ -39,6 +39,7 @@
 		| {static, boolean()}
 		| {use_rc, boolean()}
 		| {ppi, boolean()}
+		| {cb_opts, term()}
 		| gen_sctp:option().
 %% Options used to configure SCTP endpoint and M3UA process behaviour.
 

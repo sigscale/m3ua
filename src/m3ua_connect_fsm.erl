@@ -39,6 +39,7 @@
 		fsm_sup :: undefined | pid(),
 		socket :: undefined | gen_sctp:sctp_socket(),
 		options :: [tuple()],
+		cb_options :: term(),
 		role :: sgp | asp,
 		static :: boolean(),
 		use_rc :: boolean(),
@@ -94,24 +95,30 @@ init([Sup, Callback, Opts] = _Args) ->
 		false ->
 			{true, Opts3}
 	end,
+	{CbOpts, Opts5} = case lists:keytake(cb_opts, 1, Opts4) of
+		{value, {cb_opts, R5}, O5} ->
+			{R5, O5};
+		false ->
+			{[], Opts4}
+	end,
 	PpiOptions = [{sctp_events, #sctp_event_subscribe{adaptation_layer_event = true}},
 			{sctp_default_send_param, #sctp_sndrcvinfo{ppid = 3}},
 			{sctp_adaptation_layer, #sctp_setadaptation{adaptation_ind = 3}}],
-	Opts5 = case lists:keytake(ppi, 1, Opts4) of
-		{value, {ppi, false}, O5} ->
-			O5;
-		{value, {ppi, true}, O5} ->
-			[O5] ++ PpiOptions;
+	Opts6 = case lists:keytake(ppi, 1, Opts5) of
+		{value, {ppi, false}, O6} ->
+			O6;
+		{value, {ppi, true}, O6} ->
+			[O6] ++ PpiOptions;
 		false ->
-			Opts4 ++ PpiOptions
+			Opts5 ++ PpiOptions
 	end,
-	case lists:keytake(connect, 1, Opts5) of
-		{value, {connect, Raddr, Rport, Ropts}, O6} ->
-			Options = [{active, once}, {reuseaddr, true} | O6],
+	case lists:keytake(connect, 1, Opts6) of
+		{value, {connect, Raddr, Rport, Ropts}, O7} ->
+			Options = [{active, once}, {reuseaddr, true} | O7],
 			process_flag(trap_exit, true),
-			StateData = #statedata{sup = Sup, role = Role, name = Name,
-					static = Static, use_rc = UseRC,
-					options = Options, callback = Callback,
+			StateData = #statedata{sup = Sup, role = Role,
+					name = Name, static = Static, use_rc = UseRC,
+					options = Options, cb_options = CbOpts, callback = Callback,
 					remote_addr = Raddr, remote_port = Rport,
 					remote_opts = Ropts},
 			{ok, connecting, StateData, 0};
@@ -325,10 +332,10 @@ get_sup(#statedata{role = sgp, sup = Sup} = StateData) ->
 %% @hidden
 handle_connect(AssocChange, #statedata{socket = Socket,
 		fsm_sup = Sup, remote_addr = Address, remote_port = Port,
-		name = Name, callback = Cb, static = Static,
+		name = Name, cb_options = CbOpts, callback = Cb, static = Static,
 		use_rc = UseRC} = StateData) ->
 	case supervisor:start_child(Sup, [[Socket, Address, Port,
-			AssocChange, self(), Name, Cb, Static, UseRC], []]) of
+			AssocChange, self(), Name, Cb, Static, UseRC, CbOpts], []]) of
 		{ok, Fsm} ->
 			case gen_sctp:controlling_process(Socket, Fsm) of
 				ok ->

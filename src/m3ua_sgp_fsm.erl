@@ -29,13 +29,14 @@
 %%%
 %%%  <h3 class="function"><a name="init-5">init/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>init(Module, SGP, EP, EpName, Assoc) -&gt; Result </tt>
+%%%  <p><tt>init(Module, SGP, EP, EpName, Assoc, Options) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Module = atom()</tt></li>
 %%%    <li><tt>SGP = pid()</tt></li>
 %%%    <li><tt>EP = pid()</tt></li>
 %%%    <li><tt>EpName = term()</tt></li>
 %%%    <li><tt>Assoc = gen_sctp:assoc_id()</tt></li>
+%%%    <li><tt>Options = term()</tt></li>
 %%%    <li><tt>Result = {ok, Active, State} | {ok, Active, State, RKs} | {error, Reason}</tt></li>
 %%%    <li><tt>Active = true | false | once | pos_integer()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
@@ -270,6 +271,7 @@
 		static :: boolean(),
 		use_rc :: boolean(),
 		callback :: atom() | #m3ua_fsm_cb{},
+		cb_opts :: term(),
 		cb_state :: term(),
 		count = #{} :: #{atom() => non_neg_integer()}}).
 
@@ -277,13 +279,14 @@
 %%  Interface functions
 %%----------------------------------------------------------------------
 
--callback init(Module, SGP, EP, EpName, Assoc) -> Result
+-callback init(Module, SGP, EP, EpName, Assoc, Options) -> Result
 	when
 		Module :: atom(),
 		SGP :: pid(),
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: gen_sctp:assoc_id(),
+		Options :: term(),
 		Result :: {ok, Active, State} | {ok, Active, State, ASs} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
 		State :: term(),
@@ -425,9 +428,9 @@
 init([Socket, Address, Port,
 		#sctp_assoc_change{assoc_id = Assoc,
 		inbound_streams = InStreams, outbound_streams = OutStreams},
-		EP, EpName, Cb, Static, UseRC]) ->
+		EP, EpName, Cb, Static, UseRC, CbOpts]) ->
 	process_flag(trap_exit, true),
-	CbArgs = [?MODULE, self(), EP, EpName, Assoc],
+	CbArgs = [?MODULE, self(), EP, EpName, Assoc, CbOpts],
 	case m3ua_callback:cb(init, Cb, CbArgs) of
 		{ok, Active, CbState} ->
 			case inet:setopts(Socket, [{active, Active}]) of
@@ -436,7 +439,7 @@ init([Socket, Address, Port,
 							assoc = Assoc, peer_addr = Address, peer_port = Port,
 							in_streams = InStreams, out_streams = OutStreams,
 							ep = EP, ep_name = EpName,
-							callback = Cb, cb_state = CbState,
+							callback = Cb, cb_opts = CbOpts, cb_state = CbState,
 							static = Static, use_rc = UseRC},
 					{ok, down, Statedata, 0};
 				{error, Reason} ->
@@ -446,7 +449,7 @@ init([Socket, Address, Port,
 			StateData = #statedata{socket = Socket, active = Active,
 					assoc = Assoc, peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
-					callback = Cb, cb_state = CbState,
+					callback = Cb, cb_opts = CbOpts, cb_state = CbState,
 					ep = EP, ep_name = EpName,
 					static = Static, use_rc = UseRC},
 			init1(RKs, StateData, []);

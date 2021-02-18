@@ -21,7 +21,7 @@
 -copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
 
 %% export the m3ua_callback public API
--export([init/5, recv/9, send/11, pause/4, resume/4, status/4,
+-export([init/6, recv/9, send/11, pause/4, resume/4, status/4,
 		register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, info/2, terminate/2]).
 
@@ -33,18 +33,19 @@
 %%----------------------------------------------------------------------
 %%  The m3ua_callback public API
 %%----------------------------------------------------------------------
--spec init(Module, Fsm, EP, EpName, Assoc) -> Result
+-spec init(Module, Fsm, EP, EpName, Assoc, Options) -> Result
 	when
 		Module :: atom(),
 		Fsm :: pid(),
 		EP :: pid(),
 		EpName :: term(),
 		Assoc :: gen_sctp:assoc_id(),
+		Options :: term(),
 		Result :: {ok, Active, State} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
 		State :: term(),
 		Reason :: term().
-init(_Module, _Fsm, _EP, _EpName, _Assoc) ->
+init(_Module, _Fsm, _EP, _EpName, _Assoc, _Options) ->
 	{ok, once, []}.
 
 -spec recv(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State) -> Result
