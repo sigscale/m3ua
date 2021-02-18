@@ -897,7 +897,7 @@ as_state_down(_Config) ->
 %%---------------------------------------------------------------------
 
 callback(Ref) ->
-	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, Pid) ->
+	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, _Options, Pid) ->
 				Pid ! Ref,
 				{ok, once, []}
 	end,
@@ -918,11 +918,11 @@ wait(Ref) ->
 	end.
 
 remote_cb(Ref) ->
-	Finit = fun ?MODULE:cb_init/7,
+	Finit = fun ?MODULE:cb_init/8,
 	Fnotify = fun ?MODULE:cb_notify/6,
 	#m3ua_fsm_cb{init = Finit, notify = Fnotify, extra = [Ref, self()]}.
 
-cb_init(_Module, _Asp, _EP, _EpName, _Assoc, Ref, Pid) ->
+cb_init(_Module, _Asp, _EP, _EpName, _Assoc, _Options, Ref, Pid) ->
 	Pid ! {Ref, self()},
 	{ok, once, []}.
 

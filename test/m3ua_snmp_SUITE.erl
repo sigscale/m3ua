@@ -258,7 +258,7 @@ get_next_asp_stat(_Config) ->
 %%---------------------------------------------------------------------
 
 callback(Ref) ->
-	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, Pid) ->
+	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, _Options, Pid) ->
 				Pid ! Ref,
 				{ok, once, []}
 	end,
