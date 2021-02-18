@@ -29,7 +29,7 @@
 %%%
 %%%  <h3 class="function"><a name="init-5">init/5</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>init(Log, SGP, EP, EpName, Assoc) -&gt; Result </tt>
+%%%  <p><tt>init(Module, SGP, EP, EpName, Assoc) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Module = atom()</tt></li>
 %%%    <li><tt>SGP = pid()</tt></li>
