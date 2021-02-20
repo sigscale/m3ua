@@ -1,10 +1,10 @@
 @copyright 2015-2018 SigScale Global Inc.
 @version %VERSION%
 @title %DESCRIPTION%
-@doc This application implements an M3UA protocol stack.
 @reference <a href="http://tools.ietf.org/rfc/rfc2719">RFC2719: Framework Architecture for Signaling Transport</a>
 @reference <a href="http://tools.ietf.org/rfc/rfc4166">RFC4166: Telephony Signalling Transport over Stream Control Transmission Protocol (SCTP) Applicability Statement</a>
 @reference <a href="http://tools.ietf.org/rfc/rfc4666">RFC4666: Signaling System 7 (SS7) Message Transfer Part 3 (MTP3) - User Adaptation Layer (M3UA)</a>
+@doc This application implements an M3UA protocol stack.
 
 ==Introduction==
 The Signaling Transport (SIGTRAN) protocol suite provides for transport
@@ -32,7 +32,6 @@ e.g &#058;
 	'''
 
 ==Operation==
-
 Start an M3UA Signaling Gateway Process (ASP) endpoint:
 ```
 	1> application:start(m3ua).
