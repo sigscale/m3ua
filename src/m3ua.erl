@@ -51,7 +51,7 @@
 %% 		<dd>The role of the endpoint shall be SGP or ASP.
 %% 		(default: `sgp').</dd>
 %% 	<dt>static</dt>
-%% 		<dd>If `true' an ASP will not send registration requests.</dd>
+%% 		<dd>If `true' an ASP will not send registration requests.
 %% 		(default: `false').</dd>
 %% 	<dt>use_rc</dt>
 %% 		<dd>If `true' the Routing Context (RC) parameter will
