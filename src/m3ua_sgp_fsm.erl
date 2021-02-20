@@ -445,7 +445,7 @@ init([Socket, Address, Port,
 				{error, Reason} ->
 					{stop, Reason}
 			end;
-		{ok, Active, CbState, RKs} ->
+		{ok, Active, CbState, RKs} when is_list(RKs) ->
 			StateData = #statedata{socket = Socket, active = Active,
 					assoc = Assoc, peer_addr = Address, peer_port = Port,
 					in_streams = InStreams, out_streams = OutStreams,
