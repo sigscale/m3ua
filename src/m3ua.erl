@@ -42,10 +42,45 @@
 		| {cb_opts, term()}
 		| gen_sctp:option().
 %% Options used to configure SCTP endpoint and M3UA process behaviour.
+%% <dl>
+%% 	<dt>connect</dt>
+%% 		<dd>An SCTP connection estanlishment will be attempted to the
+%% 		provided remote `Address' and `Port'. The SCTP port will be
+%% 		opened with the provided `Options' (default is listen).</dd>
+%% 	<dt>role</dt>
+%% 		<dd>The role of the endpoint shall be SGP or ASP.
+%% 		(default: `sgp').</dd>
+%% 	<dt>static</dt>
+%% 		<dd>If `true' an ASP will not send registration requests.</dd>
+%% 		(default: `false').</dd>
+%% 	<dt>use_rc</dt>
+%% 		<dd>If `true' the Routing Context (RC) parameter will
+%% 		not be included in ASP Traffic Maintenance (ASPTM) Messages
+%% 		(default: `true').</dd>
+%% 	<dt>ppi</dt>
+%% 		<dd>If `false' the (optional) SCTP Payload Protocol Identifier (PPI)
+%% 		will not be included (see RFC4666 7.1). If `true' PPI will be
+%% 		included with the value set to indicate M3UA
+%% 		(default: `true').</dd>
+%% 	<dt>cb_opts</dt>
+%% 		<dd>Additional information provided to the callback module in
+%% 		it's `init/1' callback function.</dd>
+%% </dl>
 
 -type tmt() :: override | loadshare | broadcast.
+%% Traffic Mode Type identifies the traffic mode of operation of the
+%% ASPs within an Application Server.
+
 -type key() :: {DPC :: 0..16777215, [SI :: byte()], [OPC :: 0..16777215]}.
+%% A set of one Destination Point Code (DPC), an (optional) list of
+%% Service Indicators (SI) and an (optional) list of Originating
+%% Point Codes (OPC) used as a filter in a Routing Key (RK).
+
 -type routing_key() :: {NA :: 0..4294967295, Keys :: [key()], TMT :: tmt()}.
+%% Message distribution between the SGP and Application Servers (AS)
+%% is determined by the Routing Keys (RK) and their associated Routing
+%% Contexts (RC). A Routing Key is set of filter parameters for SS7
+%% messages. A Routing Context identifies a specific Routing Key.
 -export_type([option/0, tmt/0, key/0, routing_key/0]).
 
 -include("m3ua.hrl").
@@ -54,6 +89,7 @@
 -type stat_option() ::
 	'recv_cnt' | 'recv_max' | 'recv_avg' | 'recv_oct' | 'recv_dvi' |
 	'send_cnt' | 'send_max' | 'send_avg' | 'send_oct' | 'send_pend'.
+%% Message counters for traffic statistics.
 
 %%----------------------------------------------------------------------
 %%  The m3ua public API
@@ -180,7 +216,7 @@ getstat(EndPoint, Assoc, Options)
 				| active_out | active_in | active_ack_in | active_ack_out
 				| inactive_out | inactive_in | inactive_ack_in | inactive_ack_out
 				| notify_out | notify_in | daud_out | daud_in
-				| duna_out | duna_in | dava_in | dava_out 
+				| duna_out | duna_in | dava_in | dava_out
 				| dupu_out | dupu_in | transfer_in | transfer_out
 				| beat_in | beat_ack_out,
 		Total :: non_neg_integer(),
