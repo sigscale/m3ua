@@ -1,6 +1,6 @@
 %%% m3ua_sgp_fsm.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2015-2018 SigScale Global Inc.
+%%% @copyright 2015-2021 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -49,7 +49,8 @@
 %%%    <li><tt>AsName = term()</tt></li>
 %%%    <li><tt>Reason = term()</tt></li>
 %%%  </ul></p>
-%%%  </div><p>Initialize SGP callback handler.</p>
+%%%  </div>
+%%%  <p>Initialize SGP callback handler.</p>
 %%%  <p>Called when SGP is started.</p>
 %%%
 %%%  <h3 class="function"><a name="recv-9">recv/9</a></h3>
@@ -71,7 +72,8 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>MTP-TRANSFER indication.</p>
+%%%  </div>
+%%%  <p>MTP-TRANSFER indication.</p>
 %%%  <p>Called when data has arrived for the MTP user.</p>
 %%%
 %%%  <h3 class="function"><a name="send-11">send/11</a></h3>
@@ -95,7 +97,8 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>MTP-TRANSFER request.</p>
+%%%  </div>
+%%%  <p>MTP-TRANSFER confirm.</p>
 %%%  <p>Called when data has been sent by the MTP user.</p>
 %%%
 %%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
@@ -112,7 +115,8 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>MTP-PAUSE indication.</p>
+%%%  </div>
+%%%  <p>MTP-PAUSE indication.</p>
 %%%  <p>Called when an SS7 destination is unreachable.</p>
 %%%
 %%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
@@ -129,7 +133,8 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%   </ul></p>
-%%%  </div><p>MTP-RESUME indication.</p>
+%%%  </div>
+%%%  <p>MTP-RESUME indication.</p>
 %%%  <p>Called when a previously unreachable SS7 destination
 %%%  becomes reachable.</p>
 %%%
@@ -146,7 +151,9 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>Called when congestion occurs for an SS7 destination
+%%%  </div>
+%%%  <p>MTP-STATUS indication.</p>
+%%%  <p>Called when congestion occurs for an SS7 destination
 %%% 	or to indicate an unavailable remote user part.</p>
 %%%
 %%%  <h3 class="function"><a name="register-5">register/5</a></h3>
@@ -162,7 +169,9 @@
 %%%    <li><tt>NewState = term() </tt></li>
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
-%%%  </div><p>Called after successfully processing an
+%%%  </div>
+%%%  <p>M-RK_REG indication.</p>
+%%%  <p>Called after successfully processing an
 %%%   incoming Registration request or static registration completes.</p>
 %%%
 %%%  <h3 class="function"><a name="asp_up-1">asp_up/1</a></h3>
@@ -173,6 +182,8 @@
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
+%%%  <p>M-ASP_UP indication.</p>
+%%%  <p>Called when ASP UP ACK is sent to ASP.</p>
 %%%
 %%%  <h3 class="function"><a name="asp_down-1">asp_down/1</a></h3>
 %%%  <div class="spec">
@@ -182,6 +193,8 @@
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
+%%%  <p>M-ASP_DOWN indication.</p>
+%%%  <p>Called when ASP DOWN ACK is sent to ASP.</p>
 %%%
 %%%  <h3 class="function"><a name="asp_active-1">asp_active/1</a></h3>
 %%%  <div class="spec">
@@ -191,15 +204,19 @@
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
+%%%  <p>M-ASP_ACTIVE indication.</p>
+%%%  <p>Called when ASP ACTIVE ACK is sent to ASP.</p>
 %%%
 %%%  <h3 class="function"><a name="asp_inactive-1">asp_inactive/1</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>asp_inactive(Sgp, EP, Assoc, State) -&gt; Result </tt>
+%%%  <p><tt>asp_inactive(State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>State = term()</tt></li>
 %%%    <li><tt>Result = {ok, State} </tt></li>
 %%%  </ul></p>
 %%%  </div>
+%%%  <p>M-ASP_INACTIVE indication.</p>
+%%%  <p>Called when ASP INACTIVE ACK is sent to ASP.</p>
 %%%
 %%%  <h3 class="function"><a name="notify-4">notify/4</a></h3>
 %%%  <div class="spec">
@@ -215,6 +232,8 @@
 %%%    <li><tt>Result = {ok, State}</tt></li>
 %%%  </ul></p>
 %%%  </div>
+%%%  <p>M-NOTIFY indication.</p>
+%%%  <p>Called when NOTIFY is sent to ASP.</p>
 %%%
 %%%  <h3 class="function"><a name="info-2">info/2</a></h3>
 %%%  <div class="spec">
@@ -228,6 +247,8 @@
 %%%    <li><tt>Reason = term() </tt></li>
 %%%  </ul></p>
 %%%  </div>
+%%%  <p>Handle info callback.</p>
+%%%  <p>Called when other information is received by SGP.</p>
 %%%
 %%%  <h3 class="function"><a name="terminate-2">terminate/2</a></h3>
 %%%  <div class="spec">
@@ -236,11 +257,13 @@
 %%%    <li><tt>Reason = term()</tt></li>
 %%%    <li><tt>State = term()</tt></li>
 %%%  </ul></p>
-%%%  </div><p>Called when an ASP terminates.</p>
+%%%  </div>
+%%%  <p>Terminate ASP.</p>
+%%%  <p>Called when an ASP shall be shutdown.</p>
 %%%
 %%% @end
 -module(m3ua_sgp_fsm).
--copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
+-copyright('Copyright (c) 2015-2021 SigScale Global Inc.').
 
 -behaviour(gen_fsm).
 
