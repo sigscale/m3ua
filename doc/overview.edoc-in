@@ -18,6 +18,121 @@ transport of any SS7 MTP3-User signalling (e.g. ISUP or SCCP) over IP
 using the services of SCTP. This protocol is used to interconnect an SS7
 Signaling Gateway (SG) with Application Servers (AS).
 
+An SG/AS may have multiple process instances (SGP/ASP) where each process
+contains an SCTP association to an M3UA peer SGP/ASP. Traffic may be
+loadshared across these associations. 
+
+In this implementation an AS/SG may be composed of processes distributed
+across a cluster. 
+
+==State &amp; Traffic Management==
+The M3UA layer at the SGP maintains the availability state of all
+configured remote ASPs, to manage the SCTP Associations and the
+traffic between the M3UA peers. The ASP states and transitions are
+shown in <a href="asp-states.png">Figure 1-1</a>.
+
+<img alt="asp state machine" src="asp-states.png" /><br />
+<a href="asp-states.png">Figure 1-1</a>
+
+Each AS may be configured for a minimum and maximum number of ASPs.
+If the minimum number of ASPs are not in an active state the AS
+is not available. The dynamic lifecycles of M3UA-peer ASP/SGP will
+drive the AS state. The ASP states and transitions are shown in
+<a href="as-states.png">Figure 1-2</a>.
+
+<img alt="as state machine" src="as-states.png" /><br />
+<a href="asp-states.png">Figure 1-2</a>
+
+==Messaging==
+The actors and interfaces of the {@link //m3ua. m3ua} application
+are shown in <a href="boundaries.png">Figure 2-1</a>.
+
+<img alt="boundary interfaces" src="boundaries.png" /><br />
+<a href="boundaries.png">Figure 2-1</a>
+
+===MTP3-User Primitives (1) ===
+<ul>
+	<li>M3UA &#8594; MTP-TRANSFER request</li>
+	<li>M3UA &#8594; MTP-TRANSFER confirm</li>
+	<li>M3UA &#8594; MTP-TRANSFER indication</li>
+	<li>M3UA &#8594; MTP-PAUSE indication</li>
+	<li>M3UA &#8594; MTP-RESUME indication</li>
+	<li>M3UA &#8594; MTP-STATUS indication</li>
+</ul>
+
+An MTP-TRANSFER request primitive is accomplished with
+{@link //m3ua/m3ua:transfer/9. m3ua:transfer/9,10}.
+
+A behaviour module provides an MTP service primitives interface
+for an MTP user. A callback module name is provided when starting
+an `Endpoint'. MTP service primitive indications are delivered to
+the MTP user through calls to the corresponding callback functions.
+
+<ul>
+	<li>{@link //m3ua/m3ua_sgp_fsm:send/11. m3ua_sgp_fsm:send/11}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:send/11. m3ua_asp_fsm:send/11}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:recv/9. m3ua_sgp_fsm:recv/9}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:recv/9. m3ua_asp_fsm:recv/9}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:pause/1. m3ua_sgp_fsm:pause/1}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:pause/1. m3ua_asp_fsm:pause/1}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:resume/1. m3ua_sgp_fsm:resume/1}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:resume/1. m3ua_asp_fsm:resume/1}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:status/1. m3ua_sgp_fsm:status/1}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:status/1. m3ua_asp_fsm:status/1}</li>
+</ul>
+
+===Layer Management API (2)===
+The public API for managing the M3UA application and stack is
+found in the {@link //m3ua/m3ua. m3ua} module.
+
+Layer management service primitive indications are delivered to
+an MTP3-User through callback functions:
+
+<ul>
+	<li>{@link //m3ua/m3ua_sgp_fsm:asp_up/1. m3ua_sgp_fsm:asp_up/1}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:asp_up/1. m3ua_asp_fsm:asp_up/1}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:asp_down/1. m3ua_sgp_fsm:asp_down/1}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:asp_down/1. m3ua_asp_fsm:asp_down/1}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:asp_active/1. m3ua_sgp_fsm:asp_active/1}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:asp_active/1. m3ua_asp_fsm:asp_active/1}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:asp_inactive/1. m3ua_sgp_fsm:asp_inactive/1}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:asp_inactive/1. m3ua_asp_fsm:asp_inactive/1}</li>
+	<li>{@link //m3ua/m3ua_sgp_fsm:notify/4. m3ua_sgp_fsm:notify/4}</li>
+	<li>{@link //m3ua/m3ua_asp_fsm:notify/4. m3ua_asp_fsm:notify/4}</li>
+</ul>
+
+===Layer Management Primitives (3)===
+<ul>
+	<li>M3UA &#8594; M-SCTP_ESTABLISH indication</li>
+	<li>M3UA &#8592; M-SCTP_RELEASE request</li>
+	<li>M3UA &#8594; M-SCTP_RELEASE confirm</li>
+	<li>M3UA &#8592; M-SCTP_STATUS request</li>
+	<li>M3UA &#8594; M-SCTP_STATUS confirm</li>
+	<li>M3UA &#8592; M-RK_REG request,</li>
+	<li>M3UA &#8594; M-RK_REG confirm</li>
+	<li>M3UA &#8592; M-ASP_STATUS request</li>
+	<li>M3UA &#8594; M-ASP_STATUS confirm</li>
+	<li>M3UA &#8592; M-ASP_UP request</li>
+	<li>M3UA &#8594; M-ASP_UP confirm</li>
+	<li>M3UA &#8592; M-ASP_DOWN request</li>
+	<li>M3UA &#8594; M-ASP_DOWN confirm</li>
+	<li>M3UA &#8592; M-ASP_ACTIVE request</li>
+	<li>M3UA &#8594; M-ASP_ACTIVE confirm</li>
+	<li>M3UA &#8592; M-ASP_INACTIVE request</li>
+	<li>M3UA &#8594; M-ASP_INACTIVE confirm</li>
+	<li>M3UA &#8594; M-NOTIFY indication</li>
+</ul>
+
+===SCTP Primitives (4)===
+See {@link //kernel/gen_sctp. gen_sctp}.
+
+==Messaging==
+The message sequence for an AS with one ASP is charted in 
+<a href="message-sequence.png">Figure 3-1</a>.
+
+<img alt="message sequence chart" src="message-sequence.png" /><br />
+<a href="mesage-sequence.png">Figure 3-1</a>
+
 ==Installation==
 Before starting the application for the first time, {@link //mnesia/mnesia. mnesia}
 should be initialized. Create a schema and start mnesia on all nodes
