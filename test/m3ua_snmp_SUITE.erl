@@ -70,10 +70,10 @@ init_per_suite(Config) ->
 	application:load(mnesia),
 	ok = application:set_env(mnesia, dir, PrivDir),
 	{ok, [m3ua_asp, m3ua_as]} = m3ua_app:install(),
-	ok = application:start(m3ua),
 	ok = ct_snmp:start(Config, snmp_mgr_agent, snmp_app),
-	ok = application:start(sigscale_mibs),
 	ok = sigscale_mib:load(),
+	ok = application:start(inets),
+	ok = application:start(m3ua),
 	DataDir = filename:absname(?config(data_dir, Config)),
 	TestDir = filename:dirname(DataDir),
 	BuildDir = filename:dirname(TestDir),
@@ -87,9 +87,8 @@ init_per_suite(Config) ->
 %%
 end_per_suite(Config) ->
 	ok = application:stop(m3ua),
+	ok = application:stop(inets),
 	ok = m3ua_mib:unload(),
-	ok = sigscale_mib:unload(),
-	ok = application:stop(sigscale_mibs),
 	ok = ct_snmp:stop(Config).
 
 -spec init_per_testcase(TestCase :: atom(), Config :: [tuple()]) -> Config :: [tuple()].
