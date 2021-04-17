@@ -54,7 +54,7 @@
 %% 		<dd>If `true' an ASP will not send registration requests.
 %% 		(default: `false').</dd>
 %% 	<dt>use_rc</dt>
-%% 		<dd>If `true' the Routing Context (RC) parameter will
+%% 		<dd>If `false' the Routing Context (RC) parameter will
 %% 		not be included in ASP Traffic Maintenance (ASPTM) Messages
 %% 		(default: `true').</dd>
 %% 	<dt>ppi</dt>
