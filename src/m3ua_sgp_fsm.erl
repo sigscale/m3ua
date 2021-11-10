@@ -763,6 +763,12 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		#statedata{socket = Socket, ep = EP, assoc = Assoc} = StateData) ->
 	{stop, {shutdown, {{EP, Assoc}, comm_lost}}, StateData};
 handle_info({sctp, Socket, _PeerAddr, _PeerPort,
+		{[], #sctp_assoc_change{state = restart, assoc_id = Assoc}}},
+		StateName, #statedata{socket = Socket, active = Active,
+		assoc = Assoc} = StateData) ->
+	inet:setopts(Socket, [{active, Active}]),
+	{next_state, StateName, StateData};
+handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		{[], #sctp_adaptation_event{adaptation_ind = UAL, assoc_id = Assoc}}},
 		StateName, #statedata{socket = Socket, active = Active,
 		assoc = Assoc} = StateData) ->
