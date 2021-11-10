@@ -1,3 +1,12 @@
+2018-11-10  Vance Shipley <vances@sigscale.org>
+
+	* ignore association restart indications
+	* ignore unused results in test suite
+	* correct description of use_rc option
+	* include edoc-info in installed doc
+	* start required applications
+	* do not start library application
+
 2018-09-05  Vance Shipley <vances@sigscale.org>
 
 	* seperate api callbacks for mtp transfer: send & recv
