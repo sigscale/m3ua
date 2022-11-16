@@ -935,8 +935,8 @@ callback(Ref) ->
 				Pid ! Ref,
 				{ok, once, []}
 	end,
-	Fnotify = fun(RC, Status, _AspID, State, Pid) ->
-				Pid ! {Ref, RC, Status},
+	Fnotify = fun(RCs, Status, _AspID, State, Pid) ->
+				Pid ! {Ref, RCs, Status},
 				{ok, State}
 	end,
 	#m3ua_fsm_cb{init = Finit, notify = Fnotify, extra = [self()]}.
@@ -960,8 +960,8 @@ cb_init(_Module, _Asp, _EP, _EpName, _Assoc, _Options, Ref, Pid) ->
 	Pid ! {Ref, self()},
 	{ok, once, []}.
 
-cb_notify(RC, Status, _AspID, State, Ref, Pid) ->
-	Pid ! {Ref, RC, Status},
+cb_notify(RCs, Status, _AspID, State, Ref, Pid) ->
+	Pid ! {Ref, RCs, Status},
 	{ok, State}.
 
 cb_send(From, Ref, Stream,

@@ -166,16 +166,17 @@ asp_active(State) ->
 asp_inactive(State) ->
 	{ok, State}.
 
--spec notify(RC, Status, AspID, State) -> Result
+-spec notify(RCs, Status, AspID, State) -> Result
 	when
-		RC :: undefined | 0..4294967295,
+		RCs :: [RC] | undefined,
+		RC :: 0..4294967295,
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active
 				| asp_failure,
 		AspID :: undefined | pos_integer(),
 		State :: term(),
 		Result :: {ok, State}.
-notify(_RC, _Status, _AspID, State) ->
+notify(_RCs, _Status, _AspID, State) ->
 	{ok, State}.
 
 -spec info(Info, State) -> Result

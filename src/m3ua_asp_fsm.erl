@@ -215,7 +215,7 @@
 %%%  <div class="spec">
 %%%  <p><tt>notify(RCs, Status, AspID, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
-%%%    <li><tt>RCs = [RC]</tt></li>
+%%%    <li><tt>RCs = [RC] | undefined</tt></li>
 %%%    <li><tt>RC = 0..4294967295</tt></li>
 %%%    <li><tt>Status = as_inactive | as_active | as_pending
 %%%         | insufficient_asp_active | alternate_asp_active
@@ -403,7 +403,7 @@
 		Result :: {ok, State}.
 -callback notify(RCs, Status, AspID, State) -> Result
 	when
-		RCs :: [RC],
+		RCs :: [RC] | undefined,
 		RC :: 0..4294967295,
 		Status :: as_inactive | as_active | as_pending
 				| insufficient_asp_active | alternate_asp_active | asp_failure,
