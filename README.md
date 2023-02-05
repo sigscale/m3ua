@@ -10,3 +10,5 @@ transport of any SS7 MTP3-User signalling (e.g. ISUP or SCCP) over IP
 using the services of SCTP. This protocol is used to interconnect an SS7
 Signaling Gateway (SG) with Application Servers (AS).
 
+![interfaces](https://raw.githubusercontent.com/sigscale/m3ua/master/doc/boundaries.png)
+
