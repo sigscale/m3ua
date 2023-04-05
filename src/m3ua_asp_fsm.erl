@@ -767,7 +767,8 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 %% @private
 %%
 handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
-		#statedata{ep = EP, assoc = Assoc, socket = Socket} = StateData) ->
+		#statedata{ep = EP, assoc = Assoc, socket = Socket} = StateData)
+		when Socket /= undefined ->
 	gen_server:cast(From,
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	NewStateData = StateData#statedata{socket = undefined},

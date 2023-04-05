@@ -683,7 +683,8 @@ handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
 	NewStateData = StateData#statedata{socket = undefined},
 	{stop, {shutdown, {{EP, Assoc}, shutdown}}, NewStateData};
 handle_event({'M-SCTP_STATUS', request, Ref, From},
-		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData) ->
+		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData)
+		when Socket /= undefined ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
 	case inet_getopts(Socket, Options) of
 		{ok, SCTPStatus} ->
