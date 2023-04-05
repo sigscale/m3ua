@@ -42,7 +42,7 @@
 		eps = gb_trees:empty() :: gb_trees:tree(EP :: pid(),
 				USAP :: pid()),
 		fsms = gb_trees:empty() :: gb_trees:tree(EP :: pid(),
-				Assoc :: gen_sctp:assoc_ip()),
+				Assoc :: gen_sctp:assoc_id()),
 		reqs = gb_trees:empty() :: gb_trees:tree(Ref :: reference(),
 				From :: pid())}).
 
