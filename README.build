@@ -1,0 +1,28 @@
+#!/bin/false
+# Not a shell script!
+
+# Copy this file to ../m3ua.build/README
+# Follow these instructions in that directory
+
+## Configure new build directory
+mkdir -p shell/lib
+ln -st shell/lib ../../$(ls -d ../sigscale_mibs.build/shell/lib/sigscale_mibs-*)
+
+## Make edoc available
+mkdir -p ~/public_html/m3ua
+ln -st ~/public_html/m3ua ../../m3ua.build/doc
+ln -st ~/public_html/m3ua ../../m3ua.build/test/log
+mv ~/public_html/m3ua/log ~/public_html/m3ua/test
+
+## Configure project
+ERLANG_INSTALL_LIB_DIR=$PWD/shell/lib ERL_LIBS=$PWD/shell/lib ../m3ua/configure
+
+## Install in shell/lib and build a release package
+ERL_LIBS=$PWD/shell/lib make install
+
+## Validate, verify and test
+ERL_LIBS=$PWD/shell/lib make check
+
+## Scrub it clean
+ERL_LIBS=$PWD/shell/lib make distclean; rm -rf *.boot *.rel *.script *.tar.gz Makefile config.* m3ua.rel doc ebin src include priv test stamp-h1 sys.config shell/lib/m3ua-*
+
