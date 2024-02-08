@@ -1,8 +1,8 @@
 #!/bin/false
 # Not a shell script!
 
-# Copy this file to ../m3ua.build/README
-# Follow these instructions in that directory
+# Instructions for building in an adjacent directory
+# of the source directory (i.e. ../m3ua.build)
 
 ## Configure new build directory
 mkdir -p shell/lib
