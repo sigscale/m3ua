@@ -147,7 +147,7 @@ e.g &#058;
 	'''
 
 ==Operation==
-Start an M3UA Signaling Gateway Process (ASP) endpoint:
+Start an M3UA Signaling Gateway Process (SGP) endpoint:
 ```
 	1> application:start(m3ua).
 	ok
