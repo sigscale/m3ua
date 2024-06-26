@@ -73,9 +73,7 @@ the MTP user through calls to the corresponding callback functions.
 	<li>{@link //m3ua/m3ua_asp_fsm:send/11. m3ua_asp_fsm:send/11}</li>
 	<li>{@link //m3ua/m3ua_sgp_fsm:recv/9. m3ua_sgp_fsm:recv/9}</li>
 	<li>{@link //m3ua/m3ua_asp_fsm:recv/9. m3ua_asp_fsm:recv/9}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:pause/1. m3ua_sgp_fsm:pause/1}</li>
 	<li>{@link //m3ua/m3ua_asp_fsm:pause/1. m3ua_asp_fsm:pause/1}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:resume/1. m3ua_sgp_fsm:resume/1}</li>
 	<li>{@link //m3ua/m3ua_asp_fsm:resume/1. m3ua_asp_fsm:resume/1}</li>
 	<li>{@link //m3ua/m3ua_sgp_fsm:status/1. m3ua_sgp_fsm:status/1}</li>
 	<li>{@link //m3ua/m3ua_asp_fsm:status/1. m3ua_asp_fsm:status/1}</li>

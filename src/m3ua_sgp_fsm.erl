@@ -101,51 +101,14 @@
 %%%  <p>MTP-TRANSFER confirm.</p>
 %%%  <p>Called when data has been sent by the MTP user.</p>
 %%%
-%%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
-%%%  <div class="spec">
-%%%  <p><tt>pause(Stream, RCs, DPCs, State) -&gt; Result </tt>
-%%%  <ul class="definitions">
-%%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RCs = [RC]</tt></li>
-%%%    <li><tt>RC = 0..4294967295</tt></li>
-%%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = 0..16777215</tt></li>
-%%%    <li><tt>State = term() </tt></li>
-%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
-%%%    <li><tt>NewState = term() </tt></li>
-%%%    <li><tt>Reason = term() </tt></li>
-%%%  </ul></p>
-%%%  </div>
-%%%  <p>MTP-PAUSE indication.</p>
-%%%  <p>Called when an SS7 destination is unreachable.</p>
-%%%
-%%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
-%%%  <div class="spec">
-%%%  <p><tt>resume(Stream, RCs, DPCs, State) -&gt; Result </tt>
-%%%  <ul class="definitions">
-%%%    <li><tt>Stream = pos_integer()</tt></li>
-%%%    <li><tt>RCs = [RC]</tt></li>
-%%%    <li><tt>RC = 0..4294967295</tt></li>
-%%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = 0..16777215</tt></li>
-%%%    <li><tt>State = term() </tt></li>
-%%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
-%%%    <li><tt>NewState = term() </tt></li>
-%%%    <li><tt>Reason = term() </tt></li>
-%%%   </ul></p>
-%%%  </div>
-%%%  <p>MTP-RESUME indication.</p>
-%%%  <p>Called when a previously unreachable SS7 destination
-%%%  becomes reachable.</p>
-%%%
 %%%  <h3 class="function"><a name="status-4">status/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(Stream, RCs, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>status(Stream, RCs, APCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>RCs = [RC]</tt></li>
 %%%    <li><tt>RC = 0..4294967295</tt></li>
-%%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = 0..16777215</tt></li>
+%%%    <li><tt>APCs = [APC]</tt></li>
+%%%    <li><tt>APC = 0..16777215</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -153,8 +116,7 @@
 %%%  </ul></p>
 %%%  </div>
 %%%  <p>MTP-STATUS indication.</p>
-%%%  <p>Called when congestion occurs for an SS7 destination
-%%% 	or to indicate an unavailable remote user part.</p>
+%%%  <p>Called when congestion occurs at an ASP.</p>
 %%%
 %%%  <h3 class="function"><a name="register-5">register/5</a></h3>
 %%%  <div class="spec">
@@ -351,28 +313,6 @@
 		State :: term(),
 		Result :: {ok, Active, NewState} | {error, Reason},
 		Active :: true | false | once | pos_integer(),
-		NewState :: term(),
-		Reason :: term().
--callback pause(Stream, RCs, DPCs, State) -> Result
-	when
-		Stream :: pos_integer(),
-		RCs :: [RC],
-		RC :: 0..4294967295,
-		DPCs :: [DPC],
-		DPC :: 0..16777215,
-		State :: term(),
-		Result :: {ok, NewState} | {error, Reason},
-		NewState :: term(),
-		Reason :: term().
--callback resume(Stream, RCs, DPCs, State) -> Result
-	when
-		Stream :: pos_integer(),
-		RCs :: [RC],
-		RC :: 0..4294967295,
-		DPCs :: [DPC],
-		DPC :: 0..16777215,
-		State :: term(),
-		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
 -callback status(Stream, RCs, DPCs, State) -> Result
@@ -1077,34 +1017,6 @@ handle_sgp(#m3ua{class = ?TransferMessage,
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
-handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
-		StateName, Stream, #statedata{socket = Socket, active = Active,
-		callback = CbMod, cb_state = CbState, count = Count} = StateData)
-		when CbMod /= undefined ->
-	Parameters = m3ua_codec:parameters(Params),
-	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
-	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	CbArgs = [Stream, RCs, APCs, CbState],
-	{ok, NewCbState} = m3ua_callback:cb(pause, CbMod, CbArgs),
-	inet:setopts(Socket, [{active, Active}]),
-	DunaIn = maps:get(duna_in, Count, 0),
-	NewCount = maps:put(duna_in, DunaIn + 1, Count),
-	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
-	{next_state, StateName, NewStateData};
-handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMDAVA, params = Params},
-		StateName, Stream, #statedata{socket = Socket, active = Active,
-		callback = CbMod, cb_state = CbState, count = Count} = StateData)
-		when CbMod /= undefined ->
-	Parameters = m3ua_codec:parameters(Params),
-	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
-	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
-	CbArgs = [Stream, RCs, APCs, CbState],
-	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
-	inet:setopts(Socket, [{active, Active}]),
-	DavaIn = maps:get(dava_in, Count, 0),
-	NewCount = maps:put(dava_in, DavaIn + 1, Count),
-	NewStateData = StateData#statedata{cb_state = NewCbState, count = NewCount},
-	{next_state, StateName, NewStateData};
 handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 		StateName, Stream, #statedata{socket = Socket, active = Active,
 		callback = CbMod, cb_state = CbState} = StateData)
@@ -1113,7 +1025,7 @@ handle_sgp(#m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
 	RCs = m3ua_codec:get_parameter(?RoutingContext, Parameters, []),
 	APCs = m3ua_codec:get_all_parameter(?AffectedPointCode, Parameters),
 	CbArgs = [Stream, RCs, APCs, CbState],
-	{ok, NewCbState} = m3ua_callback:cb(resume, CbMod, CbArgs),
+	{ok, NewCbState} = m3ua_callback:cb(status, CbMod, CbArgs),
 	NewStateData = StateData#statedata{cb_state = NewCbState},
 	inet:setopts(Socket, [{active, Active}]),
 	{next_state, StateName, NewStateData};
