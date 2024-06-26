@@ -463,30 +463,27 @@ mtp3_cause(unknown) -> 0;
 mtp3_cause(unequipped_remote_user) -> 1;
 mtp3_cause(inaccessible_remote_user) -> 2.
 
--spec affected_pc(APF) -> APF
+-spec affected_pc(APCs) -> APCs
 	when
-		APF :: binary()
-				| {itu_pc, Mask, Zone, Region, SP}
-				| {ansi_pc, Mask, Network, Cluster, Member},
-		Mask :: term(),
-		Zone :: term(),
-		Region :: term(),
-		SP :: term(),
-		Network :: term(),
-		Cluster :: term(),
-		Member :: term().
+		APCs :: binary() | [APC],
+		APC :: 0..16777215.
 %% @doc Codec for Affected Point Codes.
-%% RFC4666, Section-3.4.1
+%% 	RFC4666, Section-3.4.1
+%% @todo handle mask
 %% @hidden
-%%
-affected_pc(<<Mask, 0:10, Zone:3, Region:8, SP:3>>) ->
-	{itu_pc, Mask, Zone, Region, SP};
-affected_pc(<<Mask, Network, Cluster, Member>>) ->
-	{ansi_pc, Mask, Network, Cluster, Member};
-affected_pc({itu_pc, Mask, Zone, Region, SP}) ->
-	<<Mask, 0:10, Zone:3, Region:8, SP:3>>;
-affected_pc({ansi_pc, Mask, Network, Cluster, Member}) ->
-	<<Mask, Network, Cluster, Member>>.
+affected_pc(APCs) ->
+	affected_pc(APCs, []).
+%% @hidden
+affected_pc(<<0, APC:24, Rest/binary>>, Acc)
+		when (byte_size(Rest) rem 4) == 0 ->
+	affected_pc(Rest, [APC | Acc]);
+affected_pc([APC | T], Acc)
+		when is_integer(APC), APC =< 16777215 ->
+	affected_pc(T, [<<0, APC:24>> | Acc]);
+affected_pc(<<>>, Acc) ->
+	lists:reverse(Acc);
+affected_pc([], Acc) ->
+	iolist_to_binary(lists:reverse(Acc)).
 
 -spec error_code(ErrorCode) -> ErrorCode
 	when

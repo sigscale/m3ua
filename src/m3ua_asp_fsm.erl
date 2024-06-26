@@ -96,13 +96,13 @@
 %%%
 %%%  <h3 class="function"><a name="pause-4">pause/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>pause(Stream, RCs, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>pause(Stream, RCs, APCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RCs = [RC]</tt></li>
 %%%    <li><tt>RC = 0..4294967295</tt></li>
-%%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = 16777215</tt></li>
+%%%    <li><tt>APCs = [APC]</tt></li>
+%%%    <li><tt>APC = 0..16777215</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -114,12 +114,13 @@
 %%%
 %%%  <h3 class="function"><a name="resume-4">resume/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>resume(Stream, RCs, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>resume(Stream, RCs, APCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RCs = [RC]</tt></li>
 %%%    <li><tt>RC = 0..4294967295</tt></li>
-%%%    <li><tt>DPC = 16777215</tt></li>
+%%%    <li><tt>APCs = [APC]</tt></li>
+%%%    <li><tt>APC = 0..16777215</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -132,13 +133,13 @@
 %%%
 %%%  <h3 class="function"><a name="status-4">status/4</a></h3>
 %%%  <div class="spec">
-%%%  <p><tt>status(Stream, RCs, DPCs, State) -&gt; Result </tt>
+%%%  <p><tt>status(Stream, RCs, APCs, State) -&gt; Result </tt>
 %%%  <ul class="definitions">
 %%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RCs = [RC]</tt></li>
 %%%    <li><tt>RC = 0..4294967295</tt></li>
-%%%    <li><tt>DPCs = [DPC]</tt></li>
-%%%    <li><tt>DPC = 16777215</tt></li>
+%%%    <li><tt>APCs = [APC]</tt></li>
+%%%    <li><tt>APC = 0..16777215</tt></li>
 %%%    <li><tt>State = term() </tt></li>
 %%%    <li><tt>Result = {ok, NewState} | {error, Reason} </tt></li>
 %%%    <li><tt>NewState = term() </tt></li>
@@ -341,36 +342,35 @@
 		Active :: true | false | once | pos_integer(),
 		NewState :: term(),
 		Reason :: term().
--callback pause(Stream, RCs, DPCs, State) -> Result
+-callback pause(Stream, RCs, APCs, State) -> Result
 	when
 		Stream :: pos_integer(),
 		RCs :: [RC],
 		RC :: 0..4294967295,
-		DPCs :: [DPC],
-		DPC :: 0..16777215,
+		APCs :: [APC],
+		APC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback resume(Stream, RCs, DPCs, State) -> Result
+-callback resume(Stream, RCs, APCs, State) -> Result
 	when
 		Stream :: pos_integer(),
 		RCs :: [RC],
 		RC :: 0..4294967295,
-		DPCs :: [DPC],
-		DPC :: 0..16777215,
+		APCs :: [APC],
+		APC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
 		Reason :: term().
--callback status(Stream, RCs, DPCs, State) -> Result
+-callback status(Stream, RCs, APCs, State) -> Result
 	when
 		Stream :: pos_integer(),
 		RCs :: [RC],
 		RC :: 0..4294967295,
-		DPCs :: [DPC],
-		DPC :: 0..16777215,
-		DPCs :: [DPC],
+		APCs :: [APC],
+		APC :: 0..16777215,
 		State :: term(),
 		Result :: {ok, NewState} | {error, Reason},
 		NewState :: term(),
