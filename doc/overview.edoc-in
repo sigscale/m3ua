@@ -25,6 +25,10 @@ loadshared across these associations.
 In this implementation an AS/SG may be composed of processes distributed
 across a cluster. 
 
+A symetrical arrangement, with a balanced pair of ASPs, is also supported.
+These are sometimes referred to as IP Server Process (IPSP), however we
+will use the ASP terminology consistently here.
+
 ==State &amp; Traffic Management==
 The M3UA layer at the SGP maintains the availability state of all
 configured remote ASPs, to manage the SCTP Associations and the
