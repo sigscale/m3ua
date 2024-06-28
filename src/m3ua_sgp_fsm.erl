@@ -248,7 +248,8 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: m3ua:routing_key(), Active :: boolean()}],
+				RK :: m3ua:routing_key(),
+				AsState :: down | inactive | active | pending}],
 		ual :: undefined | integer(),
 		stream :: undefined | pos_integer(),
 		ep :: pid(),
@@ -423,9 +424,9 @@ init([Socket, Address, Port,
 %% @hidden
 init1([{RC, RK, Name} | T], StateData, Acc) ->
 	case reg_tables(RC, RK, Name, down) of
-		{ok, RC} ->
-			init1(T, StateData, [{RC, RK, inactive} | Acc]);
-		{stop, Reason} ->
+		{ok, AsState} ->
+			init1(T, StateData, [{RC, RK, AsState} | Acc]);
+		{error, Reason} ->
 			{stop, Reason}
 	end;
 init1([], #statedata{socket = Socket, active = Active} = StateData, Acc) ->
@@ -637,9 +638,11 @@ handle_event({'M-SCTP_STATUS', request, Ref, From},
 					{'M-SCTP_STATUS', confirm, Ref, {error, Reason}}),
 			{next_state, StateName, StateData}
 	end;
-handle_event({'M-NOTIFY', AsState, _RC}, StateName,
+handle_event({'M-NOTIFY', AsState, RC}, StateName,
 		#statedata{socket = Socket, active = Active, ep = EP,
-		assoc = Assoc, count = Count} = StateData) ->
+		assoc = Assoc, count = Count, rks = RKs} = StateData) ->
+	NewRKs = update_rks(RC, undefined, AsState, RKs),
+	NewStateData = StateData#statedata{rks = NewRKs},
 	Params = m3ua_codec:store_parameter(?Status, AsState, []),
 	Notify = #m3ua{class = ?MGMTMessage, type = ?MGMTNotify, params = Params},
 	Packet = m3ua_codec:m3ua(Notify),
@@ -648,13 +651,13 @@ handle_event({'M-NOTIFY', AsState, _RC}, StateName,
 			inet:setopts(Socket, [{active, Active}]),
 			NotifyIn = maps:get(notify_out, Count, 0),
 			NewCount = maps:put(notify_out, NotifyIn + 1, Count),
-			NewStateData = StateData#statedata{count = NewCount},
-			{next_state, StateName, NewStateData};
+			NextStateData = NewStateData#statedata{count = NewCount},
+			{next_state, StateName, NextStateData};
 		{error, eagain} ->
 			% @todo flow control
-			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, NewStateData};
 		{error, Reason} ->
-			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, NewStateData}
 	end;
 handle_event({'M-ASP_STATUS', request, Ref, From}, StateName, StateData) ->
 	gen_server:cast(From, {'M-ASP_STATUS', confirm, Ref, StateName}),
@@ -824,16 +827,16 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 		cb_state = CbState} = StateData) when is_integer(RC) ->
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
-	case reg_tables(RC, RK, AS, inactive) of
-		{ok, RC} ->
-			NewRKs = update_rks(RC, RK, inactive, RKs),
+	case reg_tables(RC, RK, AS, StateName) of
+		{ok, AsState} ->
+			NewRKs = update_rks(RC, RK, AsState, RKs),
 			CbArgs = [RC, NA, SortedKeys, Mode, CbState],
 			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 			NewStateData = StateData#statedata{rks = NewRKs,
 					cb_state = NewCbState},
 			gen_server:cast(From, {'M-RK_REG', confirm, Ref, {ok, RC}}),
 			{next_state, StateName, NewStateData};
-		{stop, Reason} ->
+		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
 handle_reg(_, _, #statedata{ep = EP, assoc = Assoc} = StateData) ->
@@ -1261,16 +1264,16 @@ send_notify([], StateName,
 		DPC :: 0..16777215,
 		OPC :: 0..16777215,
 		SI :: byte(),
-		RKs :: [{RC, RK, Active}],
+		RKs :: [{RC, RK, AsState}],
 		RC :: 0..4294967295,
 		RK :: {NA, Keys, TMT},
 		NA :: 0..4294967295,
 		Keys :: [{DPC, [SI], [OPC]}],
 		TMT :: m3ua:tmt(),
-		Active :: boolean().
+		AsState :: down | inactive | active | pending.
 %% @doc Find routing context matching destination.
 %% @hidden
-get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RoutingKeys)
+get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RKs)
 		when is_integer(DPC), is_integer(OPC), is_integer(SI) ->
 	case m3ua:keymember(DPC, OPC, SI, [RK]) of
 		true ->
@@ -1279,6 +1282,21 @@ get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RoutingKeys)
 			get_rc(DPC, OPC, SI, T)
 	end.
 
+-spec reg_tables(RC, RK, Name, AspState) -> Result
+	when
+		RC :: 0..4294967295,
+		RK :: {NA, Keys, TMT},
+		NA :: 0..4294967295,
+		Keys :: [{DPC, [SI], [OPC]}],
+		DPC :: 0..16777215,
+		OPC :: 0..16777215,
+		SI :: byte(),
+		TMT :: m3ua:tmt(),
+		Name :: term(),
+		AspState :: down | inactive | active,
+		Result :: {ok, AsState} | {error, Reason},
+		AsState :: down | inactive | active | pending,
+		Reason :: term().
 %% @hidden
 reg_tables(RC, RK, Name, AspState) ->
 	Fsm = self(),
@@ -1289,7 +1307,8 @@ reg_tables(RC, RK, Name, AspState) ->
 					AS = #m3ua_as{rc = RC, rk = RK, name = Name, asp = ASPs},
 					mnesia:write(AS),
 					ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
-					mnesia:write(ASP);
+					mnesia:write(ASP),
+					AS#m3ua_as.state;
 				[#m3ua_as{asp = ASPs} = AS] ->
 					NewASPs = case lists:keymember(Fsm, #m3ua_as_asp.fsm, ASPs) of
 						true ->
@@ -1300,23 +1319,28 @@ reg_tables(RC, RK, Name, AspState) ->
 					NewAS = AS#m3ua_as{rk = RK, name = Name, asp = NewASPs},
 					mnesia:write(NewAS),
 					ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
-					mnesia:write(ASP)
+					mnesia:write(ASP),
+					NewAS#m3ua_as.state
 			end
 	end,
 	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			{ok, RC};
+		{atomic, AsState} ->
+			{ok, AsState};
 		{aborted, Reason} ->
-			{stop, Reason}
+			{error, Reason}
 	end.
 
 %% @hidden
-update_rks(RC, RK, Active, RKs) ->
+update_rks(RC, RK, AsState, RKs) ->
 	case lists:keytake(RC, 1, RKs) of
-		{value, {RC, _OldKeys, Active}, RKs1} ->
-			[{RC, RK, Active} | RKs1];
+		{value, {RC, RK1, RKs1}} when RK == undefined ->
+			[{RC, RK1, AsState} | RKs1];
+		{value, _, RKs1} ->
+			[{RC, RK, AsState} | RKs1];
+		false when RK == undefined ->
+			RKs;
 		false ->
-			[{RC, RK, inactive} | RKs]
+			[{RC, RK, AsState} | RKs]
 	end.
 
 %% @hidden

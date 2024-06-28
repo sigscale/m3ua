@@ -282,7 +282,8 @@
 		static = false :: boolean(),
 		use_rc = true :: boolean(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: m3ua:routing_key(), Active :: boolean()}],
+				RK :: m3ua:routing_key(),
+				AsState :: down | inactive | active | pending}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
 		ep :: pid(),
@@ -971,14 +972,9 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 		cb_state = CbState} = StateData) when is_integer(RC) ->
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
-	case reg_tables(RC, RK, AS) of
-		{ok, RC} ->
-			NewRKs = case lists:keytake(RC, 1, RKs) of
-				{value, {RC, _OldKeys, Active}, RKs1} ->
-					[{RC, RK, Active} | RKs1];
-				false ->
-					[{RC, RK, inactive} | RKs]
-			end,
+	case reg_tables(RC, RK, AS, StateName) of
+		{ok, AsState} ->
+			NewRKs = update_rks(RC, RK, AsState, RKs),
 			CbArgs = [RC, NA, SortedKeys, Mode, CbState],
 			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 			NewStateData = StateData#statedata{rks = NewRKs,
@@ -986,7 +982,7 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 			gen_server:cast(From,
 					{'M-RK_REG', confirm, Ref, {ok, RC}}),
 			{next_state, StateName, NewStateData};
-		{stop, Reason} ->
+		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end.
 
@@ -1120,37 +1116,28 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 		assoc = Assoc} = StateData)
 		when StateName == inactive; StateName == active ->
    Parameters = m3ua_codec:parameters(Params),
-   RegResult = m3ua_codec:get_all_parameter(?RegistrationResult, Parameters),
 	SortedKeys = m3ua:sort(Keys),
 	RK = {NA, SortedKeys, Mode},
-	RKsResult = case RegResult of
+   case m3ua_codec:get_all_parameter(?RegistrationResult, Parameters) of
 		[#registration_result{status = registered, rc = RC}] ->
-			reg_tables(RC, RK, AS);
+			case reg_tables(RC, RK, AS, StateName) of
+				{ok, AsState} ->
+					NewRKs = update_rks(RC, RK, AsState, RKs),
+					CbArgs = [RC, NA, Keys, Mode, CbState],
+					{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
+					gen_server:cast(From, {'M-RK_REG', confirm, Ref, {ok, RC}}),
+					inet:setopts(Socket, [{active, Active}]),
+					NewStateData = StateData#statedata{req = undefined,
+							rks = NewRKs, cb_state = NewCbState},
+					{next_state, StateName, NewStateData};
+				{error, Reason1} ->
+					{stop, {shutdown, {{EP, Assoc}, Reason1}}, StateData}
+			end;
 		[#registration_result{status = Status}] ->
-			{error, Status}
-	end,
-	case RKsResult of
-		{ok, RC1} ->
-			NewRKs = case lists:keytake(RC1, 1, RKs) of
-				{value, {RC1, _OldKeys, Active}, RKs1} ->
-					[{RC1, RK, Active} | RKs1];
-				false ->
-					[{RC1, RK, inactive} | RKs]
-			end,
-			CbArgs = [RC1, NA, Keys, Mode, CbState],
-			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
-			gen_server:cast(From, {'M-RK_REG', confirm, Ref, {ok, RC1}}),
-			inet:setopts(Socket, [{active, Active}]),
-			NewStateData = StateData#statedata{req = undefined,
-					rks = NewRKs, cb_state = NewCbState},
-			{next_state, StateName, NewStateData};
-		{error, Status1} ->
-			gen_server:cast(From, {'M-RK_REG', confirm, Ref, {error, Status1}}),
+			gen_server:cast(From, {'M-RK_REG', confirm, Ref, {error, Status}}),
 			inet:setopts(Socket, [{active, Active}]),
 			NewStateData = StateData#statedata{req = undefined},
-			{next_state, StateName, NewStateData};
-		{stop, Reason1} ->
-			{stop, {shutdown, {{EP, Assoc}, Reason1}}, StateData}
+			{next_state, StateName, NewStateData}
 	end;
 handle_asp(#m3ua{class = ?MGMTMessage, type = ?MGMTError, params = Params},
 		StateName, _Stream, #statedata{req = {'M-RK_REG', Ref, From, _RK},
@@ -1293,16 +1280,16 @@ inet_getopts(Socket, Options) ->
 		DPC :: 0..16777215,
 		OPC :: 0..16777215,
 		SI :: byte(),
-		RKs :: [{RC, RK, Active}],
+		RKs :: [{RC, RK, AsState}],
 		RC :: 0..4294967295,
 		RK :: {NA, Keys, TMT},
 		NA :: byte(),
 		Keys :: [{DPC, [SI], [OPC]}],
 		TMT :: m3ua:tmt(),
-		Active :: boolean().
+		AsState :: down | inactive | active | pending.
 %% @doc Find routing context matching destination.
 %% @hidden
-get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RoutingKeys)
+get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RKs)
 		when is_integer(DPC), is_integer(OPC), is_integer(SI) ->
 	case m3ua:keymember(DPC, OPC, SI, [RK]) of
 		true ->
@@ -1311,35 +1298,65 @@ get_rc(DPC, OPC, SI, [{RC, RK, _} | T] = _RoutingKeys)
 			get_rc(DPC, OPC, SI, T)
 	end.
 
+-spec reg_tables(RC, RK, Name, AspState) -> Result
+	when
+		RC :: 0..4294967295,
+		RK :: {NA, Keys, TMT},
+		NA :: 0..4294967295,
+		Keys :: [{DPC, [SI], [OPC]}],
+		DPC :: 0..16777215,
+		OPC :: 0..16777215,
+		SI :: byte(),
+		TMT :: m3ua:tmt(),
+		Name :: term(),
+		AspState :: down | inactive | active,
+		Result :: {ok, AsState} | {error, Reason},
+		AsState :: down | inactive | active | pending,
+		Reason :: term().
 %% @hidden
-reg_tables(RC, RK, Name) ->
+reg_tables(RC, RK, Name, AspState) ->
 	Fsm = self(),
 	F = fun() ->
 			case mnesia:read(m3ua_as, RC, write) of
 				[] ->
-					ASPs = [#m3ua_as_asp{fsm = Fsm, state = inactive}],
+					ASPs = [#m3ua_as_asp{fsm = Fsm, state = AspState}],
 					AS = #m3ua_as{rc = RC, rk = RK, name = Name, asp = ASPs},
 					mnesia:write(AS),
 					ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
-					mnesia:write(ASP);
+					mnesia:write(ASP),
+					AS#m3ua_as.state;
 				[#m3ua_as{asp = ASPs} = AS] ->
 					NewASPs = case lists:keymember(Fsm, #m3ua_as_asp.fsm, ASPs) of
 						true ->
 							ASPs;
 						false ->
-							[#m3ua_as_asp{fsm = Fsm, state = inactive} | ASPs]
+							[#m3ua_as_asp{fsm = Fsm, state = AspState} | ASPs]
 					end,
 					NewAS = AS#m3ua_as{rk = RK, name = Name, asp = NewASPs},
 					mnesia:write(NewAS),
 					ASP = #m3ua_asp{fsm = Fsm, rc = RC, rk = RK},
-					mnesia:write(ASP)
+					mnesia:write(ASP),
+					NewAS#m3ua_as.state
 			end
 	end,
 	case mnesia:transaction(F) of
-		{atomic, ok} ->
-			{ok, RC};
+		{atomic, AsState} ->
+			{ok, AsState};
 		{aborted, Reason} ->
-			{stop, Reason}
+			{error, Reason}
+	end.
+
+%% @hidden
+update_rks(RC, RK, AsState, RKs) ->
+	case lists:keytake(RC, 1, RKs) of
+		{value, {RC, RK1, RKs1}} when RK == undefined ->
+			[{RC, RK1, AsState} | RKs1];
+		{value, _, RKs1} ->
+			[{RC, RK, AsState} | RKs1];
+		false when RK == undefined ->
+			RKs;
+		false ->
+			[{RC, RK, AsState} | RKs]
 	end.
 
 %% @hidden
