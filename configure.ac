@@ -5,7 +5,7 @@
 ## Boilerplate:  standard boilerplate code
 ##
 AC_INIT([m3ua], [1.2.10], [issues@sigscale.org])
-AC_COPYRIGHT([Copyright (c) 2015-2018 SigScale Global Inc.])
+AC_COPYRIGHT([Copyright (c) 2015-2024 SigScale Global Inc.])
 AC_PREREQ(2.63)
 AC_LANG([Erlang])
 AC_CONFIG_SRCDIR([src/m3ua_app.erl])

@@ -1,6 +1,6 @@
 %%% m3ua_connect_fsm.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2015-2018 SigScale Global Inc.
+%%% @copyright 2015-2024 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 %%%   in the {@link //m3ua. m3ua} application.
 %%%
 -module(m3ua_connect_fsm).
--copyright('Copyright (c) 2015-2018 SigScale Global Inc.').
+-copyright('Copyright (c) 2015-2024 SigScale Global Inc.').
 
 -behaviour(gen_fsm).
 
