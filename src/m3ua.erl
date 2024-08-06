@@ -44,7 +44,7 @@
 %% Options used to configure SCTP endpoint and M3UA process behaviour.
 %% <dl>
 %% 	<dt>connect</dt>
-%% 		<dd>An SCTP connection estanlishment will be attempted to the
+%% 		<dd>An SCTP connection establishment will be attempted to the
 %% 		provided remote `Address' and `Port'. The SCTP port will be
 %% 		opened with the provided `Options' (default is listen).</dd>
 %% 	<dt>role</dt>
