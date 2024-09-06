@@ -27,7 +27,5 @@
 				mnesia,
 				inets,
 				snmp]},
-		{runtime_dependencies,
-				["sigscale_mibs-1.1.0"]},
 		{env, []},
 		{mod, {m3ua_app, []}}]}.
