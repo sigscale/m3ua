@@ -3,8 +3,8 @@
 ## Process this file with automake to produce Makefile.in
 
 appdir = $(beamdir)
-app_DATA = m3ua.app
-EXTRA_DIST = m3ua.app
+app_DATA = m3ua.app m3ua.appup
+EXTRA_DIST = m3ua.app m3ua.appup
 
 beam_DATA = m3ua.beam m3ua_app.beam \
 		m3ua_sup.beam \

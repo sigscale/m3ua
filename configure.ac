@@ -65,6 +65,8 @@ AC_ERLANG_SUBST_ERTS_VER
 AC_ERLANG_CHECK_LIB([kernel], [], [AC_MSG_ERROR([kernel was not found!])])
 AC_ERLANG_CHECK_LIB([stdlib], [], [AC_MSG_ERROR([stdlib was not found!])])
 AC_ERLANG_CHECK_LIB([sasl], [], [AC_MSG_ERROR([sasl was not found!])])
+AM_CONDITIONAL([MAKE_TAR_EXTRA_FILES],
+		[AS_VERSION_COMPARE([$ERLANG_LIB_VER_sasl], ["4.0"], [false], [true], [true])])
 AC_ERLANG_CHECK_LIB([mnesia], [], [AC_MSG_ERROR([mnesia was not found!])])
 AC_ERLANG_CHECK_LIB([compiler], [], [AC_MSG_ERROR([compiler was not found!])])
 AC_ERLANG_CHECK_LIB([inets], [], [AC_MSG_ERROR([inets was not found!])])
@@ -91,7 +93,7 @@ AC_ERLANG_CHECK_LIB([sigscale_mibs], [], [AC_MSG_ERROR([sigscale_mibs was not fo
 ##
 ## Output:  create output files
 ## 
-AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile
-		priv/Makefile priv/www/Makefile priv/mibs/Makefile mibs/Makefile
-		test/Makefile $PACKAGE_NAME.rel sys.config])
+AC_OUTPUT([Makefile include/Makefile ebin/Makefile doc/Makefile priv/Makefile
+		priv/www/Makefile priv/mibs/Makefile mibs/Makefile test/Makefile
+		$PACKAGE_NAME.rel ebin/$PACKAGE_NAME.appup sys.config])
 
