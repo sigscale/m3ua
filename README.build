@@ -24,5 +24,5 @@ ERL_LIBS=$PWD/shell/lib make install
 ERL_LIBS=$PWD/shell/lib make check
 
 ## Scrub it clean
-ERL_LIBS=$PWD/shell/lib make distclean; rm -rf *.boot *.rel *.script *.tar.gz Makefile config.* m3ua.rel doc ebin src include priv test stamp-h1 sys.config shell/lib/m3ua-*
+ERL_LIBS=$PWD/shell/lib make distclean; rm -rf *.boot *.rel *.script *.tar.gz Makefile config.* m3ua.rel doc ebin src include priv mibs test stamp-h1 sys.config shell/lib/m3ua-*
 
