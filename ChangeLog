@@ -1,3 +1,27 @@
+2024-09-22  Vance Shipley <vances@sigscale.org>
+
+	* remove mibs when cleaning build dir
+	* include all application upgrade files in release package
+	* remove runtime dependencies specification
+	* update copyright year
+	* correct/complete as state tracking in asp/sgp fsm
+	* note on ipsp terminology
+	* correct type of affected point codes callback argument
+	* remove pause and resume notifications from sgp
+	* clarify build readme file
+	* correct release package name in release specification
+	* add missing macros
+	* add build instructions
+	* create relocatable release package
+	* add guard to pacify dialyzer
+	* typo in typespec
+	* handle reentrant install
+	* update sigscale_mibs version dependency
+	* diagram in readme
+	* clarify routing contexts optional in notify
+	* correct sgp fsm in supervision diagram
+	* include debug information in beam
+
 2018-11-10  Vance Shipley <vances@sigscale.org>
 
 	* ignore association restart indications

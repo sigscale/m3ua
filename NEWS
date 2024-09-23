@@ -1,0 +1,5 @@
+September 23, 2024
+------------------
+	- Support release upgrade by including application upgrade files
+	- Correction in AS state tracking
+
