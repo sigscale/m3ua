@@ -623,11 +623,15 @@ handle_event({'M-SCTP_RELEASE', request, Ref, From}, _StateName,
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
 	NewStateData = StateData#statedata{socket = undefined},
 	{stop, {shutdown, {{EP, Assoc}, shutdown}}, NewStateData};
-handle_event({'M-SCTP_STATUS', request, Ref, From},
-		StateName, #statedata{socket = Socket, assoc = Assoc} = StateData)
-		when Socket /= undefined ->
+handle_event({'M-SCTP_STATUS', request, Ref, From}, StateName,
+		#statedata{socket = undefined, assoc = Assoc} = StateData) ->
+	gen_server:cast(From,
+			{'M-SCTP_STATUS', confirm, Ref, {error, enotsock}}),
+	{next_state, StateName, StateData};
+handle_event({'M-SCTP_STATUS', request, Ref, From}, StateName,
+		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
 	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
-	case inet_getopts(Socket, Options) of
+	case inet:getopts(Socket, Options) of
 		{ok, SCTPStatus} ->
 			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
 			gen_server:cast(From,
@@ -1062,23 +1066,6 @@ handle_sgp(#m3ua{class = ?ASPSMMessage, type = ?ASPSMBEAT, params = Params},
 			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
-	end.
-
--dialyzer({[nowarn_function, no_contracts], inet_getopts/2}).
--spec inet_getopts(Socket, Options) -> Result
-	when
-		Socket :: gen_sctp:sctp_socket(),
-		Options :: [gen_sctp:option()],
-		Result :: {ok, OptionValues} | {error, Posix},
-		OptionValues :: [gen_sctp:option()],
-		Posix :: inet:posix().
-%% @hidden
-inet_getopts(Socket, Options) ->
-	case catch inet:getopts(Socket, Options) of
-		{'EXIT', Reason} -> % fake dialyzer out 
-			{error, Reason};
-		Result ->
-			Result
 	end.
 
 %% @private
