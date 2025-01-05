@@ -282,7 +282,7 @@
 		static = false :: boolean(),
 		use_rc = true :: boolean(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: m3ua:routing_key() | undefined,
+				RK :: m3ua:routing_key(),
 				AsState :: down | inactive | active | pending}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
@@ -974,7 +974,7 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 	RK = {NA, SortedKeys, Mode},
 	case reg_tables(RC, RK, AS, StateName) of
 		{ok, AsState} ->
-			NewRKs = update_rks(RC, RK, AsState, RKs),
+			NewRKs = lists:keystore(RC, 1, RKs, {RC, RK, AsState}),
 			CbArgs = [RC, NA, SortedKeys, Mode, CbState],
 			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 			NewStateData = StateData#statedata{rks = NewRKs,
@@ -1122,7 +1122,7 @@ handle_asp(#m3ua{class = ?RKMMessage, type = ?RKMREGRSP, params = Params},
 		[#registration_result{status = registered, rc = RC}] ->
 			case reg_tables(RC, RK, AS, StateName) of
 				{ok, AsState} ->
-					NewRKs = update_rks(RC, RK, AsState, RKs),
+					NewRKs = lists:keystore(undefined, 1, RKs, {RC, RK, AsState}),
 					CbArgs = [RC, NA, Keys, Mode, CbState],
 					{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 					gen_server:cast(From, {'M-RK_REG', confirm, Ref, {ok, RC}}),
@@ -1344,19 +1344,6 @@ reg_tables(RC, RK, Name, AspState) ->
 			{ok, AsState};
 		{aborted, Reason} ->
 			{error, Reason}
-	end.
-
-%% @hidden
-update_rks(RC, RK, AsState, RKs) ->
-	case lists:keytake(RC, 1, RKs) of
-		{value, {RC, RK1, AsState}, RKs1} when RK == undefined ->
-			[{RC, RK1, AsState} | RKs1];
-		{value, _, RKs1} ->
-			[{RC, RK, AsState} | RKs1];
-		false when RK == undefined ->
-			RKs;
-		false ->
-			[{RC, RK, AsState} | RKs]
 	end.
 
 %% @hidden

@@ -248,7 +248,7 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: m3ua:routing_key() | undefined,
+				RK :: m3ua:routing_key(),
 				AsState :: down | inactive | active | pending}],
 		ual :: undefined | integer(),
 		stream :: undefined | pos_integer(),
@@ -829,7 +829,7 @@ handle_reg({'M-RK_REG', request, Ref, From, RC, NA, Keys, Mode, AS},
 	RK = {NA, SortedKeys, Mode},
 	case reg_tables(RC, RK, AS, StateName) of
 		{ok, AsState} ->
-			NewRKs = update_rks(RC, RK, AsState, RKs),
+			NewRKs = lists:keystore(RC, 1, RKs, {RC, RK, AsState}),
 			CbArgs = [RC, NA, SortedKeys, Mode, CbState],
 			{ok, NewCbState} = m3ua_callback:cb(register, CbMod, CbArgs),
 			NewStateData = StateData#statedata{rks = NewRKs,
