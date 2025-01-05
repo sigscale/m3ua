@@ -70,17 +70,14 @@ An MTP-TRANSFER request primitive is accomplished with
 A behaviour module provides an MTP service primitives interface
 for an MTP user. A callback module name is provided when starting
 an `Endpoint'. MTP service primitive indications are delivered to
-the MTP user through calls to the corresponding callback functions.
+the MTP3-User through calls to the corresponding callback functions.
 
 <ul>
-	<li>{@link //m3ua/m3ua_sgp_fsm:send/11. m3ua_sgp_fsm:send/11}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:send/11. m3ua_asp_fsm:send/11}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:recv/9. m3ua_sgp_fsm:recv/9}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:recv/9. m3ua_asp_fsm:recv/9}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:pause/1. m3ua_asp_fsm:pause/1}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:resume/1. m3ua_asp_fsm:resume/1}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:status/1. m3ua_sgp_fsm:status/1}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:status/1. m3ua_asp_fsm:status/1}</li>
+	<li>{@link //m3ua/m3ua_callback:send/11. m3ua_callback:send/11}</li>
+	<li>{@link //m3ua/m3ua_callback:recv/9. m3ua_callback:recv/9}</li>
+	<li>{@link //m3ua/m3ua_callback:pause/1. m3ua_callback:pause/1}</li>
+	<li>{@link //m3ua/m3ua_callback:resume/1. m3ua_callback:resume/1}</li>
+	<li>{@link //m3ua/m3ua_callback:status/1. m3ua_callback:status/1}</li>
 </ul>
 
 ===Layer Management API (2)===
@@ -91,16 +88,11 @@ Layer management service primitive indications are delivered to
 an MTP3-User through callback functions:
 
 <ul>
-	<li>{@link //m3ua/m3ua_sgp_fsm:asp_up/1. m3ua_sgp_fsm:asp_up/1}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:asp_up/1. m3ua_asp_fsm:asp_up/1}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:asp_down/1. m3ua_sgp_fsm:asp_down/1}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:asp_down/1. m3ua_asp_fsm:asp_down/1}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:asp_active/1. m3ua_sgp_fsm:asp_active/1}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:asp_active/1. m3ua_asp_fsm:asp_active/1}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:asp_inactive/1. m3ua_sgp_fsm:asp_inactive/1}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:asp_inactive/1. m3ua_asp_fsm:asp_inactive/1}</li>
-	<li>{@link //m3ua/m3ua_sgp_fsm:notify/4. m3ua_sgp_fsm:notify/4}</li>
-	<li>{@link //m3ua/m3ua_asp_fsm:notify/4. m3ua_asp_fsm:notify/4}</li>
+	<li>{@link //m3ua/m3ua_callback:asp_up/1. m3ua_callback:asp_up/1}</li>
+	<li>{@link //m3ua/m3ua_callback:asp_down/1. m3ua_callback:asp_down/1}</li>
+	<li>{@link //m3ua/m3ua_callback:asp_active/1. m3ua_callback:asp_active/1}</li>
+	<li>{@link //m3ua/m3ua_callback:asp_inactive/1. m3ua_callback:asp_inactive/1}</li>
+	<li>{@link //m3ua/m3ua_callback:notify/4. m3ua_callback:notify/4}</li>
 </ul>
 
 ===Layer Management Primitives (3)===
