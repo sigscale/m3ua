@@ -248,7 +248,7 @@
 		out_streams :: non_neg_integer(),
 		assoc :: gen_sctp:assoc_id(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: m3ua:routing_key(),
+				RK :: m3ua:routing_key() | undefined,
 				AsState :: down | inactive | active | pending}],
 		ual :: undefined | integer(),
 		stream :: undefined | pos_integer(),

@@ -282,7 +282,7 @@
 		static = false :: boolean(),
 		use_rc = true :: boolean(),
 		rks = [] :: [{RC :: 0..4294967295,
-				RK :: m3ua:routing_key(),
+				RK :: m3ua:routing_key() | undefined,
 				AsState :: down | inactive | active | pending}],
 		ual :: undefined | integer(),
 		req :: undefined | tuple(),
