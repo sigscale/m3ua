@@ -781,7 +781,8 @@ handle_event({'M-SCTP_STATUS', request, Ref, From}, StateName,
 	{next_state, StateName, StateData};
 handle_event({'M-SCTP_STATUS', request, Ref, From}, StateName,
 		#statedata{socket = Socket, assoc = Assoc} = StateData) ->
-	case inet:getopts(Socket, [sctp_status]) of
+	Options = [{sctp_status, #sctp_status{assoc_id = Assoc}}],
+	case inet:getopts(Socket, Options) of
 		{ok, SCTPStatus} ->
 			{_, Status} = lists:keyfind(sctp_status, 1, SCTPStatus),
 			gen_server:cast(From,
