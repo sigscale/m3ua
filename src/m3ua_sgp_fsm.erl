@@ -1333,7 +1333,7 @@ reg_tables(RC, RK, Name, AspState) ->
 %% @hidden
 update_rks(RC, RK, AsState, RKs) ->
 	case lists:keytake(RC, 1, RKs) of
-		{value, {RC, RK1, RKs1}} when RK == undefined ->
+		{value, {RC, RK1, AsState}, RKs1} when RK == undefined ->
 			[{RC, RK1, AsState} | RKs1];
 		{value, _, RKs1} ->
 			[{RC, RK, AsState} | RKs1];
