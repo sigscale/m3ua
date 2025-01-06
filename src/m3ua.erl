@@ -378,8 +378,8 @@ asp_inactive(EndPoint, Assoc) ->
 %%
 %% Called by an MTP user to transfer data using the MTP service.
 transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
-		when is_pid(Fsm), ((Stream = undefined)
-				orelse (is_integer(Stream) andalso (Stream =/= 0)),
+		when is_pid(Fsm), ((Stream == undefined)
+				orelse (is_integer(Stream) andalso (Stream =/= 0))),
 		((RC == undefined) or is_integer(RC)),
 		is_integer(OPC), is_integer(DPC), is_integer(NI),
 		is_integer(SI), is_integer(SLS), is_binary(Data) ->
@@ -404,8 +404,8 @@ transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
 %%
 %% Called by an MTP user to transfer data using the MTP service.
 transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout)
-		when is_pid(Fsm), ((Stream = undefined)
-				orelse (is_integer(Stream) andalso (Stream =/= 0)),
+		when is_pid(Fsm), ((Stream == undefined)
+				orelse (is_integer(Stream) andalso (Stream =/= 0))),
 		((RC == undefined) or is_integer(RC)),
 		is_integer(OPC), is_integer(DPC), is_integer(NI),
 		is_integer(SI), is_integer(SLS), is_binary(Data),
@@ -429,8 +429,8 @@ transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout)
 %%
 %% Called by an MTP user to transfer data asynchronously.
 cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
-		when is_pid(Fsm), ((Stream = undefined)
-				orelse (is_integer(Stream) andalso (Stream =/= 0)),
+		when is_pid(Fsm), ((Stream == undefined)
+				orelse (is_integer(Stream) andalso (Stream =/= 0))),
 		((RC == undefined) or is_integer(RC)),
 		is_integer(OPC), is_integer(DPC), is_integer(NI),
 		is_integer(SI), is_integer(SLS), is_binary(Data) ->
