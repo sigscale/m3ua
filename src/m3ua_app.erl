@@ -1,6 +1,6 @@
 %%% m3ua_app.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2015-2024 SigScale Global Inc.
+%%% @copyright 2015-2025 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 %%% 	{@link //m3ua. m3ua} application.
 %%%
 -module(m3ua_app).
--copyright('Copyright (c) 2015-2024 SigScale Global Inc.').
+-copyright('Copyright (c) 2015-2025 SigScale Global Inc.').
 
 -behaviour(application).
 

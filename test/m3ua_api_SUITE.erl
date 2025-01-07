@@ -1,6 +1,6 @@
 %%% m3ua_api_SUITE.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2015-2024 SigScale Global Inc.
+%%% @copyright 2015-2025 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 %%%  Test suite for the m3ua API.
 %%%
 -module(m3ua_api_SUITE).
--copyright('Copyright (c) 2015-2024 SigScale Global Inc.').
+-copyright('Copyright (c) 2015-2025 SigScale Global Inc.').
 
 %% common_test required callbacks
 -export([suite/0, sequences/0, all/0]).

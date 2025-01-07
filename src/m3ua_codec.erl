@@ -1,6 +1,6 @@
 %%% m3ua_codec.erl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2015-2024 SigScale Global Inc.
+%%% @copyright 2015-2025 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 %%% 	{@link //m3ua. m3ua} application.
 %%%
 -module(m3ua_codec).
+-copyright('Copyright (c) 2015-2025 SigScale Global Inc.').
 
 -export([m3ua/1]).
 -export([parameters/1, routing_key/1]).

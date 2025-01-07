@@ -1,7 +1,7 @@
 %%% m3ua_snmp_SUITE.erl
 %%% vim: ts=3
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @copyright 2018-2024 SigScale Global Inc.
+%%% @copyright 2018-2025 SigScale Global Inc.
 %%% @end
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 %%%  @doc Test suite for SNMP agent of the {@link //m3ua. m3ua} application.
 %%%
 -module(m3ua_snmp_SUITE).
--copyright('Copyright (c) 2018-2024 SigScale Global Inc.').
+-copyright('Copyright (c) 2018-2025 SigScale Global Inc.').
 
 %% common_test required callbacks
 -export([suite/0, sequences/0, all/0]).
