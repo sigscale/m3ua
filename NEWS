@@ -1,3 +1,8 @@
+January 7, 2025
+---------------
+	- Hash SLS to select SCTP stream if undefined in MTP-TRANSFER
+	- Changed m3ua_asp table type from bag to set
+
 September 23, 2024
 ------------------
 	- Support release upgrade by including application upgrade files

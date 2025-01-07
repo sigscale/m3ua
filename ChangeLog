@@ -1,3 +1,15 @@
+2025-01-07  Vance Shipley <vances@sigscale.org>
+
+	* update copyright year
+	* undefined stream in cast test case
+	* hash from sls when stream undefined in mtp-transfer
+	* mark tables as m3ua application in user properties
+	* correct table type
+	* paramaterize make check
+	* simplify updating routing keys in state data
+	* correct module name in list of callbacks
+	* correct updating routing keys in state data
+
 2024-09-22  Vance Shipley <vances@sigscale.org>
 
 	* remove mibs when cleaning build dir
