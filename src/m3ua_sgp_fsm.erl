@@ -83,7 +83,7 @@
 %%%  <ul class="definitions">
 %%%    <li><tt>From = pid()</tt></li>
 %%%    <li><tt>Ref = reference()</tt></li>
-%%%    <li><tt>Stream = pos_integer() </tt></li>
+%%%    <li><tt>Stream = pos_integer()</tt></li>
 %%%    <li><tt>RC = 0..4294967295 | undefined</tt></li>
 %%%    <li><tt>OPC = 0..16777215</tt></li>
 %%%    <li><tt>DPC = 0..16777215</tt></li>
@@ -506,9 +506,10 @@ active({'M-RK_REG', request, _, _, _, _, _, _, _} = Event, StateData) ->
 	handle_reg(Event, active, StateData);
 active({'MTP-TRANSFER', request, Ref, From,
 		{Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
-		#statedata{socket = Socket, assoc = Assoc, ep = EP,
-		rks = RKs, use_rc = UseRC, callback = CbMod, cb_state = CbState,
-		count = Count} = StateData) ->
+		#statedata{socket = Socket, assoc = Assoc,
+		ep = EP, out_streams = NumStreams,
+		rks = RKs, use_rc = UseRC, callback = CbMod,
+		cb_state = CbState, count = Count} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
 			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
@@ -524,9 +525,15 @@ active({'MTP-TRANSFER', request, Ref, From,
 	TransferMsg = #m3ua{class = ?TransferMessage,
 			type = ?TransferMessageData, params = P1},
 	Packet = m3ua_codec:m3ua(TransferMsg),
-	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
+	Stream1 = case Stream of
+		Stream when is_integer(Stream) ->
+			Stream;
+		undefined ->
+			SLS rem NumStreams
+	end,
+	case gen_sctp:send(Socket, Assoc, Stream1, Packet) of
 		ok ->
-			CbArgs = [From, Ref, Stream,
+			CbArgs = [From, Ref, Stream1,
 					RC, OPC, DPC, NI, SI, SLS, Data, CbState],
 			case m3ua_callback:cb(send, CbMod, CbArgs) of
 				{ok, Active, NewCbState} ->
@@ -561,9 +568,10 @@ active({'MTP-TRANSFER', request, Ref, From,
 %% @private
 %%
 active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
-		{From, Ref}, #statedata{socket = Socket, assoc = Assoc, ep = EP,
-		rks = RKs, use_rc = UseRC, callback = CbMod, cb_state = CbState,
-		count = Count} = StateData) ->
+		{From, Ref}, #statedata{socket = Socket, assoc = Assoc,
+		ep = EP, out_streams = NumStreams,
+		rks = RKs, use_rc = UseRC, callback = CbMod,
+		cb_state = CbState, count = Count} = StateData) ->
 	ProtocolData = #protocol_data{opc = OPC, dpc = DPC,
 			ni = NI, si = SI, sls = SLS, data = Data},
 	P0 = m3ua_codec:add_parameter(?ProtocolData, ProtocolData, []),
@@ -579,9 +587,15 @@ active({'MTP-TRANSFER', request, {Stream, RC, OPC, DPC, NI, SI, SLS, Data}},
 	TransferMsg = #m3ua{class = ?TransferMessage,
 			type = ?TransferMessageData, params = P1},
 	Packet = m3ua_codec:m3ua(TransferMsg),
-	case gen_sctp:send(Socket, Assoc, Stream, Packet) of
+	Stream1 = case Stream of
+		Stream when is_integer(Stream) ->
+			Stream;
+		undefined ->
+			SLS rem NumStreams
+	end,
+	case gen_sctp:send(Socket, Assoc, Stream1, Packet) of
 		ok ->
-			CbArgs = [From, Ref, Stream,
+			CbArgs = [From, Ref, Stream1,
 					RC, OPC, DPC, NI, SI, SLS, Data, CbState],
 			case m3ua_callback:cb(send, CbMod, CbArgs) of
 				{ok, Active, NewCbState} ->

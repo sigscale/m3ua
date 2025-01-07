@@ -254,6 +254,7 @@ install2(Nodes) ->
 %% @hidden
 install3(Nodes, Tables) ->
 	case mnesia:create_table(m3ua_as, [{ram_copies, Nodes},
+			{user_properties, [{m3ua, true}]},
 			{attributes, record_info(fields, m3ua_as)},
 			{index, [rk]}]) of
 		{atomic, ok} ->
@@ -274,7 +275,8 @@ install3(Nodes, Tables) ->
 %% @hidden
 install4(Nodes, Tables) ->
 	case mnesia:create_table(m3ua_asp, [{ram_copies, Nodes},
-			{type, bag}, {attributes, record_info(fields, m3ua_asp)}]) of
+			{user_properties, [{m3ua, true}]},
+			{attributes, record_info(fields, m3ua_asp)}]) of
 		{atomic, ok} ->
 			error_logger:info_msg("Created new m3ua_asp table.~n"),
 			{ok, [m3ua_asp | Tables]};

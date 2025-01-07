@@ -472,7 +472,7 @@ mtp_transfer(_Config) ->
 	OPC = rand:uniform(16383),
 	NI = rand:uniform(4),
 	SI = rand:uniform(10),
-	SLS = rand:uniform(10),
+	SLS = rand:uniform(255),
 	Data = crypto:strong_rand_bytes(100),
 	ok = rpc:call(AsNode, m3ua, transfer, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
 	receive
@@ -509,15 +509,14 @@ mtp_cast(_Config) ->
 	{ok, RC} = rpc:call(AsNode, m3ua, register,
 			[ClientEP, Assoc, undefined, undefined, Keys, loadshare]),
 	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP, Assoc]),
-	Stream = 1,
 	OPC = rand:uniform(16383),
 	NI = rand:uniform(4),
 	SI = rand:uniform(10),
-	SLS = rand:uniform(10),
+	SLS = rand:uniform(255),
 	Data = crypto:strong_rand_bytes(100),
-	RefCast = m3ua:cast(Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data),
+	RefCast = m3ua:cast(Asp, undefined, RC, OPC, DPC, NI, SI, SLS, Data),
 	receive
-		{RefCast, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
+		{RefCast, [_Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
 			ok
 	end,
 	ok = rpc:call(AsNode, m3ua, stop, [ClientEP]),
