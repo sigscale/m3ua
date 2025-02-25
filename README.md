@@ -1,5 +1,9 @@
 # [SigScale](http://www.sigscale.org) M3UA Protocol Stack
 
+See the
+[developers guide](https://storage.googleapis.com/m3ua.sigscale.org/debian-bookworm/lib/m3ua/doc/index.html)
+for detailed information.
+
 This application implements a distributed protocol stack
 for the MTP3 user adaptation (M3UA) of the IETF Signaling
 Transport (SIGTRAN) protocol suite.
