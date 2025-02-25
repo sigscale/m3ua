@@ -22,8 +22,13 @@ modhtml = m3ua.html m3ua_app.html \
 
 doc_DATA = overview.edoc $(modhtml) \
 		modules-frame.html overview-summary.html \
-		index.html stylesheet.css sigscale-logo.png \
-		edoc-info
+		index.html stylesheet.css edoc-info \
+		sigscale-logo.png \
+		supervision.png \
+		asp-states.png \
+		as-states.png \
+		boundaries.png \
+		message-sequence.png
 
 overview.edoc: overview.edoc-in
 	sed -e 's!%VERSION%!$(VERSION)!' \
