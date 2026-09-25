@@ -29,6 +29,7 @@
 -export([asp_status/2, asp_up/2, asp_down/2, asp_active/2,
 			asp_inactive/2]).
 -export([transfer/9, transfer/10, cast/9]).
+-export([duna/3, dava/3, drst/3, scon/3, scon/5, dupu/5, daud/3]).
 
 %% export the m3ua private API
 -export([sort/1, keymember/4, keymember/5]).
@@ -438,6 +439,121 @@ cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
 	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
 	gen_fsm:send_event(Fsm, {'MTP-TRANSFER', request, Ref, self(), Params}),
 	Ref.
+
+-spec duna(Fsm, RCs, APCs) -> ok
+	when
+		Fsm :: pid(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215.
+%% @doc Send Destination Unavailable (DUNA) to an ASP.
+duna(Fsm, RCs, APCs) when is_pid(Fsm), is_list(RCs), is_list(APCs) ->
+	ssnm(Fsm, ?SSNMDUNA, RCs, APCs, []).
+
+-spec dava(Fsm, RCs, APCs) -> ok
+	when
+		Fsm :: pid(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215.
+%% @doc Send Destination Available (DAVA) to an ASP.
+dava(Fsm, RCs, APCs) when is_pid(Fsm), is_list(RCs), is_list(APCs) ->
+	ssnm(Fsm, ?SSNMDAVA, RCs, APCs, []).
+
+-spec drst(Fsm, RCs, APCs) -> ok
+	when
+		Fsm :: pid(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215.
+%% @doc Send Destination Restricted (DRST) to an ASP.
+drst(Fsm, RCs, APCs) when is_pid(Fsm), is_list(RCs), is_list(APCs) ->
+	ssnm(Fsm, ?SSNMDRST, RCs, APCs, []).
+
+-spec scon(Fsm, RCs, APCs) -> ok
+	when
+		Fsm :: pid(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215.
+%% @doc Send Signalling Congestion (SCON) to an ASP.
+scon(Fsm, RCs, APCs) ->
+	scon(Fsm, RCs, APCs, undefined, undefined).
+
+-spec scon(Fsm, RCs, APCs, ConcernedDPC, CongestionLevel) -> ok
+	when
+		Fsm :: pid(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215,
+		ConcernedDPC :: undefined | 0..16777215,
+		CongestionLevel :: undefined | 0..3.
+%% @doc Send Signalling Congestion (SCON) with optional parameters.
+scon(Fsm, RCs, APCs, ConcernedDPC, CongestionLevel)
+		when is_pid(Fsm), is_list(RCs), is_list(APCs) ->
+	Optional = case ConcernedDPC of
+		undefined ->
+			[];
+		_ ->
+			[{?ConcernedDestination, <<ConcernedDPC:24>>}]
+	end,
+	Optional1 = case CongestionLevel of
+		undefined ->
+			Optional;
+		_ ->
+			[{?CongestionIndications, CongestionLevel} | Optional]
+	end,
+	ssnm(Fsm, ?SSNMSCON, RCs, APCs, Optional1).
+
+-spec dupu(Fsm, RCs, APCs, User, Cause) -> ok
+	when
+		Fsm :: pid(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215,
+		User :: m3ua_codec:mtp3_user(),
+		Cause :: m3ua_codec:mtp3_cause().
+%% @doc Send Destination User Part Unavailable (DUPU) to an ASP.
+dupu(Fsm, RCs, APCs, User, Cause)
+		when is_pid(Fsm), is_list(RCs), is_list(APCs) ->
+	ssnm(Fsm, ?SSNMDUPU, RCs, APCs, [{?UserCause, {User, Cause}}]).
+
+-spec daud(Fsm, RCs, APCs) -> ok
+	when
+		Fsm :: pid(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215.
+%% @doc Send Destination State Audit (DAUD) to an SGP.
+daud(Fsm, RCs, APCs) when is_pid(Fsm), is_list(RCs), is_list(APCs) ->
+	ssnm(Fsm, ?SSNMDAUD, RCs, APCs, []).
+
+-spec ssnm(Fsm, Type, RCs, APCs, Optional) -> ok
+	when
+		Fsm :: pid(),
+		Type :: byte(),
+		RCs :: [0..4294967295],
+		APCs :: [0..16777215],
+		Optional :: [{integer(), term()}].
+%% @hidden
+ssnm(Fsm, Type, RCs, APCs, Optional) ->
+	Params = case RCs of
+		[] ->
+			[];
+		_ ->
+			[{?RoutingContext, RCs}]
+	end,
+	Params1 = [{?AffectedPointCode, APCs} | Params] ++ Optional,
+	gen_fsm:send_all_state_event(Fsm,
+			{'M-SSNM', Type, m3ua_codec:parameters(Params1)}),
+	ok.
 
 -spec get_as() -> Result
 	when

@@ -808,6 +808,24 @@ handle_event({'M-SCTP_STATUS', request, Ref, From}, StateName,
 					{'M-SCTP_STATUS', confirm, Ref, {error, Reason}}),
 			{next_state, StateName, StateData}
 	end;
+handle_event({'M-SSNM', Type, Params}, StateName,
+		#statedata{socket = Socket, active = Active, ep = EP,
+		assoc = Assoc, count = Count} = StateData) ->
+	Message = #m3ua{class = ?SSNMMessage, type = Type, params = Params},
+	Packet = m3ua_codec:m3ua(Message),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, Active}]),
+			DaudOut = maps:get(daud_out, Count, 0),
+			NewCount = maps:put(daud_out, DaudOut + 1, Count),
+			NewStateData = StateData#statedata{count = NewCount},
+			{next_state, StateName, NewStateData};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
+		{error, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+	end;
 handle_event({'M-ASP_STATUS', request, Ref, From}, StateName, StateData) ->
 	gen_server:cast(From, {'M-ASP_STATUS', confirm, Ref, StateName}),
 	{next_state, StateName, StateData}.

@@ -22,7 +22,7 @@
 
 %% export the m3ua_callback public API
 -export([init/6, recv/9, send/11, pause/4, resume/4, status/4,
-		register/5, asp_up/1, asp_down/1, asp_active/1,
+		audit/4, register/5, asp_up/1, asp_down/1, asp_active/1,
 		asp_inactive/1, notify/4, info/2, terminate/2]).
 
 %% export the m3ua_callback private API
@@ -125,6 +125,18 @@ resume(_Stream, _RK, _DPCs, State) ->
 status(_Stream, _RK, _DPCs, State) ->
 	{ok, State}.
 
+-spec audit(Stream, RCs, APCs, State) -> Result
+	when
+		Stream :: pos_integer(),
+		RCs :: [RC],
+		RC :: 0..4294967295,
+		APCs :: [APC],
+		APC :: 0..16777215,
+		State :: term(),
+		Result :: {ok, State}.
+audit(_Stream, _RCs, _APCs, State) ->
+	{ok, State}.
+
 -spec register(RC, NA, Keys, TMT, State) -> Result
 	when
 		RC :: undefined | 0..4294967295,
@@ -222,6 +234,10 @@ cb(recv, #m3ua_fsm_cb{recv = F, extra = E}, Args) ->
 cb(send, #m3ua_fsm_cb{send = false}, Args) ->
 	apply(?MODULE, send, Args);
 cb(send, #m3ua_fsm_cb{send = F, extra = E}, Args) ->
+	apply(F, Args ++ E);
+cb(audit, #m3ua_fsm_cb{audit = false}, Args) ->
+	apply(?MODULE, audit, Args);
+cb(audit, #m3ua_fsm_cb{audit = F, extra = E}, Args) ->
 	apply(F, Args ++ E);
 cb(pause, #m3ua_fsm_cb{pause = false}, Args) ->
 	apply(?MODULE, pause, Args);
