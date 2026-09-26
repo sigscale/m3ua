@@ -74,11 +74,13 @@ sequences() ->
 %% Returns a list of all test cases in this test suite.
 %%
 all() ->
-	[asp_up, asp_up_ack, asp_down, asp_down_ack, asp_active, asp_active_ack].
+	[asp_up, asp_up_ack, asp_down, asp_down_ack, asp_active, asp_active_ack,
+			duna, dupu, scon].
 
 %%---------------------------------------------------------------------
 %%  Test cases
 %%---------------------------------------------------------------------
+
 asp_up() ->
 	[{userdata, [{doc, "ASP UP Message encoding and decoding"}]}].
 	
@@ -161,8 +163,50 @@ asp_active_ack(_Config) ->
 			params = Params} = m3ua_codec:m3ua(BinAspActiveAck),
 	Parameters = m3ua_codec:parameters(Params).
 
+duna() ->
+	[{userdata, [{doc, "DUNA message encoding with Affected Point Code"}]}].
+
+duna(_Config) ->
+	APC = 16#0a0b0c,
+	Params = m3ua_codec:parameters([{?AffectedPointCode, [APC]}]),
+	<<16#0012:16, 8:16, 0, 16#0a0b0c:24>> = Params,
+	Duna = #m3ua{class = ?SSNMMessage, type = ?SSNMDUNA, params = Params},
+	Bin = m3ua_codec:m3ua(Duna),
+	0 = size(Bin) rem 4,
+	#m3ua{class = ?SSNMMessage, type = ?SSNMDUNA,
+			params = Decoded} = m3ua_codec:m3ua(Bin),
+	[[APC]] = m3ua_codec:get_all_parameter(?AffectedPointCode,
+			m3ua_codec:parameters(Decoded)).
+
+dupu() ->
+	[{userdata, [{doc, "DUPU message encoding"}]}].
+
+dupu(_Config) ->
+	Params = m3ua_codec:parameters([{?UserCause,
+			{sccp, inaccessible_remote_user}}]),
+	<<16#0204:16, 8:16, 2:16, 3:16>> = Params,
+	Dupu = #m3ua{class = ?SSNMMessage, type = ?SSNMDUPU, params = Params},
+	Bin = m3ua_codec:m3ua(Dupu),
+	0 = size(Bin) rem 4,
+	#m3ua{class = ?SSNMMessage, type = ?SSNMDUPU,
+			params = Decoded} = m3ua_codec:m3ua(Bin),
+	{sccp, inaccessible_remote_user} = m3ua_codec:get_parameter(?UserCause,
+			m3ua_codec:parameters(Decoded), undefined).
+
+scon() ->
+	[{userdata, [{doc, "SCON message encoding"}]}].
+
+scon(_Config) ->
+	Params = m3ua_codec:parameters([{?CongestionIndications, 2}]),
+	<<16#0205:16, 8:16, 0:24, 2>> = Params,
+	Scon = #m3ua{class = ?SSNMMessage, type = ?SSNMSCON, params = Params},
+	Bin = m3ua_codec:m3ua(Scon),
+	0 = size(Bin) rem 4,
+	#m3ua{class = ?SSNMMessage, type = ?SSNMSCON,
+			params = Decoded} = m3ua_codec:m3ua(Bin),
+	2 = m3ua_codec:get_parameter(?CongestionIndications,
+			m3ua_codec:parameters(Decoded), undefined).
 
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
-

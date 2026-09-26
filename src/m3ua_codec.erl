@@ -192,10 +192,10 @@ parameters([{?NetworkAppearance, NA} | T], Acc) ->
 	parameters(T, <<Acc/binary, ?NetworkAppearance:16, 8:16, NA:32>>);
 parameters([{?UserCause, UserCause} | T], Acc) ->
 	UC = mtp3_user_cause(UserCause),
-	parameters(T, <<Acc/binary, ?UserCause:16, 8:18, UC/binary>>);
+	parameters(T, <<Acc/binary, ?UserCause:16, 8:16, UC/binary>>);
 parameters([{?CongestionIndications, CL} | T], Acc) ->
 	CL1 = <<0:24, CL>>,
-	parameters(T, <<Acc/binary, ?ConcernedDestination:16, 8:16, CL1/binary>>);
+	parameters(T, <<Acc/binary, ?CongestionIndications:16, 8:16, CL1/binary>>);
 parameters([{?ConcernedDestination, ConcernedDestination} | T], Acc) ->
 	CD = <<0, ConcernedDestination/binary>>,
 	parameters(T, <<Acc/binary, ?ConcernedDestination:16, 8:16, CD/binary>>);
@@ -423,12 +423,12 @@ parameter(_, _, Acc) ->
 %%  PC in the Affected Point Code parameter
 %% @hidden
 %%
-mtp3_user_cause(<<User:16, Case:16>>) ->
-	{mtp3_user(User), mtp3_cause(Case)};
-mtp3_user_cause({User, Case}) ->
+mtp3_user_cause(<<Cause:16, User:16>>) ->
+	{mtp3_user(User), mtp3_cause(Cause)};
+mtp3_user_cause({User, Cause}) ->
 	U = mtp3_user(User),
-	C = mtp3_cause(Case),
-	<<U:16, C:16>>.
+	C = mtp3_cause(Cause),
+	<<C:16, U:16>>.
 
 -spec mtp3_user(User) -> User
 	when
