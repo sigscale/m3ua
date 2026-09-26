@@ -14,21 +14,20 @@
 %%% See the License for the specific language governing permissions and
 %%% limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @doc This {@link //stdlib/gen_fsm. gen_fsm} behaviour callback
+%%% @doc This {@link //stdlib/gen_statem. gen_statem} behaviour callback
 %%% 	module implements the socket handler for incoming SCTP connections
 %%%   in the {@link //m3ua. m3ua} application.
 %%%
 -module(m3ua_listen_fsm).
 -copyright('Copyright (c) 2015-2025 SigScale Global Inc.').
 
--behaviour(gen_fsm).
+-behaviour(gen_statem).
 
-%% export the callbacks needed for gen_fsm behaviour
--export([init/1, handle_event/3, handle_sync_event/4,
-		handle_info/3, terminate/3, code_change/4]).
+%% export the callbacks needed for gen_statem behaviour
+-export([init/1, callback_mode/0, terminate/3, code_change/4]).
 
-%% export the gen_fsm state callbacks
--export([listening/2]).
+%% export the gen_statem state callbacks
+-export([listening/3]).
 
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
@@ -50,16 +49,26 @@
 		callback :: {Module :: atom(), State :: term()}}).
 
 %%----------------------------------------------------------------------
-%%  The m3ua_listen_fsm gen_fsm callbacks
+%%  The m3ua_listen_fsm gen_statem callbacks
 %%----------------------------------------------------------------------
+
+-spec callback_mode() -> Result
+	when
+		Result :: gen_statem:callback_mode_result().
+%% @doc Set the callback mode of the callback module.
+%% @see //stdlib/gen_statem:callback_mode/0
+%% @private
+%%
+callback_mode() ->
+	[state_functions].
 
 -spec init(Args :: [term()]) ->
 	{ok, StateName :: atom(), StateData :: #statedata{}}
-			| {ok, StateName :: atom(),
-					StateData :: #statedata{}, timeout() | hibernate}
+			| {ok, StateName :: atom(), StateData :: #statedata{},
+					Actions :: [gen_statem:action()] | gen_statem:action()}
 			| {stop, Reason :: term()} | ignore.
 %% @doc Initialize the {@module} finite state machine.
-%% @see //stdlib/gen_fsm:init/1
+%% @see //stdlib/gen_statem:init/1
 %% @private
 %%
 init([Sup, Callback, Opts] = _Args) ->
@@ -121,7 +130,7 @@ init([Sup, Callback, Opts] = _Args) ->
 								NewStateData = StateData#statedata{
 										local_addr = LocalAddr,
 										local_port = LocalPort},
-								{ok, listening, NewStateData, 0};
+								{ok, listening, NewStateData, {timeout, 0, timeout}};
 							{error, Reason} ->
 								gen_sctp:close(Socket),
 								throw(Reason)
@@ -140,114 +149,28 @@ init([Sup, Callback, Opts] = _Args) ->
 			{stop, Reason1}
 	end.
 
--spec listening(Event :: timeout | term(), StateData :: #statedata{}) ->
-	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(),
-					NewStateData :: #statedata{}, timeout() | hibernate}
-			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
-%% @doc Handle events sent with {@link //stdlib/gen_fsm:send_event/2.
-%% 	gen_fsm:send_event/2} in the <b>listening</b> state.
+-spec listening(EventType :: gen_statem:event_type(),
+		EventContent :: term(), StateData :: #statedata{}) ->
+	Result :: gen_statem:event_handler_result(atom()).
+%% @doc Handle events received in the <b>listening</b> state.
 %% @private
 %%
-listening(timeout, #statedata{fsm_sup = undefined} = StateData) ->
+listening(timeout, _EventContent,
+		#statedata{fsm_sup = undefined} = StateData) ->
    {next_state, listening, get_sup(StateData)};
-listening({'M-SCTP_RELEASE', request, Ref, From},
+listening(cast, {'M-SCTP_RELEASE', request, Ref, From},
 		#statedata{socket = Socket} = StateData) ->
 	gen_server:cast(From,
 			{'M-SCTP_RELEASE', confirm, Ref, gen_sctp:close(Socket)}),
-	{stop, {shutdown, {self(), release}}, StateData}.
-
--spec handle_event(Event :: term(), StateName :: atom(),
-		StateData :: #statedata{}) ->
-	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(),
-					NewStateData :: #statedata{}, timeout() | hibernate}
-			| {stop, Reason :: term(), NewStateData :: #statedata{}}.
-%% @doc Handle an event sent with
-%% 	{@link //stdlib/gen_fsm:send_all_state_event/2.
-%% 	gen_fsm:send_all_state_event/2}.
-%% @see //stdlib/gen_fsm:handle_event/3
-%% @private
-%%
-handle_event(_Event, _StateName, StateData) ->
-	{stop, unimplemented, StateData}.
-
--spec handle_sync_event(Event :: term(), From :: {pid(), Tag :: term()},
-		StateName :: atom(), StateData :: #statedata{}) ->
-		{reply, Reply :: term(), NextStateName :: atom(),
-		NewStateData :: #statedata{}} | {stop, Reason :: term(),
-		Reply :: term(), NewStateData :: #statedata{}}.
-%% @doc Handle an event sent with
-%% 	{@link //stdlib/gen_fsm:sync_send_all_state_event/2.
-%% 	gen_fsm:sync_send_all_state_event/2,3}.
-%% @see //stdlib/gen_fsm:handle_sync_event/4
-%% @private
-%%
-handle_sync_event(getassoc, _From, StateName,
-		#statedata{fsms = Fsms} = StateData) ->
-	{reply, gb_trees:keys(Fsms), StateName, StateData};
-handle_sync_event({getstat, undefined}, _From, StateName,
-		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket), StateName, StateData};
-handle_sync_event({getstat, Options}, _From, StateName,
-		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), StateName, StateData};
-handle_sync_event(getep, _From, StateName,
-		#statedata{name = Name, role = Role, local_addr = Laddr,
-		local_port = Lport} = StateData) ->
-	Reply = {Name, server, Role, {Laddr, Lport}},
-	{reply, Reply, StateName, StateData}.
-
--spec handle_info(Info :: term(), StateName :: atom(),
-		StateData :: #statedata{}) ->
-	{next_state, NextStateName :: atom(), NewStateData :: #statedata{}}
-			| {next_state, NextStateName :: atom(),
-					NewStateData :: #statedata{}, timeout() | hibernate}
-			| {stop, Reason :: normal | term(), NewStateData :: #statedata{}}.
-%% @doc Handle a received message.
-%% @see //stdlib/gen_fsm:handle_info/3
-%% @private
-handle_info({sctp, Socket, PeerAddr, PeerPort,
-		{_AncData, #sctp_assoc_change{state = comm_up} = AssocChange}},
-		listening, #statedata{fsm_sup = FsmSup, socket = Socket} = StateData) ->
-	accept(Socket, PeerAddr, PeerPort, AssocChange, FsmSup, StateData);
-handle_info({sctp, Socket, _PeerAddr, _PeerPort,
-		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
-	inet:setopts(Socket, [{active, once}]),
-	{next_state, StateName, StateData};
-handle_info({sctp_error, Socket, PeerAddr, PeerPort,
-		{_AncData, #sctp_remote_error{error = Error,
-		assoc_id = Assoc, data = Data}}}, StateName, StateData) ->
-	error_logger:warning_report(["SCTP Remote Error",
-			{error, gen_sctp:error_string(Error)},
-			{assoc, Assoc}, {data, Data}, {socket, Socket},
-			{peer, {PeerAddr, PeerPort}}]),
-	{next_state, StateName, StateData};
-handle_info({'EXIT', _Pid, {shutdown, {{_EP, Assoc}, _Reason}}},
-		StateName, #statedata{fsms = Fsms} = StateData) ->
-	NewFsms = gb_trees:delete(Assoc, Fsms),
-	NewStateData = StateData#statedata{fsms = NewFsms},
-	{next_state, StateName, NewStateData};
-handle_info({'EXIT', Pid, _Reason}, StateName,
-		#statedata{fsms = Fsms} = StateData) ->
-	Fdel = fun Fdel({Assoc, P, _Iter}) when P ==  Pid ->
-		       Assoc;
-		   Fdel({_Key, _Val, Iter}) ->
-		       Fdel(gb_trees:next(Iter));
-		   Fdel(none) ->
-		       none
-	end,
-	Iter = gb_trees:iterator(Fsms),
-	Key = Fdel(gb_trees:next(Iter)),
-	NewFsms = gb_trees:delete_any(Key, Fsms),
-	NewStateData = StateData#statedata{fsms = NewFsms},
-	{next_state, StateName, NewStateData}.
+	{stop, {shutdown, {self(), release}}, StateData};
+listening(EventType, EventContent, StateData) ->
+	handle_event(EventType, EventContent, listening, StateData).
 
 -spec terminate(Reason :: normal | shutdown | {shutdown, term()} | term(),
 		StateName :: atom(), StateData :: #statedata{}) ->
 	any().
 %% @doc Cleanup and exit.
-%% @see //stdlib/gen_fsm:terminate/3
+%% @see //stdlib/gen_statem:terminate/3
 %% @private
 %%
 terminate(_Reason, _StateName, #statedata{socket = Socket} = StateData) ->
@@ -264,7 +187,7 @@ terminate(_Reason, _StateName, #statedata{socket = Socket} = StateData) ->
 		StateData :: term(), Extra :: term()) ->
 	{ok, NextStateName :: atom(), NewStateData :: #statedata{}}.
 %% @doc Update internal state data during a release upgrade&#047;downgrade.
-%% @see //stdlib/gen_fsm:code_change/4
+%% @see //stdlib/gen_statem:code_change/4
 %% @private
 %%
 code_change(_OldVsn, StateName, StateData, _Extra) ->
@@ -273,6 +196,67 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%----------------------------------------------------------------------
 %%  internal functions
 %%----------------------------------------------------------------------
+
+-spec handle_event(EventType :: gen_statem:event_type(),
+		EventContent :: term(), StateName :: atom(),
+		StateData :: #statedata{}) ->
+	Result :: gen_statem:event_handler_result(atom()).
+%% @doc Handle events common to all states.
+%% @hidden
+handle_event({call, From}, getassoc, StateName,
+		#statedata{fsms = Fsms} = StateData) ->
+	Reply = gb_trees:keys(Fsms),
+	{next_state, StateName, StateData, {reply, From, Reply}};
+handle_event({call, From}, {getstat, undefined}, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	Reply = inet:getstat(Socket),
+	{next_state, StateName, StateData, {reply, From, Reply}};
+handle_event({call, From}, {getstat, Options}, StateName,
+		#statedata{socket = Socket} = StateData) ->
+	Reply = inet:getstat(Socket, Options),
+	{next_state, StateName, StateData, {reply, From, Reply}};
+handle_event({call, From}, getep, StateName,
+		#statedata{name = Name, role = Role, local_addr = Laddr,
+		local_port = Lport} = StateData) ->
+	Reply = {Name, server, Role, {Laddr, Lport}},
+	{next_state, StateName, StateData, {reply, From, Reply}};
+handle_event(info, {sctp, Socket, PeerAddr, PeerPort,
+		{_AncData, #sctp_assoc_change{state = comm_up} = AssocChange}},
+		listening, #statedata{fsm_sup = FsmSup, socket = Socket} = StateData) ->
+	accept(Socket, PeerAddr, PeerPort, AssocChange, FsmSup, StateData);
+handle_event(info, {sctp, Socket, _PeerAddr, _PeerPort,
+		{_AncData, #sctp_paddr_change{}}}, StateName, StateData) ->
+	inet:setopts(Socket, [{active, once}]),
+	{next_state, StateName, StateData};
+handle_event(info, {sctp_error, Socket, PeerAddr, PeerPort,
+		{_AncData, #sctp_remote_error{error = Error,
+		assoc_id = Assoc, data = Data}}}, StateName, StateData) ->
+	error_logger:warning_report(["SCTP Remote Error",
+			{error, gen_sctp:error_string(Error)},
+			{assoc, Assoc}, {data, Data}, {socket, Socket},
+			{peer, {PeerAddr, PeerPort}}]),
+	{next_state, StateName, StateData};
+handle_event(info, {'EXIT', _Pid, {shutdown, {{_EP, Assoc}, _Reason}}},
+		StateName, #statedata{fsms = Fsms} = StateData) ->
+	NewFsms = gb_trees:delete(Assoc, Fsms),
+	NewStateData = StateData#statedata{fsms = NewFsms},
+	{next_state, StateName, NewStateData};
+handle_event(info, {'EXIT', Pid, _Reason}, StateName,
+		#statedata{fsms = Fsms} = StateData) ->
+	Fdel = fun Fdel({Assoc, P, _Iter}) when P ==  Pid ->
+		       Assoc;
+		   Fdel({_Key, _Val, Iter}) ->
+		       Fdel(gb_trees:next(Iter));
+		   Fdel(none) ->
+		       none
+	end,
+	Iter = gb_trees:iterator(Fsms),
+	Key = Fdel(gb_trees:next(Iter)),
+	NewFsms = gb_trees:delete_any(Key, Fsms),
+	NewStateData = StateData#statedata{fsms = NewFsms},
+	{next_state, StateName, NewStateData};
+handle_event(cast, _EventContent, _StateName, StateData) ->
+	{stop, unimplemented, StateData}.
 
 %% @hidden
 get_sup(#statedata{role = asp, sup = Sup} = StateData) ->

@@ -86,6 +86,10 @@
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+%% Default timeout of the former gen_fsm:sync_send_event/2 and
+%% gen_fsm:sync_send_all_state_event/2, retained for gen_statem:call/3.
+-define(CallTimeout, 5000).
+
 -type stat_option() ::
 	'recv_cnt' | 'recv_max' | 'recv_avg' | 'recv_oct' | 'recv_dvi' |
 	'send_cnt' | 'send_max' | 'send_avg' | 'send_oct' | 'send_pend'.
@@ -168,7 +172,7 @@ as_delete(RoutingContext) ->
 		Count :: non_neg_integer().
 %% @doc Get all socket statistics for an endpoint.
 getstat(EndPoint) when is_pid(EndPoint) ->
-	gen_fsm:sync_send_all_state_event(EndPoint, {getstat, undefined}).
+	gen_statem:call(EndPoint, {getstat, undefined}, ?CallTimeout).
 
 -spec getstat(EndPoint, AssocOrOptions) -> Result
 	when
@@ -187,7 +191,7 @@ getstat(EndPoint) when is_pid(EndPoint) ->
 %%
 getstat(EndPoint, Options)
 		when is_pid(EndPoint), is_list(Options)  ->
-	gen_fsm:sync_send_all_state_event(EndPoint, {getstat, Options});
+	gen_statem:call(EndPoint, {getstat, Options}, ?CallTimeout);
 getstat(EndPoint, Assoc)
 		when is_pid(EndPoint), is_integer(Assoc) ->
 	m3ua_lm_server:getstat(EndPoint, Assoc).
@@ -384,7 +388,7 @@ transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
 		is_integer(OPC), is_integer(DPC), is_integer(NI),
 		is_integer(SI), is_integer(SLS), is_binary(Data) ->
 	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
-	gen_fsm:sync_send_event(Fsm, {'MTP-TRANSFER', request, Params}).
+	gen_statem:call(Fsm, {'MTP-TRANSFER', request, Params}, ?CallTimeout).
 
 -spec transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout) -> Result
 	when
@@ -411,7 +415,7 @@ transfer(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data, Timeout)
 		is_integer(SI), is_integer(SLS), is_binary(Data),
 		(is_integer(Timeout) or (Timeout == infinity))->
 	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
-	gen_fsm:sync_send_event(Fsm, {'MTP-TRANSFER', request, Params}, Timeout).
+	gen_statem:call(Fsm, {'MTP-TRANSFER', request, Params}, Timeout).
 
 -spec cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data) -> Ref
 	when
@@ -436,7 +440,7 @@ cast(Fsm, Stream, RC, OPC, DPC, NI, SI, SLS, Data)
 		is_integer(SI), is_integer(SLS), is_binary(Data) ->
 	Ref = make_ref(),
 	Params = {Stream, RC, OPC, DPC, NI, SI, SLS, Data},
-	gen_fsm:send_event(Fsm, {'MTP-TRANSFER', request, Ref, self(), Params}),
+	gen_statem:cast(Fsm, {'MTP-TRANSFER', request, Ref, self(), Params}),
 	Ref.
 
 -spec get_as() -> Result
@@ -494,7 +498,7 @@ get_ep([], Acc) ->
 %% @doc Get SCTP endpoint details.
 %%
 get_ep(EP) when is_pid(EP) ->
-	gen_fsm:sync_send_all_state_event(EP, getep).
+	gen_statem:call(EP, getep, ?CallTimeout).
 
 -spec get_assoc() -> Result
 	when
@@ -521,7 +525,7 @@ get_assoc([], Acc) ->
 %% @doc Get SCTP associations on local endpoint.
 %%
 get_assoc(EP) when is_pid(EP) ->
-	gen_fsm:sync_send_all_state_event(EP, getassoc).
+	gen_statem:call(EP, getassoc, ?CallTimeout).
 
 %%----------------------------------------------------------------------
 %%  The m3ua private API

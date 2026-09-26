@@ -49,6 +49,10 @@
 -include("m3ua.hrl").
 -include_lib("kernel/include/inet_sctp.hrl").
 
+%% Default timeout of the former gen_fsm:sync_send_all_state_event/2,
+%% retained for gen_statem:call/3.
+-define(CallTimeout, 5000).
+
 -type stat_option() ::
 	'recv_cnt' | 'recv_max' | 'recv_avg' | 'recv_oct' | 'recv_dvi' |
 	'send_cnt' | 'send_max' | 'send_avg' | 'send_oct' | 'send_pend'.
@@ -301,7 +305,7 @@ handle_call({start, Callback, Options}, {USAP, _Tag} = _From,
 handle_call({stop, EP}, From, #state{reqs = Reqs} = State) when is_pid(EP) ->
 	try
 		Ref = make_ref(),
-		gen_fsm:send_event(EP, {'M-SCTP_RELEASE', request, Ref, self()}),
+		gen_statem:cast(EP, {'M-SCTP_RELEASE', request, Ref, self()}),
 		NewReqs = gb_trees:insert(Ref, From, Reqs),
 		NewState = State#state{reqs = NewReqs},
 		{noreply, NewState}
@@ -315,7 +319,7 @@ handle_call({'M-SCTP_RELEASE', request, EndPoint, Assoc},
 		{value, Fsm} ->
 			try
 				Ref = make_ref(),
-				gen_fsm:send_all_state_event(Fsm, {'M-SCTP_RELEASE', request, Ref, self()}),
+				gen_statem:cast(Fsm, {'M-SCTP_RELEASE', request, Ref, self()}),
 				NewReqs = gb_trees:insert(Ref, From, Reqs),
 				NewState = State#state{reqs = NewReqs},
 				{noreply, NewState}
@@ -332,7 +336,7 @@ handle_call({'M-SCTP_STATUS', request, EndPoint, Assoc},
 		{value, Fsm} ->
 			try
 				Ref = make_ref(),
-				gen_fsm:send_all_state_event(Fsm, {'M-SCTP_STATUS', request, Ref, self()}),
+				gen_statem:cast(Fsm, {'M-SCTP_STATUS', request, Ref, self()}),
 				NewReqs = gb_trees:insert(Ref, From, Reqs),
 				NewState = State#state{reqs = NewReqs},
 				{noreply, NewState}
@@ -348,7 +352,7 @@ handle_call({'M-ASP_STATUS', request,  EndPoint, Assoc},
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
 			Ref = make_ref(),
-			gen_fsm:send_all_state_event(Fsm, {'M-ASP_STATUS', request, Ref, self()}),
+			gen_statem:cast(Fsm, {'M-ASP_STATUS', request, Ref, self()}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
@@ -385,7 +389,7 @@ handle_call({'M-RK_REG', request, EndPoint, Assoc,
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
 			Ref = make_ref(),
-			gen_fsm:send_event(Fsm, {'M-RK_REG', request,
+			gen_statem:cast(Fsm, {'M-RK_REG', request,
 					Ref, self(), RC, NA, Keys, Mode, AsName}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
@@ -400,7 +404,7 @@ handle_call({AspOp, request, EndPoint, Assoc}, From,
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, AspFsm} ->
 			Ref = make_ref(),
-			gen_fsm:send_event(AspFsm, {AspOp, request, Ref, self()}),
+			gen_statem:cast(AspFsm, {AspOp, request, Ref, self()}),
 			NewReqs = gb_trees:insert(Ref, From, Reqs),
 			NewState = State#state{reqs = NewReqs},
 			{noreply, NewState};
@@ -412,7 +416,7 @@ handle_call({getstat, EndPoint, Assoc, Options}, _From,
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
 			Event = {getstat, Options},
-			case catch gen_fsm:sync_send_all_state_event(Fsm, Event) of
+			case catch gen_statem:call(Fsm, Event, ?CallTimeout) of
 				{'EXIT', Reason} ->
 					{reply, {error, Reason}, State};
 				Reply ->
@@ -425,7 +429,7 @@ handle_call({getcount, EndPoint, Assoc}, _From,
 		#state{fsms = Fsms} = State) ->
 	case gb_trees:lookup({EndPoint, Assoc}, Fsms) of
 		{value, Fsm} ->
-			case catch gen_fsm:sync_send_all_state_event(Fsm, getcount) of
+			case catch gen_statem:call(Fsm, getcount, ?CallTimeout) of
 				{'EXIT', Reason} ->
 					{reply, {error, Reason}, State};
 				Reply ->

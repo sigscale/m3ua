@@ -71,10 +71,10 @@ supervisor(StartMod, Args) ->
 -spec fsm(StartMod :: atom(), Args :: [term()]) ->
 	supervisor:child_spec().
 %% @doc Build a supervisor child specification for a
-%% 	{@link //stdlib/gen_fsm. gen_fsm} behaviour.
+%% 	{@link //stdlib/gen_statem. gen_statem} behaviour.
 %% @private
 fsm(StartMod, Args) ->
 	StartArgs = [StartMod, Args, []],
-	StartFunc = {gen_fsm, start_link, StartArgs},
+	StartFunc = {gen_statem, start_link, StartArgs},
 	{StartMod, StartFunc, permanent, 4000, worker, [StartMod]}.
 

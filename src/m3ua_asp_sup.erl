@@ -38,7 +38,7 @@
 init([] = _Args) ->
 	StartMod = m3ua_asp_fsm,
 	StartArgs = [StartMod],
-	StartFunc = {gen_fsm, start_link, StartArgs},
+	StartFunc = {gen_statem, start_link, StartArgs},
 	ChildSpec = {StartMod, StartFunc, temporary, 4000, worker, [StartMod]},
 	{ok, {{simple_one_for_one, 1, 5}, [ChildSpec]}}.
 
