@@ -102,7 +102,7 @@ all() ->
 			getcount, asp_up, asp_down, register, asp_active,
 			asp_inactive_to_down, asp_active_to_down,
 			asp_active_to_inactive, get_sctp_status, get_ep,
-			mtp_transfer, mtp_cast,
+			mtp_transfer, mtp_transfer_sg, mtp_cast,
 			asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
 			sg_state_active, as_state_active, sg_state_down, as_state_down].
@@ -477,6 +477,54 @@ mtp_transfer(_Config) ->
 	ok = rpc:call(AsNode, m3ua, transfer, [Asp, Stream, RC, OPC, DPC, NI, SI, SLS, Data]),
 	receive
 		{RefTS, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
+			ok
+	end,
+	ok = rpc:call(AsNode, m3ua, stop, [ClientEP]),
+	ok = m3ua:stop(ServerEP),
+	ok = slave:stop(AsNode).
+
+mtp_transfer_sg() ->
+	[{userdata, [{doc, "Send MTP Transfer Message from the SG, naming no routing context, once the AS is active"}]}].
+
+mtp_transfer_sg(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	RefS = make_ref(),
+	{ok, ServerEP} = m3ua:start(remote_cb(RefS), Port, []),
+	{ok, AsNode} = slave_as(),
+	{ok, _} = rpc:call(AsNode, m3ua_app, install, [[AsNode]]),
+	ok = rpc:call(AsNode, application, start, [snmp]),
+	ok = rpc:call(AsNode, application, start, [inets]),
+	ok = rpc:call(AsNode, application, start, [m3ua]),
+	RefC = make_ref(),
+	CbC = remote_cb(RefC),
+	{ok, ClientEP} = rpc:call(AsNode, m3ua, start,
+			[CbC#m3ua_fsm_cb{recv = fun ?MODULE:cb_recv/11}, 0,
+			[{role, asp}, {connect, {127,0,0,1}, Port, []}]]),
+	Sgp = wait(RefS),
+	_Asp = wait(RefC),
+	[Assoc] = m3ua:get_assoc(ClientEP),
+	ok = rpc:call(AsNode, m3ua, asp_up, [ClientEP, Assoc]),
+	DPC = rand:uniform(16383),
+	Keys = [{DPC, [], []}],
+	{ok, RC} = rpc:call(AsNode, m3ua, register,
+			[ClientEP, Assoc, undefined, undefined, Keys, loadshare]),
+	ok = rpc:call(AsNode, m3ua, asp_active, [ClientEP, Assoc]),
+	%% The AS went active on the ASPAC, and the SG says so; once the ASP
+	%% has been told, the SG has recorded the change. It still finds the
+	%% routing context from the routing key registered for it.
+	receive
+		{RefC, _, as_active} ->
+			ok
+	end,
+	Stream = 1,
+	OPC = rand:uniform(16383),
+	NI = rand:uniform(4),
+	SI = rand:uniform(10),
+	SLS = rand:uniform(255),
+	Data = crypto:strong_rand_bytes(100),
+	ok = m3ua:transfer(Sgp, Stream, undefined, OPC, DPC, NI, SI, SLS, Data),
+	receive
+		{RefC, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]} ->
 			ok
 	end,
 	ok = rpc:call(AsNode, m3ua, stop, [ClientEP]),
@@ -958,6 +1006,10 @@ remote_cb(Ref) ->
 cb_init(_Module, _Asp, _EP, _EpName, _Assoc, _Options, Ref, Pid) ->
 	Pid ! {Ref, self()},
 	{ok, once, []}.
+
+cb_recv(Stream, RC, OPC, DPC, NI, SI, SLS, Data, State, Ref, Pid) ->
+	Pid ! {Ref, [Stream, RC, DPC, OPC, NI, SI, SLS, Data]},
+	{ok, once, State}.
 
 cb_notify(RCs, Status, _AspID, State, Ref, Pid) ->
 	Pid ! {Ref, RCs, Status},
