@@ -105,7 +105,8 @@ all() ->
 			mtp_transfer, mtp_cast,
 			asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
-			sg_state_active, as_state_active, sg_state_down, as_state_down].
+			sg_state_active, as_state_active, sg_state_down, as_state_down,
+			asp_inactive_again].
 
 %%---------------------------------------------------------------------
 %%  Test cases
@@ -925,6 +926,32 @@ as_state_down(_Config) ->
 	ok = m3ua:stop(ServerEP),
 	ok = slave:stop(AsNode).
 
+asp_inactive_again() ->
+	[{userdata, [{doc, "ASP Inactive at an ASP already inactive is acknowledged (RFC4666 4.3.4.4)"}]}].
+
+asp_inactive_again(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	RefS = make_ref(),
+	{ok, ServerEP} = m3ua:start(callback(RefS), Port, []),
+	{ok, Peer} = gen_sctp:open([{active, false}]),
+	{ok, #sctp_assoc_change{state = comm_up, assoc_id = PeerAssoc}} =
+			gen_sctp:connect(Peer, {127,0,0,1}, Port, []),
+	wait(RefS),
+	[Assoc] = server_assoc(ServerEP, 40),
+	AspUp = #m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUP},
+	ok = peer_send(Peer, PeerAssoc, AspUp),
+	#m3ua{class = ?ASPSMMessage, type = ?ASPSMASPUPACK} = peer_recv(Peer),
+	%% Inactive now; ASP Inactive all the same, as an ASP that was
+	%% displaced sends it.
+	AspIa = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
+	ok = peer_send(Peer, PeerAssoc, AspIa),
+	#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK} = peer_recv(Peer),
+	[Assoc] = m3ua:get_assoc(ServerEP),
+	{ok, #{inactive_in := 1, inactive_ack_out := 1}} =
+			m3ua:getcount(ServerEP, Assoc),
+	ok = gen_sctp:close(Peer),
+	ok = m3ua:stop(ServerEP).
+
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
@@ -1007,3 +1034,35 @@ slave_as() ->
 	Node = "as" ++ integer_to_list(erlang:unique_integer([positive])),
 	slave:start_link(Host, Node, ErlFlags).
 
+%% A plain SCTP peer standing in for an ASP.
+peer_send(Peer, PeerAssoc, #m3ua{} = M3UA) ->
+	gen_sctp:send(Peer, PeerAssoc, 0, m3ua_codec:m3ua(M3UA)).
+
+%% The next M3UA message the peer receives, passing over SCTP events
+%% and any Notify.
+peer_recv(Peer) ->
+	case gen_sctp:recv(Peer, 4000) of
+		{ok, {_, _, [#sctp_sndrcvinfo{}], Data}} when is_binary(Data) ->
+			case m3ua_codec:m3ua(Data) of
+				#m3ua{class = ?MGMTMessage, type = ?MGMTNotify} ->
+					peer_recv(Peer);
+				M3UA ->
+					M3UA
+			end;
+		{ok, {_, _, _, _Event}} ->
+			peer_recv(Peer);
+		{error, Reason} ->
+			{error, Reason}
+	end.
+
+%% The associations of an endpoint, once layer management has one.
+server_assoc(EP, 0) ->
+	m3ua:get_assoc(EP);
+server_assoc(EP, N) ->
+	case m3ua:get_assoc(EP) of
+		[] ->
+			ct:sleep(50),
+			server_assoc(EP, N - 1);
+		Assocs ->
+			Assocs
+	end.

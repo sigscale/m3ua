@@ -1011,6 +1011,29 @@ handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA, params = Params},
 		{error, Reason} ->
 			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
 	end;
+%% RFC4666, Section-4.3.4.4: "An ASP Inactive message MUST always be
+%% responded to by the peer", the ASP already inactive included -- as
+%% one displaced in an override AS is (4.3.4.3), whose ASP Inactive may
+%% cross the Notify that told it so.
+handle_sgp(#m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIA},
+		inactive, _Stream, #statedata{socket = Socket, active = Active,
+		assoc = Assoc, ep = EP, count = Count} = StateData) ->
+	AspInActiveAck = #m3ua{class = ?ASPTMMessage, type = ?ASPTMASPIAACK},
+	Packet = m3ua_codec:m3ua(AspInActiveAck),
+	case gen_sctp:send(Socket, Assoc, 0, Packet) of
+		ok ->
+			inet:setopts(Socket, [{active, Active}]),
+			InactiveIn = maps:get(inactive_in, Count, 0),
+			InactiveAckOut = maps:get(inactive_ack_out, Count, 0),
+			NewCount = maps:put(inactive_in, InactiveIn + 1, Count),
+			NextCount = maps:put(inactive_ack_out, InactiveAckOut + 1, NewCount),
+			{next_state, inactive, StateData#statedata{count = NextCount}};
+		{error, eagain} ->
+			% @todo flow control
+			{stop, {shutdown, {{EP, Assoc}, eagain}}, StateData};
+		{error, Reason} ->
+			{stop, {shutdown, {{EP, Assoc}, Reason}}, StateData}
+	end;
 handle_sgp(#m3ua{class = ?TransferMessage,
 		type = ?TransferMessageData, params = Params},
 		_ActiveState, Stream, #statedata{socket = Socket,
