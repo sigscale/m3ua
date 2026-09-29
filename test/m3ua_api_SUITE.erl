@@ -101,7 +101,7 @@ all() ->
 	[start, stop, listen, connect, release, getstat_ep, getstat_assoc,
 			getcount, asp_up, asp_down, register, asp_active,
 			asp_inactive_to_down, asp_active_to_down,
-			asp_active_to_inactive, get_sctp_status, get_ep,
+			asp_active_to_inactive, get_sctp_status, get_ep, connect_retry,
 			mtp_transfer, mtp_cast,
 			asp_up_indication, asp_active_indication,
 			asp_inactive_indication, asp_down_indication,
@@ -434,6 +434,24 @@ get_ep(_Config) ->
 	{_, server, sgp, {{0,0,0,0}, Port}} = m3ua:get_ep(ServerEP),
 	{Port, client, asp, {{0,0,0,0}, _},
 			{{127,0,0,1}, Port}} = m3ua:get_ep(ClientEP),
+	ok = m3ua:stop(ClientEP),
+	ok = m3ua:stop(ServerEP).
+
+connect_retry() ->
+	[{userdata, [{doc, "Connect again after a refused INIT, however often asked about meanwhile"}]}].
+
+connect_retry(_Config) ->
+	Port = rand:uniform(64511) + 1024,
+	RefC = make_ref(),
+	{ok, ClientEP} = m3ua:start(callback(RefC), 0,
+			[{role, asp}, {connect, {127,0,0,1}, Port, []}]),
+	%% Nothing listens yet: the INIT is refused, and the endpoint waits
+	%% to try again. Asked about itself meanwhile, as by a watchdog.
+	timeout = asked(ClientEP, RefC, 4),
+	RefS = make_ref(),
+	{ok, ServerEP} = m3ua:start(callback(RefS), Port, []),
+	ok = asked(ClientEP, RefC, 40),
+	[_] = m3ua:get_assoc(ClientEP),
 	ok = m3ua:stop(ClientEP),
 	ok = m3ua:stop(ServerEP).
 
@@ -928,6 +946,19 @@ as_state_down(_Config) ->
 %%---------------------------------------------------------------------
 %%  Internal functions
 %%---------------------------------------------------------------------
+
+asked(_EP, _Ref, 0) ->
+	timeout;
+asked(EP, Ref, N) ->
+	receive
+		Ref ->
+			ok
+	after
+		500 ->
+			{_, client, asp, _, _} = m3ua:get_ep(EP),
+			_ = m3ua:get_assoc(EP),
+			asked(EP, Ref, N - 1)
+	end.
 
 callback(Ref) ->
 	Finit = fun(_Module, _Asp, _EP, _EpName, _Assoc, _Options, Pid) ->
