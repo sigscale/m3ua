@@ -121,7 +121,9 @@ init([Sup, Callback, Opts] = _Args) ->
 					options = Options, cb_options = CbOpts, callback = Callback,
 					remote_addr = Raddr, remote_port = Rport,
 					remote_opts = Ropts},
-			retry(0),
+			%% Sent now, it is first in the mailbox: nothing can ask
+			%% the endpoint anything before it has tried to connect.
+			gen_fsm:send_event(self(), timeout),
 			{ok, connecting, StateData};
 		false ->
 			{stop, badarg}
