@@ -121,7 +121,10 @@ init([Sup, Callback, Opts] = _Args) ->
 					options = Options, cb_options = CbOpts, callback = Callback,
 					remote_addr = Raddr, remote_port = Rport,
 					remote_opts = Ropts},
-			{ok, connecting, StateData, 0};
+			%% Sent now, it is first in the mailbox: nothing can ask
+			%% the endpoint anything before it has tried to connect.
+			gen_fsm:send_event(self(), timeout),
+			{ok, connecting, StateData};
 		false ->
 			{stop, badarg}
 	end.
@@ -160,7 +163,8 @@ connecting(timeout, #statedata{options = LocalOptions,
 							NewStateData = StateData#statedata{socket = undefined,
 									local_addr = undefined,
 									local_port = undefined},
-							{next_state, connecting, NewStateData, ?ERROR_WAIT}
+							retry(?ERROR_WAIT),
+							{next_state, connecting, NewStateData}
 					end;
 				{error, ReasonPort} ->
 					error_logger:error_report(["Failed to get port number",
@@ -223,25 +227,25 @@ handle_event(_Event, _StateName, StateData) ->
 %%
 handle_sync_event(getassoc, _From, connecting,
 		#statedata{assoc = undefined} = StateData) ->
-	{reply, [], connecting, StateData, ?RETRY_WAIT};
+	{reply, [], connecting, StateData};
 handle_sync_event(getassoc, _From, connected,
 		#statedata{assoc = undefined} = StateData) ->
 	{reply, [], connected, StateData};
 handle_sync_event(getassoc, _From, connecting,
 		#statedata{assoc = Assoc} = StateData) ->
-	{reply, [Assoc], connecting, StateData, ?RETRY_WAIT};
+	{reply, [Assoc], connecting, StateData};
 handle_sync_event(getassoc, _From, connected,
 		#statedata{assoc = Assoc} = StateData) ->
 	{reply, [Assoc], connected, StateData};
 handle_sync_event({getstat, undefined}, _From, connecting,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket), connecting, StateData, ?RETRY_WAIT};
+	{reply, inet:getstat(Socket), connecting, StateData};
 handle_sync_event({getstat, undefined}, _From, connected,
 		#statedata{socket = Socket} = StateData) ->
 	{reply, inet:getstat(Socket), connected, StateData};
 handle_sync_event({getstat, Options}, _From, connecting,
 		#statedata{socket = Socket} = StateData) ->
-	{reply, inet:getstat(Socket, Options), connecting, StateData, ?RETRY_WAIT};
+	{reply, inet:getstat(Socket, Options), connecting, StateData};
 handle_sync_event({getstat, Options}, _From, connected,
 		#statedata{socket = Socket} = StateData) ->
 	{reply, inet:getstat(Socket, Options), connected, StateData};
@@ -273,7 +277,8 @@ handle_info({sctp, Socket, _PeerAddr, _PeerPort,
 		#statedata{socket = Socket} = StateData) ->
 	gen_sctp:close(Socket),
 	NewStateData = StateData#statedata{socket = undefined},
-	{next_state, connecting, NewStateData, ?RETRY_WAIT};
+	retry(?RETRY_WAIT),
+	{next_state, connecting, NewStateData};
 handle_info({'EXIT', Fsm, {shutdown, {{EP, _Assoc}, Reason}}},
 		_StateName, #statedata{socket = Socket, fsm = Fsm} = StateData) ->
 	gen_sctp:close(Socket),
@@ -328,6 +333,15 @@ get_sup(#statedata{role = sgp, sup = Sup} = StateData) ->
 	Children = supervisor:which_children(Sup),
 	{_, SgpSup, _, _} = lists:keyfind(m3ua_sgp_sup, 1, Children),
 	StateData#statedata{fsm_sup = SgpSup}.
+
+%% @hidden
+%% 	Connect (again) after Time. The wait is an event of its own, not
+%% 	the timeout of gen_fsm, which any event cancels: a call to
+%% 	getassoc or getstat restarted that one, and getep cancelled it,
+%% 	so an endpoint asked about itself while it waited never connected
+%% 	again.
+retry(Time) ->
+	gen_fsm:send_event_after(Time, timeout).
 
 %% @hidden
 handle_connect(AssocChange, #statedata{socket = Socket,
